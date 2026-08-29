@@ -255,7 +255,8 @@ function step(dt){
     S.z += S.speed * dt;
     S.dist = S.z;
 
-    steer = (held.right ? 1 : 0) - (held.left ? 1 : 0);
+    // the camera sights along +z, so world +x lands on the LEFT of the screen
+    steer = (held.left ? 1 : 0) - (held.right ? 1 : 0);
     if (steer) S.vx += steer * ACC * dt;
     else S.vx *= Math.pow(0.06, dt);                        // coast, don't snap
     S.vx = Math.max(-MAXVX, Math.min(MAXVX, S.vx));
