@@ -1,0 +1,364 @@
+<title>Terminal Velocity</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+  :root{
+    --void:#04060b; --panel:#0a0e17; --road:#10141d;
+    --neon:#38e8c8; --neon-dim:#1d7d6d;
+    --hazard:#ff3b5c; --ice:#f2f5ff; --muted:#6b7789;
+    --display:"Chakra Petch","Helvetica Neue",Arial,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--void);color:var(--ice);margin:0;overflow:hidden;
+       font-family:var(--display);-webkit-user-select:none;user-select:none;touch-action:none}
+  #app{position:fixed;inset:0}
+  canvas{display:block;width:100%;height:100%}
+
+  /* HUD */
+  .hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;
+       align-items:flex-start;padding:18px 22px;pointer-events:none;gap:16px}
+  .read{display:flex;flex-direction:column;gap:2px}
+  .read .k{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+  .read .v{font-family:var(--mono);font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;
+           line-height:1;text-shadow:0 0 18px rgba(56,232,200,.35)}
+  .read.right{align-items:flex-end}
+  .read.right .v{font-size:18px;color:var(--neon)}
+  .speed{position:absolute;left:22px;bottom:20px;pointer-events:none;display:flex;align-items:flex-end;gap:9px}
+  .bars{display:flex;align-items:flex-end;gap:3px;height:26px}
+  .bar{width:4px;background:var(--neon-dim);border-radius:1px}
+  .bar.lit{background:var(--neon);box-shadow:0 0 8px rgba(56,232,200,.8)}
+  .speed .k{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);padding-bottom:2px}
+
+  /* overlays */
+  .veil{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+        gap:16px;text-align:center;padding:28px;background:radial-gradient(ellipse at center,rgba(4,6,11,.72),rgba(4,6,11,.95))}
+  .veil[hidden]{display:none}
+  .veil h1{font-size:clamp(38px,9vw,76px);font-weight:700;margin:0;letter-spacing:.02em;line-height:.95;
+           text-transform:uppercase;text-wrap:balance}
+  .veil h1 span{color:var(--neon);text-shadow:0 0 30px rgba(56,232,200,.45)}
+  .veil h2{font-size:clamp(26px,6vw,46px);font-weight:700;margin:0;letter-spacing:.04em;text-transform:uppercase}
+  .veil h2.bad{color:var(--hazard);text-shadow:0 0 28px rgba(255,59,92,.4)}
+  .veil p{margin:0;max-width:40ch;color:var(--muted);font-family:var(--mono);font-size:13px;line-height:1.7}
+  .final{display:flex;gap:34px;margin:2px 0}
+  .final div{display:flex;flex-direction:column;gap:5px}
+  .final .k{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+  .final .v{font-family:var(--mono);font-size:34px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+  .final .v.rec{color:var(--neon)}
+  .ctl{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+  .ctl kbd{font-family:var(--mono);font-size:11px;letter-spacing:.08em;padding:6px 12px;border-radius:4px;
+           border:1px solid rgba(56,232,200,.28);color:var(--neon);background:rgba(56,232,200,.06)}
+  button{font-family:var(--display);font-size:14px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+         cursor:pointer;color:var(--void);background:var(--neon);border:0;border-radius:5px;padding:14px 34px;
+         box-shadow:0 0 30px rgba(56,232,200,.3)}
+  button:hover{background:#5ff4d8}
+  button:focus-visible{outline:2px solid var(--ice);outline-offset:3px}
+  .hint{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.05em}
+  .fail{position:absolute;inset:0;background:var(--hazard);opacity:0;pointer-events:none}
+</style>
+
+<div id="app">
+  <canvas id="cv"></canvas>
+
+  <div class="hud">
+    <div class="read"><span class="k">Distance</span><span class="v" id="hDist">0</span></div>
+    <div class="read right"><span class="k">Best</span><span class="v" id="hBest">0</span></div>
+  </div>
+  <div class="speed">
+    <span class="k">Vel</span>
+    <div class="bars" id="hBars"></div>
+  </div>
+  <div class="fail" id="fail"></div>
+
+  <div class="veil" id="vTitle">
+    <h1>Terminal<br><span>Velocity</span></h1>
+    <p>Steer the ball down an endless slope. Miss the red blocks, miss the gaps, stay on the road. It only gets faster.</p>
+    <div class="ctl"><kbd>&larr; &rarr;</kbd><kbd>A / D</kbd><kbd>hold either side to steer</kbd></div>
+    <button id="bStart">Drop in</button>
+  </div>
+
+  <div class="veil" id="vDead" hidden>
+    <h2 class="bad" id="deadTitle">Wiped out</h2>
+    <div class="final">
+      <div><span class="k">Distance</span><span class="v" id="dDist">0</span></div>
+      <div><span class="k">Best</span><span class="v" id="dBest">0</span></div>
+    </div>
+    <button id="bAgain">Drop again</button>
+    <span class="hint">or press Space</span>
+  </div>
+
+  <div class="veil" id="vErr" hidden>
+    <h2>Renderer unavailable</h2>
+    <p>The 3D library could not load, so the slope can't be drawn. Reload the page to try again.</p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+if (typeof THREE === 'undefined'){ $('vTitle').hidden = true; $('vErr').hidden = false; return; }
+
+/* ------------------------------------------------------------------ *
+ * Track model. Everything about a segment is a pure function of its
+ * index, so pooled meshes can be recycled without storing any state.
+ * ------------------------------------------------------------------ */
+const SEG = 4;            // depth of one segment
+const POOL = 72;          // segments alive at once -> 288 units of road
+const SLOPE = 0.30;       // metres of drop per metre forward
+const R = 0.62;           // ball radius
+
+const hash = n => { const s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s); };
+
+function segInfo(i){
+  const d = i * SEG;
+  const ramp = Math.min(1, d / 420);                       // ease the snaking in
+  const cx = (Math.sin(i*0.031)*7 + Math.sin(i*0.0111)*10 + Math.sin(i*0.0051)*6) * ramp;
+  const hw = Math.max(3.1, 8.2 - d * 0.00032);             // road narrows with distance
+  let hole = null, obs = null;
+  const g = Math.floor(i / 3);
+  const holeChance = Math.min(.34, Math.max(0, (d - 320) * 0.00013));
+  if (hash(g * 7.7) < holeChance){
+    hole = { hx: (hash(g*3.3)*2 - 1) * hw * 0.52, hhw: 1.5 + hash(g*5.1) * 1.5 };
+  } else {
+    const obsChance = Math.min(.24, 0.03 + d * 0.00007);
+    if (hash(i * 2.3) < obsChance) obs = { ox: (hash(i*9.7)*2 - 1) * (hw - 1.5) };
+  }
+  return { d, cx, hw, hole, obs, y: -d * SLOPE };
+}
+
+/* ------------------------------------------------------------------ *
+ * Scene
+ * ------------------------------------------------------------------ */
+const cv = $('cv');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x04060b);
+scene.fog = new THREE.Fog(0x04060b, 55, 205);
+
+const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 420);
+scene.add(new THREE.AmbientLight(0x5c6b85, 0.85));
+const key = new THREE.DirectionalLight(0xdff3ff, 0.75);
+key.position.set(-8, 22, -6); scene.add(key);
+const glow = new THREE.PointLight(0x38e8c8, 1.15, 46);
+scene.add(glow);
+
+const M = {
+  roadA: new THREE.MeshLambertMaterial({ color: 0x10141d }),
+  roadB: new THREE.MeshLambertMaterial({ color: 0x151a26 }),
+  rail:  new THREE.MeshBasicMaterial({ color: 0x38e8c8 }),
+  block: new THREE.MeshLambertMaterial({ color: 0xff3b5c, emissive: 0x5c0d1c }),
+  ball:  new THREE.MeshLambertMaterial({ color: 0xf2f5ff, emissive: 0x1b2436 }),
+};
+const TILT = Math.atan(SLOPE);            // pitch of the fall line
+const SEGZ = SEG / Math.cos(TILT);        // longer, so tilted segments still meet
+const ROAD_H = 0.7, RAIL_H = 0.34;
+const G = {
+  road:  new THREE.BoxGeometry(1, ROAD_H, SEGZ),
+  rail:  new THREE.BoxGeometry(0.26, RAIL_H, SEGZ),
+  block: new THREE.BoxGeometry(1.7, 1.35, 1.7),
+  ball:  new THREE.SphereGeometry(R, 22, 16),
+};
+
+// One pooled slot per live segment: two road pieces (so a gap can be cut
+// out of the middle), two rails, one hazard block.
+const slots = [];
+for (let s = 0; s < POOL; s++){
+  const slot = {
+    a: new THREE.Mesh(G.road, M.roadA),
+    b: new THREE.Mesh(G.road, M.roadA),
+    l: new THREE.Mesh(G.rail, M.rail),
+    r: new THREE.Mesh(G.rail, M.rail),
+    o: new THREE.Mesh(G.block, M.block),
+  };
+  for (const k in slot){ slot[k].rotation.x = TILT; scene.add(slot[k]); }
+  slots.push(slot);
+}
+const ball = new THREE.Mesh(G.ball, M.ball);
+scene.add(ball);
+
+/* ------------------------------------------------------------------ *
+ * State
+ * ------------------------------------------------------------------ */
+const KEY = 'terminalvelocity.best';
+let best = 0;
+try { best = parseInt(localStorage.getItem(KEY), 10) || 0; } catch(e){}
+
+let S, steer = 0, last = 0;
+const held = { left:false, right:false };
+
+function reset(){
+  S = { mode:'title', z:0, x:0, vx:0, speed:0, fallVy:0, falling:false, deadAt:0, dist:0 };
+  ball.position.set(0, R, 0);
+  ball.rotation.set(0, 0, 0);
+}
+
+/* ------------------------------------------------------------------ *
+ * Input
+ * ------------------------------------------------------------------ */
+function launch(){
+  if (S.mode === 'run') return;
+  reset(); S.mode = 'run';
+  $('vTitle').hidden = true; $('vDead').hidden = true;
+}
+addEventListener('keydown', e => {
+  if (e.code === 'ArrowLeft'  || e.code === 'KeyA'){ held.left = true;  e.preventDefault(); }
+  if (e.code === 'ArrowRight' || e.code === 'KeyD'){ held.right = true; e.preventDefault(); }
+  if (e.code === 'Space' || e.code === 'Enter'){ e.preventDefault(); if (S.mode !== 'run') launch(); }
+});
+addEventListener('keyup', e => {
+  if (e.code === 'ArrowLeft'  || e.code === 'KeyA') held.left = false;
+  if (e.code === 'ArrowRight' || e.code === 'KeyD') held.right = false;
+});
+// touch / mouse: hold a side of the screen to steer that way
+function pointerSteer(e){
+  if (S.mode !== 'run') return;
+  const left = e.clientX < innerWidth / 2;
+  held.left = left; held.right = !left;
+}
+cv.addEventListener('pointerdown', e => { e.preventDefault(); pointerSteer(e); });
+cv.addEventListener('pointermove', e => { if (e.buttons) pointerSteer(e); });
+addEventListener('pointerup', () => { held.left = held.right = false; });
+addEventListener('blur', () => { held.left = held.right = false; });
+
+/* ------------------------------------------------------------------ *
+ * Simulation
+ * ------------------------------------------------------------------ */
+const MAXVX = 17, ACC = 46;
+
+function crash(reason){
+  if (S.mode !== 'run') return;
+  S.mode = 'over'; S.deadAt = performance.now();
+  S.falling = reason !== 'block';
+  S.fallVy = reason === 'block' ? 5 : 0;
+  const d = Math.floor(S.dist);
+  const record = d > best;
+  if (record){ best = d; try { localStorage.setItem(KEY, String(best)); } catch(e){} }
+  $('deadTitle').textContent = reason === 'block' ? 'Hit a block'
+                              : reason === 'hole' ? 'Down a gap' : 'Off the edge';
+  $('dDist').textContent = d;
+  $('dBest').textContent = best;
+  $('dBest').className = 'v' + (record ? ' rec' : '');
+  const f = $('fail');
+  f.style.transition = 'none'; f.style.opacity = '.34';
+  requestAnimationFrame(() => { f.style.transition = 'opacity .5s'; f.style.opacity = '0'; });
+  setTimeout(() => { if (S.mode === 'over') $('vDead').hidden = false; }, 900);
+}
+
+function step(dt){
+  if (S.mode === 'run'){
+    S.speed = 23 + Math.min(1, S.dist / 2600) * 34;        // ramps, then holds
+    S.z += S.speed * dt;
+    S.dist = S.z;
+
+    steer = (held.right ? 1 : 0) - (held.left ? 1 : 0);
+    if (steer) S.vx += steer * ACC * dt;
+    else S.vx *= Math.pow(0.06, dt);                        // coast, don't snap
+    S.vx = Math.max(-MAXVX, Math.min(MAXVX, S.vx));
+    S.x += S.vx * dt;
+
+    const i = Math.floor(S.z / SEG), info = segInfo(i);
+    const rel = S.x - info.cx;
+    if (Math.abs(rel) > info.hw) crash('edge');
+    else if (info.hole && Math.abs(rel - info.hole.hx) < info.hole.hhw - R*0.5) crash('hole');
+    else if (info.obs && Math.abs(rel - info.obs.ox) < 1.32
+             && Math.abs(S.z - (info.d + SEG/2)) < 1.32) crash('block');
+
+    ball.position.set(S.x, -S.z * SLOPE + R, S.z);
+  } else if (S.mode === 'over'){
+    // keep the camera moving so the wipeout reads, then let the ball drop
+    S.z += S.speed * dt * 0.35;
+    S.x += S.vx * dt * 0.35;
+    S.fallVy += 26 * dt;
+    ball.position.set(S.x, ball.position.y - S.fallVy * dt, S.z);
+    ball.rotation.z += dt * 4;
+  }
+
+  // rolling
+  ball.rotation.x -= S.speed * dt / R * 0.35;
+
+  // --- rebuild the visible strip of road ---
+  const first = Math.max(0, Math.floor(S.z / SEG) - 4);
+  for (let s = 0; s < POOL; s++){
+    const i = first + s, info = segInfo(i), slot = slots[s];
+    const z = info.d + SEG / 2;
+    const surf = -z * SLOPE;              // road top at this segment's centre
+    const y = surf - ROAD_H / 2;
+    const tint = (i % 6 === 0) ? M.roadB : M.roadA;
+    slot.a.material = slot.b.material = tint;
+
+    if (info.hole){
+      const hL = info.cx + info.hole.hx - info.hole.hhw;   // road left of the gap
+      const hR = info.cx + info.hole.hx + info.hole.hhw;
+      const lEdge = info.cx - info.hw, rEdge = info.cx + info.hw;
+      const wA = Math.max(0.001, hL - lEdge), wB = Math.max(0.001, rEdge - hR);
+      slot.a.visible = wA > 0.05; slot.a.scale.x = wA;
+      slot.a.position.set(lEdge + wA/2, y, z);
+      slot.b.visible = wB > 0.05; slot.b.scale.x = wB;
+      slot.b.position.set(hR + wB/2, y, z);
+    } else {
+      slot.a.visible = true; slot.a.scale.x = info.hw * 2;
+      slot.a.position.set(info.cx, y, z);
+      slot.b.visible = false;
+    }
+    slot.l.position.set(info.cx - info.hw, surf + RAIL_H / 2, z);
+    slot.r.position.set(info.cx + info.hw, surf + RAIL_H / 2, z);
+
+    if (info.obs){
+      slot.o.visible = true;
+      slot.o.position.set(info.cx + info.obs.ox, surf + 0.675, z);
+      slot.o.rotation.y = hash(i * 4.4) * 0.5;
+    } else slot.o.visible = false;
+  }
+
+  // --- camera: behind and above, sighted down the fall line ---
+  // heights are taken from the road at each point's own z, not the ball's,
+  // or the camera ends up buried in the slope behind it
+  const camZ = S.z - 10, tgtZ = S.z + 20;
+  camera.position.set(S.x * 0.55, -camZ * SLOPE + 5.0, camZ);
+  camera.lookAt(S.x * 0.30, -tgtZ * SLOPE + 2.3, tgtZ);
+  glow.position.set(S.x, -(S.z + 2) * SLOPE + 3.2, S.z + 2);
+
+  // --- hud ---
+  $('hDist').textContent = Math.floor(S.dist);
+  $('hBest').textContent = best;
+  const lit = Math.round(((S.speed - 23) / 34) * 9);
+  for (let i = 0; i < bars.length; i++) bars[i].className = 'bar' + (i < lit ? ' lit' : '');
+}
+
+// velocity bars
+const bars = [];
+for (let i = 0; i < 9; i++){
+  const b = document.createElement('div');
+  b.className = 'bar'; b.style.height = (8 + i * 2.2) + 'px';
+  $('hBars').appendChild(b); bars.push(b);
+}
+
+/* ------------------------------------------------------------------ *
+ * Boot
+ * ------------------------------------------------------------------ */
+function resize(){
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+
+$('bStart').addEventListener('click', launch);
+$('bAgain').addEventListener('click', launch);
+
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.04, (now - last) / 1000 || 0); last = now;
+  step(dt);
+  renderer.render(scene, camera);
+}
+reset(); resize();
+$('hBest').textContent = best;
+requestAnimationFrame(t => { last = t; frame(t); });
+})();
+</script>
