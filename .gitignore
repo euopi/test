@@ -4,3 +4,5 @@ __pycache__/
 .venv/
 venv/
 seen.json
+articles.json
+digest.md
