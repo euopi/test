@@ -63,11 +63,16 @@ SOURCES = [
     dict(name="Afrique XXI", kind="rss", lang="fr", cap=3, hours=96,
          full_text=True, url="https://afriquexxi.info/?page=backend&lang=fr"),
 
-    # Orient XXI and Diario Red 403 this server's IP on every path, so we take
-    # headlines via Google News and cannot reach the bodies.
-    dict(name="Orient XXI", kind="rss", lang="fr", cap=3, hours=168, full_text=False,
+    # Orient XXI and Diario Red 403 this server's whole IP range at the CDN.
+    # Everything was tried: three public proxies, the Internet Archive (stale
+    # snapshots, and its save-on-demand times out), full browser headers, and
+    # decoding the Google News links (opaque tokens). Only a fetch from a
+    # non-blocked IP would work. So: headlines via Google News, and a higher
+    # cap than the others, since a list of what they published is the most
+    # that is available and is still worth having.
+    dict(name="Orient XXI", kind="rss", lang="fr", cap=8, hours=168, full_text=False,
          url="https://news.google.com/rss/search?q=site:orientxxi.info+when:7d&hl=fr&gl=FR&ceid=FR:fr"),
-    dict(name="Diario Red", kind="rss", lang="es", cap=3, hours=48, full_text=False,
+    dict(name="Diario Red", kind="rss", lang="es", cap=8, hours=48, full_text=False,
          url="https://news.google.com/rss/search?q=site:diario-red.com+when:2d&hl=es&gl=ES&ceid=ES:es"),
 
     # --- AI lab announcements ----------------------------------------------
