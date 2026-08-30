@@ -87,6 +87,19 @@ SOURCES = [
     dict(name="Middle East Eye", kind="rss", url="https://www.middleeasteye.net/rss/news",
          lang="en", cap=4, hours=24, full_text=True),
 
+    # --- French left --------------------------------------------------------
+    # Independent left weekly. One feed only - no per-section feeds - but it
+    # carries everything: politics, society, ecology, world, culture. Covers
+    # LFI and the wider left closely without being aligned to either.
+    dict(name="Politis", kind="rss", url="https://www.politis.fr/flux-rss/",
+         lang="fr", cap=5, hours=48, full_text=True),
+
+    # PARTY-ALIGNED, not journalism: this is LFI's own outlet stating LFI's
+    # position. Kept deliberately for that, and the digest is told to label it
+    # so its claims are never presented as independent reporting.
+    dict(name="L'Insoumission (LFI-aligned)", kind="rss", lang="fr", cap=3,
+         hours=48, full_text=True, url="https://linsoumission.fr/feed/"),
+
     # --- Algeria ------------------------------------------------------------
     # TSA for breaking news, Le Matin d'Algerie for the critical/analytical
     # take - between them the news and the argument about it.
