@@ -75,6 +75,20 @@ SOURCES = [
     dict(name="Diario Red", kind="rss", lang="es", cap=8, hours=48, full_text=False,
          url="https://news.google.com/rss/search?q=site:diario-red.com+when:2d&hl=es&gl=ES&ceid=ES:es"),
 
+    # Free to read (non-profit funded), bodies come through at 7-12k chars.
+    # Added as MENA coverage after Orient XXI proved unreachable. Note the feed
+    # path: /rss.xml is a stale archive with items from 2018, /rss/news is live.
+    dict(name="Middle East Eye", kind="rss", url="https://www.middleeasteye.net/rss/news",
+         lang="en", cap=4, hours=24, full_text=True),
+
+    # --- Algeria ------------------------------------------------------------
+    # TSA for breaking news, Le Matin d'Algerie for the critical/analytical
+    # take - between them the news and the argument about it.
+    dict(name="TSA (Tout Sur l'Algerie)", kind="rss", url="https://www.tsa-algerie.com/feed/",
+         lang="fr", cap=4, hours=24, full_text=True),
+    dict(name="Le Matin d'Algerie", kind="rss", url="https://lematindalgerie.com/feed/",
+         lang="fr", cap=4, hours=24, full_text=True),
+
     # --- AI lab announcements ----------------------------------------------
     # Article pages 403 this IP directly; the reader proxy gets them.
     dict(name="OpenAI", kind="rss", url="https://openai.com/news/rss.xml",
