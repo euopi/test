@@ -100,6 +100,22 @@ SOURCES = [
     dict(name="L'Insoumission (LFI-aligned)", kind="rss", lang="fr", cap=3,
          hours=48, full_text=True, url="https://linsoumission.fr/feed/"),
 
+    # --- The EU as an institution -------------------------------------------
+    # Coverage of Brussels itself - the Commission, Parliament, Council,
+    # directives and enlargement - rather than European countries' domestic
+    # news. Euractiv would belong here but 403s this server on every path.
+    dict(name="EUobserver", kind="rss", url="https://euobserver.com/feed/",
+         lang="en", cap=4, hours=48, full_text=True),
+    # Brussels insider reporting. Most articles come through; the Pro tier
+    # returns near-empty, which shows up as a very short body.
+    dict(name="Politico Europe", kind="rss", url="https://www.politico.eu/feed/",
+         lang="en", cap=4, hours=24, full_text=True),
+    # Left-leaning EU policy commentary. Publishes only a few times a month,
+    # so it needs a 30-day window to contribute at all; seen.json prevents
+    # the same essay appearing twice.
+    dict(name="Social Europe", kind="rss", url="https://www.socialeurope.eu/feed",
+         lang="en", cap=2, hours=720, full_text=True),
+
     # --- Belgium ------------------------------------------------------------
     # Belgian media splits by language community, so following national
     # politics needs both. The quality press (De Standaard, De Morgen, Le Soir,
