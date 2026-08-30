@@ -260,6 +260,10 @@ def main():
                     if not item["title"]:
                         item["title"] = body.split("\n")[0][:200]
             item.setdefault("body", "")
+            # Le Monde diplomatique (and some others) cut subscriber articles
+            # off at this marker. Flag it so the digest can say the piece was
+            # only partly available rather than implying it summarized it all.
+            item["partial"] = item["body"].rstrip().endswith(("(…)", "(...)"))
             item["source"] = src["name"]
             item["lang"] = src["lang"]
             item["headline_only"] = not item["body"]

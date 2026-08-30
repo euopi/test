@@ -75,6 +75,12 @@ SOURCES = [
     dict(name="Diario Red", kind="rss", lang="es", cap=8, hours=48, full_text=False,
          url="https://news.google.com/rss/search?q=site:diario-red.com+when:2d&hl=es&gl=ES&ceid=ES:es"),
 
+    # Not hard-paywalled, but subscriber articles cut off at a "(...)" marker,
+    # which fetch_news.py flags as partial. Closest match to Orient XXI's
+    # register - long-form French analysis - which is why it is here.
+    dict(name="Le Monde diplomatique", kind="rss", lang="fr", cap=4, hours=120,
+         full_text=True, url="https://www.monde-diplomatique.fr/recents.xml"),
+
     # Free to read (non-profit funded), bodies come through at 7-12k chars.
     # Added as MENA coverage after Orient XXI proved unreachable. Note the feed
     # path: /rss.xml is a stale archive with items from 2018, /rss/news is live.
