@@ -40,6 +40,11 @@ SKIP_TERMS = [
     "cricket", "rugby", "quarterback", "playoff", "playoffs", "grand slam",
     "ballon d'or", "ligue 1", "la liga", "serie a", "hall of fame",
     "football", "basketball", "baseball", "sport", "sports",
+    # Cycling - a Vuelta crash slipped through on the first live run.
+    "vuelta", "tour de france", "giro", "peloton", "cyclisme", "cycliste",
+    # Other recurring leaks
+    "athletics", "marathon", "f1", "motogp", "handball", "volleyball",
+    "wielrennen", "voetbal", "ciclismo", "futbol", "fútbol",
 ]
 SKIP_TERM_RE = re.compile(
     r"\b(" + "|".join(re.escape(t) for t in SKIP_TERMS) + r")\b", re.I)
@@ -126,6 +131,16 @@ def get(url, ua=None, timeout=25):
     except requests.RequestException:
         pass
     return curl_get(url, agent, timeout)
+
+
+# Feed items that are newsletters or index pages rather than articles.
+NON_ARTICLE = ["la lettre", "newsletter", "daily news", "nieuwsoverzicht",
+               "latest news bulletin", "behind the blog"]
+
+
+def is_non_article(item):
+    t = item.get("title", "").strip().lower()
+    return any(t.startswith(p) or t == p for p in NON_ARTICLE)
 
 
 def is_sport(item):
@@ -249,7 +264,7 @@ def main():
         gather = from_index if src["kind"] == "index" else from_rss
         items = gather(src, cutoff, seen)
 
-        items = [i for i in items if not is_sport(i)]
+        items = [i for i in items if not is_sport(i) and not is_non_article(i)]
 
         for item in items:
             if src["full_text"]:
