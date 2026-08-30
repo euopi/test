@@ -100,6 +100,21 @@ SOURCES = [
     dict(name="L'Insoumission (LFI-aligned)", kind="rss", lang="fr", cap=3,
          hours=48, full_text=True, url="https://linsoumission.fr/feed/"),
 
+    # --- Belgium ------------------------------------------------------------
+    # Belgian media splits by language community, so following national
+    # politics needs both. The quality press (De Standaard, De Morgen, Le Soir,
+    # L'Echo, Knack, La Libre) is all paywalled or blocks us; the public
+    # broadcasters are free and serve full text.
+    dict(name="RTBF (Belgium, FR)", kind="rss", lang="fr", cap=4, hours=24,
+         full_text=True, url="https://rss.rtbf.be/article/rss/rtbfinfo_belgique.xml"),
+    # Note: this feed is NOT date-sorted, so the date filter does the work.
+    dict(name="VRT NWS (Belgium, NL)", kind="rss", lang="nl", cap=4, hours=24,
+         full_text=True, url="https://www.vrt.be/vrtnws/nl.rss.articles.xml"),
+    # Flemish left outlet - covers labour and the PVDA's side of Belgian
+    # politics, which the broadcasters cover more neutrally.
+    dict(name="De Wereld Morgen (NL)", kind="rss", lang="nl", cap=3, hours=48,
+         full_text=True, url="https://www.dewereldmorgen.be/rss.xml"),
+
     # --- Algeria ------------------------------------------------------------
     # TSA for breaking news, Le Matin d'Algerie for the critical/analytical
     # take - between them the news and the argument about it.
