@@ -29,6 +29,24 @@ UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
 HEADERS = {"User-Agent": UA}
 BODY_CHARS = 4000       # per-article cap fed to the summarizer
 SEEN_DAYS = 14          # how long a URL stays remembered
+PROXY = "https://r.jina.ai/"   # reader proxy, tried when a site blocks us
+
+# Sport is filtered out entirely. Matched as whole words only - as substrings
+# these eat real news ("nfl" sits inside "inflacion", "pga" inside "propaganda").
+SKIP_TERMS = [
+    "nascar", "nfl", "nba", "mlb", "nhl", "ufc", "pga", "fifa", "uefa",
+    "premier league", "super bowl", "world cup", "olympics", "olympic",
+    "tennis", "wimbledon", "golf", "formula 1", "grand prix", "boxing",
+    "cricket", "rugby", "quarterback", "playoff", "playoffs", "grand slam",
+    "ballon d'or", "ligue 1", "la liga", "serie a", "hall of fame",
+    "football", "basketball", "baseball", "sport", "sports",
+]
+SKIP_TERM_RE = re.compile(
+    r"\b(" + "|".join(re.escape(t) for t in SKIP_TERMS) + r")\b", re.I)
+
+# URL path fragments. Only checked on real URLs - Google News links are opaque
+# base64 that matches these by chance.
+SKIP_URL_PARTS = ["/sport", "/sports", "/deportes", "/football", "/nfl/", "/nba/"]
 
 
 def log(msg):
@@ -110,19 +128,52 @@ def get(url, ua=None, timeout=25):
     return curl_get(url, agent, timeout)
 
 
+def is_sport(item):
+    """True if this looks like sports coverage, which the user doesn't want."""
+    if SKIP_TERM_RE.search(item.get("title", "")):
+        return True
+    url = item.get("url", "").lower()
+    if "news.google.com" in url:
+        return False  # opaque base64 - the title is all we can judge on
+    if any(part in url for part in SKIP_URL_PARTS):
+        return True
+    # Slug words are hyphen-separated, so the same whole-word match works once
+    # the separators become spaces.
+    return bool(SKIP_TERM_RE.search(re.sub(r"[-/_]", " ", url)))
+
+
 def fetch_body(url, ua=None):
     """Full article text, or None. Never raises - a failure just means we
-    fall back to the feed's own summary."""
+    fall back to the feed's own summary.
+
+    Tries the site directly, then a reader proxy. Several sources here (RFI,
+    OpenAI) serve their feed but 403 article pages from this server's IP; the
+    proxy fetches from its own IP and returns the article as text, which is
+    the only way we get bodies from them."""
     try:
         import trafilatura
         resp = get(url, ua, timeout=20)
-        if resp.status_code != 200:
-            return None
-        text = trafilatura.extract(resp.text, include_comments=False,
-                                   include_tables=False, no_fallback=False)
-        return text.strip() if text else None
+        if resp.status_code == 200:
+            text = trafilatura.extract(resp.text, include_comments=False,
+                                       include_tables=False, no_fallback=False)
+            if text and len(text.strip()) > 200:
+                return text.strip()
     except Exception:
-        return None
+        pass
+
+    try:
+        resp = requests.get(PROXY + url, timeout=40,
+                            headers={"User-Agent": "NewsDigest/1.0"})
+        text = resp.text.strip()
+        # A blocked or empty fetch comes back as a stub page, not an article.
+        if resp.status_code == 200 and len(text) > 800:
+            # Strip the proxy's own header lines.
+            if "Markdown Content:" in text:
+                text = text.split("Markdown Content:", 1)[1].strip()
+            return text
+    except Exception:
+        pass
+    return None
 
 
 def from_rss(src, cutoff, seen):
@@ -197,6 +248,8 @@ def main():
         cutoff = now - timedelta(hours=hours)
         gather = from_index if src["kind"] == "index" else from_rss
         items = gather(src, cutoff, seen)
+
+        items = [i for i in items if not is_sport(i)]
 
         for item in items:
             if src["full_text"]:

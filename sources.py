@@ -54,9 +54,10 @@ SOURCES = [
          url="https://www.theinformation.com/feed"),
 
     # --- Original-language sources (digest output is still English) --------
-    # Feed is fine; article bodies 403, so headline + feed summary only.
+    # Article bodies 403 this IP, but the reader proxy in fetch_news.py
+    # retrieves them, so full text is available after all.
     dict(name="RFI", kind="rss", url="https://www.rfi.fr/fr/rss",
-         lang="fr", cap=4, hours=24, full_text=False),
+         lang="fr", cap=4, hours=24, full_text=True),
     dict(name="Mediapart", kind="rss", url="https://www.mediapart.fr/articles/feed",
          lang="fr", cap=4, hours=48, full_text=False),  # paywalled
     dict(name="Afrique XXI", kind="rss", lang="fr", cap=3, hours=96,
@@ -70,9 +71,9 @@ SOURCES = [
          url="https://news.google.com/rss/search?q=site:diario-red.com+when:2d&hl=es&gl=ES&ceid=ES:es"),
 
     # --- AI lab announcements ----------------------------------------------
-    # Feed is served, but article pages 403 this IP (even via curl).
+    # Article pages 403 this IP directly; the reader proxy gets them.
     dict(name="OpenAI", kind="rss", url="https://openai.com/news/rss.xml",
-         lang="en", cap=4, hours=96, full_text=False),
+         lang="en", cap=4, hours=96, full_text=True),
     dict(name="Google DeepMind", kind="rss", url="https://deepmind.google/blog/rss.xml",
          lang="en", cap=4, hours=96, full_text=True),
     # No RSS, so we scrape the news index for post links.
