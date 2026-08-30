@@ -35,8 +35,12 @@ SOURCES = [
          lang="en", cap=4, hours=48, full_text=True),
     dict(name="ProPublica", kind="rss", lang="en", cap=3, hours=72,
          full_text=True, url="https://www.propublica.org/feeds/propublica/main"),
+    # Kept for its surveillance/policing reporting (ICE contracts, police
+    # tech), not its consumer-tech coverage. The digest instructions scope it.
     dict(name="404 Media", kind="rss", url="https://www.404media.co/rss/",
          lang="en", cap=4, hours=48, full_text=True),
+    # Kept for tech's political economy in the Global South - displacement,
+    # labour, sovereignty - not product or industry news.
     dict(name="Rest of World", kind="rss", url="https://restofworld.org/feed/",
          lang="en", cap=3, hours=96, full_text=True),
     dict(name="Labor Notes", kind="rss", url="https://labornotes.org/rss.xml",
@@ -48,10 +52,6 @@ SOURCES = [
     # lede. Summaries from these are necessarily thinner.
     dict(name="Financial Times", kind="rss", url="https://www.ft.com/rss/home",
          lang="en", cap=4, hours=24, full_text=False),
-    # Blocks the browser user-agent but serves a plain one. Yes, backwards.
-    dict(name="The Information", kind="rss", lang="en", cap=3, hours=72,
-         full_text=False, ua="NewsDigest/1.0",
-         url="https://www.theinformation.com/feed"),
 
     # --- Original-language sources (digest output is still English) --------
     # Article bodies 403 this IP, but the reader proxy in fetch_news.py
@@ -139,14 +139,4 @@ SOURCES = [
     dict(name="Le Matin d'Algerie", kind="rss", url="https://lematindalgerie.com/feed/",
          lang="fr", cap=4, hours=24, full_text=True),
 
-    # --- AI lab announcements ----------------------------------------------
-    # Article pages 403 this IP directly; the reader proxy gets them.
-    dict(name="OpenAI", kind="rss", url="https://openai.com/news/rss.xml",
-         lang="en", cap=4, hours=96, full_text=True),
-    dict(name="Google DeepMind", kind="rss", url="https://deepmind.google/blog/rss.xml",
-         lang="en", cap=4, hours=96, full_text=True),
-    # No RSS, so we scrape the news index for post links.
-    dict(name="Anthropic", kind="index", url="https://www.anthropic.com/news",
-         lang="en", cap=4, hours=96, full_text=True,
-         link_re=r'href="(/news/[a-z0-9-]+)"', base="https://www.anthropic.com"),
 ]
