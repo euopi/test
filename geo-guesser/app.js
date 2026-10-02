@@ -2,7 +2,48 @@
   "use strict";
   const MAX_TRIES = 3;
   const MARKER_PX = 10; // countries smaller than this on screen get a clickable marker
+  const REVEAL_MS = 2600; // how long a missed country stays labelled (input is never blocked meanwhile)
   const $ = (id) => document.getElementById(id);
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  // ---------- Motion ----------
+  // Springs are described the way Apple does: damping ratio (1 = no overshoot) and response (seconds).
+  function spring({ from, to, velocity = 0, response = 0.35, damping = 1, onUpdate, onDone }) {
+    const stiffness = (2 * Math.PI / response) ** 2;
+    const friction = (4 * Math.PI * damping) / response;
+    let x = from, v = velocity, last = performance.now(), raf = 0;
+    const handle = { stop() { cancelAnimationFrame(raf); raf = 0; }, get value() { return x; }, get running() { return raf !== 0; } };
+    if (reduceMotion.matches) { x = to; onUpdate(to, 0); onDone && onDone(); return handle; }
+    function step(now) {
+      const dt = Math.min(0.064, (now - last) / 1000);
+      last = now;
+      const n = Math.max(1, Math.ceil(dt / 0.004)), h = dt / n;
+      for (let i = 0; i < n; i++) { v += (-stiffness * (x - to) - friction * v) * h; x += v * h; }
+      if (Math.abs(v) < 2 && Math.abs(x - to) < 0.3) { x = to; raf = 0; onUpdate(x, 0); onDone && onDone(); return; }
+      onUpdate(x, v);
+      raf = requestAnimationFrame(step);
+    }
+    raf = requestAnimationFrame(step);
+    return handle;
+  }
+  // Critically damped spring sampled as an easing curve, for CSS transitions and d3 zoom transitions.
+  const EASE_RESPONSE = 0.35;
+  const EASE_OMEGA = (2 * Math.PI) / EASE_RESPONSE;
+  const EASE_MS = Math.round((9.23 / EASE_OMEGA) * 1000); // time to settle within 0.1%
+  const springEase = (t) => { const s = 9.23 * t; return (1 - (1 + s) * Math.exp(-s)) / (1 - 10.23 * Math.exp(-9.23)); };
+  (function exposeEasing() {
+    const pts = Array.from({ length: 33 }, (_, i) => +springEase(i / 32).toFixed(4));
+    const value = `linear(${pts.join(", ")})`;
+    if (window.CSS && CSS.supports("transition-timing-function", value)) {
+      document.documentElement.style.setProperty("--ease-spring", value);
+      document.documentElement.style.setProperty("--spring-ms", EASE_MS + "ms");
+    }
+  })();
+  const transitionMs = () => (reduceMotion.matches ? 0 : EASE_MS);
+  const rubberband = (overshoot, dimension, c = 0.55) => (overshoot * dimension * c) / (dimension + c * Math.abs(overshoot));
+  const project = (velocity, rate = 0.998) => ((velocity / 1000) * rate) / (1 - rate);
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  const haptic = (pattern) => { try { navigator.vibrate && navigator.vibrate(pattern); } catch {} };
 
   // ---------- Geometry ----------
   const features = topojson.feature(WORLD, WORLD.objects.c).features.filter((f) => f.geometry);
@@ -60,13 +101,13 @@
   const fmtLon = (v) => { v = ((v + 540) % 360) - 180; return `${deg(v)}°${v >= 0 ? "E" : "W"}`; };
   const frameText = (b) => `${fmtLat(b[1])}–${fmtLat(b[3])} · ${fmtLon(b[0])}–${fmtLon(b[2])}`;
   const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-  const allRegions = REGION_GROUPS.flatMap((g) => g.regions);
 
   // ---------- Home ----------
   let mode = "click";
   try { mode = localStorage.getItem("atlas-drill:mode") || "click"; } catch {}
   function setMode(m) {
     mode = m;
+    $("seg").dataset.mode = m;
     $("mode-click").setAttribute("aria-pressed", m === "click");
     $("mode-type").setAttribute("aria-pressed", m === "type");
     try { localStorage.setItem("atlas-drill:mode", m); } catch {}
@@ -79,22 +120,22 @@
     const root = $("groups");
     root.innerHTML = "";
     for (const g of REGION_GROUPS) {
+      const notable = g.name === "Notable groups";
       const sec = document.createElement("section");
       sec.className = "group";
-      const total = g.regions[0].ids.length;
-      sec.innerHTML = `<h2>${g.name}${g.name !== "Notable groups" ? ` <small>${total} countries</small>` : ""}</h2><div class="cards"></div>`;
+      sec.innerHTML = `<h2 class="t-title">${g.name}${notable ? "" : ` <small>${g.regions[0].ids.length} countries</small>`}</h2><div class="cards"></div>`;
       const cards = sec.querySelector(".cards");
-      g.regions.forEach((r, i) => {
+      for (const r of g.regions) {
         const b = document.createElement("button");
         b.type = "button";
-        b.className = "card" + (i === 0 && g.name !== "Notable groups" ? " primary" : "");
+        b.className = "card press";
         const best = getBest(r.id, mode);
-        b.innerHTML = `<span class="name">${r.name}</span>
-          <span class="meta"><span>${r.ids.length} countries</span>${best ? `<span class="best">Best ${best.acc}% · ${fmtTime(best.ms)}</span>` : ""}</span>
-          <span class="meta"><span>${frameText(r.bbox)}</span></span>`;
+        b.innerHTML = `<span class="t-headline">${r.name}</span>
+          <span class="meta t-foot"><span>${r.ids.length} countries</span>${best ? `<span class="best">Best ${best.acc}% · ${fmtTime(best.ms)}</span>` : ""}</span>
+          <span class="frame">${frameText(r.bbox)}</span>`;
         b.onclick = () => startGame(r, r.ids);
         cards.appendChild(b);
-      });
+      }
       root.appendChild(sec);
     }
   }
@@ -102,39 +143,119 @@
   // ---------- Map ----------
   const svg = d3.select("#map");
   const zoomLayer = svg.append("g");
-  let sea, gratPath, landSel, markerSel, labelLayer, zoomK = 1, sizeOf = new Map();
-  const zoom = d3.zoom().scaleExtent([1, 80]).clickDistance(5).on("zoom", (e) => {
-    zoomLayer.attr("transform", e.transform);
-    zoomK = e.transform.k;
-    applyZoomScale();
-  });
+  let landSel, markerSel, hitSel, labelLayer, zoomK = 1, sizeOf = new Map();
+  let W = 0, H = 0, insetTop = 0, insetBottom = 0;
+  let dragging = false, history = [], inertia = 0;
+
+  const panBounds = (k) => ({ minX: W - W * k, maxX: 0, minY: H - H * k, maxY: 0 });
+  // Past the edge the map resists progressively instead of stopping dead.
+  const soft = (v, lo, hi, dim) => (v > hi ? hi + rubberband(v - hi, dim) : v < lo ? lo - rubberband(lo - v, dim) : v);
+
+  const zoom = d3.zoom()
+    .scaleExtent([1, 80])
+    .clickDistance(6)
+    .constrain((t) => {
+      const b = panBounds(t.k);
+      if (dragging && !reduceMotion.matches) {
+        history.push({ t: performance.now(), x: t.x, y: t.y });
+        if (history.length > 10) history.shift();
+        return d3.zoomIdentity.translate(soft(t.x, b.minX, b.maxX, W), soft(t.y, b.minY, b.maxY, H)).scale(t.k);
+      }
+      return d3.zoomIdentity.translate(clamp(t.x, b.minX, b.maxX), clamp(t.y, b.minY, b.maxY)).scale(t.k);
+    })
+    .on("start", (e) => {
+      if (!e.sourceEvent) return;
+      stopInertia(); // grabbing a moving map stops it where it is
+      const type = e.sourceEvent.type;
+      dragging = type === "mousedown" || type === "touchstart" || type === "pointerdown";
+      history = [];
+    })
+    .on("zoom", (e) => {
+      zoomLayer.attr("transform", e.transform);
+      zoomK = e.transform.k;
+      applyZoomScale();
+      if (e.sourceEvent && /move/.test(e.sourceEvent.type)) releasePress();
+    })
+    .on("end", (e) => {
+      if (!e.sourceEvent || !dragging) return;
+      dragging = false;
+      const now = performance.now();
+      const recent = history.filter((s) => now - s.t < 100);
+      let vx = 0, vy = 0;
+      if (recent.length >= 2 && now - recent[recent.length - 1].t < 50) {
+        const a = recent[0], b = recent[recent.length - 1], dt = (b.t - a.t) / 1000;
+        if (dt > 0) { vx = (b.x - a.x) / dt; vy = (b.y - a.y) / dt; }
+      }
+      startInertia(d3.zoomTransform(svg.node()), vx, vy);
+    });
   svg.call(zoom).on("dblclick.zoom", null);
 
+  // After a drag the map keeps the finger's velocity and decays like a scroll view;
+  // anything past an edge springs back, carrying the same velocity into the spring.
+  function startInertia(t0, vx, vy) {
+    stopInertia();
+    if (reduceMotion.matches) { vx = vy = 0; }
+    const b = panBounds(t0.k);
+    const axes = [
+      { p: t0.x, v: vx, lo: b.minX, hi: b.maxX },
+      { p: t0.y, v: vy, lo: b.minY, hi: b.maxY },
+    ];
+    const omega = (2 * Math.PI) / 0.4, stiffness = omega * omega, friction = 2 * omega;
+    let last = performance.now();
+    const frame = (now) => {
+      const dt = Math.min(0.064, (now - last) / 1000);
+      last = now;
+      const n = Math.max(1, Math.ceil(dt / 0.004)), h = dt / n;
+      let moving = false;
+      for (const a of axes) {
+        for (let i = 0; i < n; i++) {
+          if (a.p > a.hi || a.p < a.lo) {
+            const edge = a.p > a.hi ? a.hi : a.lo;
+            a.v += (-stiffness * (a.p - edge) - friction * a.v) * h;
+          } else {
+            a.v *= Math.pow(0.998, h * 1000);
+          }
+          a.p += a.v * h;
+        }
+        const outside = a.p > a.hi + 0.3 || a.p < a.lo - 0.3;
+        if (Math.abs(a.v) > 4 || outside) moving = true;
+        else { a.v = 0; a.p = clamp(a.p, a.lo, a.hi); }
+      }
+      svg.call(zoom.transform, d3.zoomIdentity.translate(axes[0].p, axes[1].p).scale(t0.k));
+      inertia = moving ? requestAnimationFrame(frame) : 0;
+    };
+    inertia = requestAnimationFrame(frame);
+  }
+  function stopInertia() { if (inertia) cancelAnimationFrame(inertia); inertia = 0; }
+
   function makeProjection(region, w, h) {
-    let [W, S, E, N] = region.bbox;
-    if (E < W) E += 360;
+    let [Wb, S, E, N] = region.bbox;
+    if (E < Wb) E += 360;
     const pts = [];
-    for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) pts.push([W + ((E - W) * i) / 12, S + ((N - S) * j) / 12]);
-    const p = d3.geoAzimuthalEqualArea().rotate([-(W + E) / 2, -(S + N) / 2]).clipAngle(90).precision(0.2);
+    for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) pts.push([Wb + ((E - Wb) * i) / 12, S + ((N - S) * j) / 12]);
+    const p = d3.geoAzimuthalEqualArea().rotate([-(Wb + E) / 2, -(S + N) / 2]).clipAngle(90).precision(0.2);
     const pad = Math.min(24, w * 0.04);
-    p.fitExtent([[pad, pad], [w - pad, h - pad]], { type: "MultiPoint", coordinates: pts });
+    p.fitExtent([[pad, insetTop + pad / 2], [w - pad, h - insetBottom]], { type: "MultiPoint", coordinates: pts });
     p.clipExtent([[-4, -4], [w + 4, h + 4]]);
-    return { p, center: [(W + E) / 2, (S + N) / 2] };
+    return { p, center: [(Wb + E) / 2, (S + N) / 2] };
   }
 
   function drawMap() {
-    const box = $("mapwrap").getBoundingClientRect();
-    const w = Math.max(320, box.width), h = Math.max(240, box.height);
-    svg.attr("viewBox", `0 0 ${w} ${h}`);
+    stopInertia();
+    const box = $("game").getBoundingClientRect();
+    W = Math.max(320, box.width); H = Math.max(240, box.height);
     lastW = box.width; lastH = box.height;
+    insetTop = $("strip").offsetHeight;
+    insetBottom = Math.min(72, H * 0.1);
+    svg.attr("viewBox", `0 0 ${W} ${H}`);
     zoomLayer.selectAll("*").remove();
-    const { p, center } = makeProjection(G.region, w, h);
+    const { p, center } = makeProjection(G.region, W, H);
     const path = d3.geoPath(p);
-    $("proj").textContent = `Lambert azimuthal equal-area · centre ${fmtLat(center[1])} ${fmtLon(center[0])}`;
+    $("proj").textContent = `Lambert azimuthal equal-area · ${fmtLat(center[1])} ${fmtLon(center[0])}`;
 
-    zoom.extent([[0, 0], [w, h]]).translateExtent([[0, 0], [w, h]]);
-    sea = zoomLayer.append("rect").attr("class", "sea").attr("width", w).attr("height", h);
-    gratPath = zoomLayer.append("path").attr("class", "grat").attr("d", path(d3.geoGraticule().step([10, 10])()));
+    zoom.extent([[0, 0], [W, H]]).translateExtent([[0, 0], [W, H]]);
+    zoomLayer.append("rect").attr("class", "sea").attr("width", W).attr("height", H);
+    zoomLayer.append("path").attr("class", "grat").attr("d", path(d3.geoGraticule().step([10, 10])()));
 
     const drawn = [];
     for (const f of features) {
@@ -154,47 +275,58 @@
       sizeOf.set(f.id, size);
       if (size < MARKER_PX) {
         const xy = p(f.properties.l);
-        if (xy && xy[0] >= 0 && xy[0] <= w && xy[1] >= 0 && xy[1] <= h) markers.push({ id: f.id, x: xy[0], y: xy[1], size });
+        if (xy && xy[0] >= 0 && xy[0] <= W && xy[1] >= 0 && xy[1] <= H) markers.push({ id: f.id, x: xy[0], y: xy[1], size });
       }
     }
     G.labelPoint = (id) => { const f = byId.get(id); return f && p(f.properties.l); };
     markerSel = zoomLayer.append("g").selectAll("circle").data(markers).join("circle")
       .attr("class", "mk").attr("data-id", (m) => m.id).attr("cx", (m) => m.x).attr("cy", (m) => m.y);
+    // Generous invisible hit targets around small markers.
+    hitSel = zoomLayer.append("g").selectAll("circle").data(markers).join("circle")
+      .attr("class", "mkhit").attr("data-hit", (m) => m.id).attr("cx", (m) => m.x).attr("cy", (m) => m.y);
     labelLayer = zoomLayer.append("g");
 
-    landSel.on("click", (e, o) => onMapClick(o.f.id))
-      .on("pointermove", (e, o) => showTip(e, o.f.id))
-      .on("pointerleave", hideTip);
-    markerSel.on("click", (e, m) => onMapClick(m.id))
-      .on("pointermove", (e, m) => showTip(e, m.id))
-      .on("pointerleave", hideTip);
+    for (const sel of [landSel, hitSel]) {
+      const idOf = (d) => (d.f ? d.f.id : d.id);
+      sel.on("pointerdown", (e, d) => press(idOf(d)))
+        .on("click", (e, d) => onMapClick(idOf(d)))
+        .on("pointermove", (e, d) => showTip(e, idOf(d)))
+        .on("pointerleave", hideTip);
+    }
 
     svg.call(zoom.transform, d3.zoomIdentity);
     paintAll();
+    for (const id of G.reveals.keys()) addLabel(id);
   }
 
   function applyZoomScale() {
     if (!markerSel) return;
-    markerSel.attr("r", 5.5 / zoomK).attr("display", (m) => (m.size * zoomK > 16 ? "none" : null));
+    const hide = (m) => (m.size * zoomK > 16 ? "none" : null);
+    markerSel.attr("r", 5.5 / zoomK).attr("display", hide);
+    hitSel.attr("r", 15 / zoomK).attr("display", hide);
     labelLayer.selectAll("text").attr("font-size", 13 / zoomK).style("stroke-width", 3.5 / zoomK + "px");
   }
 
+  // Feedback on pointer-down; the answer itself commits on release (click).
+  function press(id) {
+    if (G.over || G.mode !== "click") return;
+    zoomLayer.selectAll(`[data-id="${id}"]`).classed("pressed", true);
+  }
+  function releasePress() { zoomLayer.selectAll(".pressed").classed("pressed", false); }
+  window.addEventListener("pointerup", () => requestAnimationFrame(releasePress));
+  window.addEventListener("pointercancel", releasePress);
+
   function classFor(id) {
     const r = G.results.get(id);
-    if (r === 1) return "r1";
-    if (r === 2) return "r2";
-    if (r === 3) return "r3";
-    if (r === 0) return "rmiss";
-    return "";
+    return r === 1 ? "r1" : r === 2 ? "r2" : r === 3 ? "r3" : r === 0 ? "rmiss" : "";
   }
   function paint(id) {
     const cls = classFor(id);
-    const cur = G.mode === "type" && G.current === id && !G.over && !G.revealing ? " current" : "";
-    const rev = G.revealing === id ? " reveal" : "";
+    const cur = G.mode === "type" && G.current === id && !G.over ? " current" : "";
+    const rev = G.reveals.has(id) ? " reveal" : "";
     zoomLayer.selectAll(`[data-id="${id}"]`).each(function () {
-      const el = d3.select(this);
       const base = this.tagName === "circle" ? "mk" : "land " + (G.set.has(id) ? "on" : "off");
-      el.attr("class", `${base} ${cls}${cur}${rev}`.trim());
+      this.setAttribute("class", `${base} ${cls}${cur}${rev}`.trim());
     });
   }
   function paintAll() { for (const id of G.set) paint(id); applyZoomScale(); }
@@ -204,61 +336,71 @@
     els.classed("wrongflash", true);
     setTimeout(() => els.classed("wrongflash", false), 650);
   }
-  function addLabel(id, cls = "") {
-    const xy = G.labelPoint(id);
-    if (!xy) return;
-    labelLayer.append("text").attr("class", "lbl " + cls).attr("x", xy[0]).attr("y", xy[1] - 9 / zoomK).text(nameOf(id));
+  function addLabel(id) {
+    const xy = G.labelPoint && G.labelPoint(id);
+    if (!xy || !labelLayer) return;
+    labelLayer.selectAll(`[data-label="${id}"]`).remove();
+    labelLayer.append("text").attr("class", "lbl").attr("data-label", id).attr("x", xy[0]).attr("y", xy[1] - 9 / zoomK).text(nameOf(id));
     applyZoomScale();
   }
+  function removeLabel(id) { labelLayer && labelLayer.selectAll(`[data-label="${id}"]`).remove(); }
   function clearLabels() { labelLayer && labelLayer.selectAll("text").remove(); }
 
-  // Zoom in on a tiny target so a revealed or highlighted microstate is actually visible.
+  // Zoom in on a tiny country so a revealed or highlighted microstate is actually visible.
   function focusOn(id) {
     const size = sizeOf.get(id);
     const xy = G.labelPoint(id);
     if (!xy || size === undefined || size * zoomK >= 6) return;
-    const box = $("mapwrap").getBoundingClientRect();
+    stopInertia();
     const k = Math.min(12, Math.max(zoomK, 4));
-    svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity.translate(box.width / 2 - k * xy[0], box.height / 2 - k * xy[1]).scale(k));
+    const cy = (insetTop + H - insetBottom) / 2;
+    svg.transition().duration(transitionMs()).ease(springEase)
+      .call(zoom.transform, d3.zoomIdentity.translate(W / 2 - k * xy[0], cy - k * xy[1]).scale(k));
   }
 
   // ---------- Tooltip & toast ----------
   const tip = $("tip");
   function showTip(e, id) {
-    const answered = G.results.has(id);
-    const open = G.over || (answered && !(G.mode === "type" && G.current === id));
-    if (!open) return hideTip();
-    const box = $("mapwrap").getBoundingClientRect();
+    const open = G.over || (G.results.has(id) && !(G.mode === "type" && G.current === id));
+    if (!open || e.pointerType === "touch") return hideTip();
+    const box = $("game").getBoundingClientRect();
     tip.textContent = nameOf(id);
     tip.hidden = false;
-    tip.style.left = Math.min(e.clientX - box.left + 12, box.width - tip.offsetWidth - 6) + "px";
-    tip.style.top = e.clientY - box.top + 14 + "px";
+    tip.style.left = Math.min(e.clientX - box.left + 14, box.width - tip.offsetWidth - 8) + "px";
+    tip.style.top = e.clientY - box.top + 16 + "px";
   }
   function hideTip() { tip.hidden = true; }
+
   let toastTimer;
   function toast(text, kind = "") {
     const t = $("toast");
-    t.textContent = text;
-    t.className = "toast " + kind;
-    t.style.opacity = 1;
+    const glyph = kind === "good" ? "✓" : kind === "bad" ? "✕" : "";
+    t.innerHTML = `${glyph ? `<span class="glyph" aria-hidden="true">${glyph}</span>` : ""}<span></span>`;
+    t.lastChild.textContent = text;
+    t.className = `toast glass ${kind}`;
+    t.style.setProperty("--toast-y", `${$("strip").offsetHeight + 12}px`);
+    void t.offsetWidth;
+    t.classList.add("show"); // drops in from the top and leaves the same way
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => (t.style.opacity = 0), 1800);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 2000);
   }
 
   // ---------- Game state ----------
-  const G = { results: new Map(), set: new Set() };
+  const G = { results: new Map(), set: new Set(), reveals: new Map() };
   let timerId;
 
   function startGame(region, ids) {
+    for (const timer of G.reveals.values()) clearTimeout(timer);
     Object.assign(G, {
       region, mode, ids, set: new Set(region.ids), queue: shuffle(ids), idx: 0, tries: 0,
-      results: new Map(), over: false, revealing: null, current: null, start: performance.now(), elapsed: 0,
+      results: new Map(), reveals: new Map(), over: false, current: null, start: performance.now(), elapsed: 0,
     });
     $("home").hidden = true;
     $("game").hidden = false;
-    $("results").hidden = true;
+    hideSheet();
+    $("prompt").innerHTML = "";
     $("where").textContent = `${region.name} · ${G.mode === "click" ? "Click mode" : "Type mode"}`;
-    document.querySelector("#game").className = "playing " + G.mode;
+    $("game").className = "mode-" + G.mode;
     drawMap();
     clearInterval(timerId);
     timerId = setInterval(tick, 250);
@@ -282,34 +424,34 @@
   }
 
   function triesDots() {
-    return `<span class="tries" aria-label="${MAX_TRIES - G.tries} tries left">${Array.from({ length: MAX_TRIES }, (_, i) => `<i class="${i < G.tries ? "used" : ""}"></i>`).join("")}</span>`;
+    return `<span class="tries" role="img" aria-label="${MAX_TRIES - G.tries} of ${MAX_TRIES} tries left">${Array.from({ length: MAX_TRIES }, (_, i) => `<i class="${i < G.tries ? "used" : ""}"></i>`).join("")}</span>`;
   }
 
   function renderPrompt() {
     const el = $("prompt");
     if (G.over) { el.innerHTML = `<span class="target">Finished</span>`; return; }
     if (G.mode === "click") {
-      el.innerHTML = `<span class="verb">Find</span><span class="target">${nameOf(G.current)}</span>${triesDots()}`;
-    } else {
-      const keep = document.activeElement && document.activeElement.id === "guess";
-      el.innerHTML = `<form class="answer" id="answer" autocomplete="off">
-          <input id="guess" type="text" placeholder="Country name" aria-label="Country name" spellcheck="false" autocapitalize="off">
-          <button class="btn" type="submit">Guess</button>
-          <button class="btn ghost" type="button" id="skip">Skip</button>
-        </form>${triesDots()}`;
-      $("answer").onsubmit = (e) => { e.preventDefault(); onTyped($("guess").value); };
-      $("skip").onclick = () => giveUp();
-      if (keep || window.matchMedia("(pointer: fine)").matches) $("guess").focus();
+      el.innerHTML = `<span class="verb t-cap">Find</span><span class="target">${nameOf(G.current)}</span>${triesDots()}`;
+      return;
     }
+    const input = $("guess");
+    if (input) { input.value = ""; input.classList.remove("invalid"); updateTries(); return; }
+    el.innerHTML = `<form class="answer" id="answer" autocomplete="off">
+        <input id="guess" type="text" placeholder="Country name" aria-label="Name the highlighted country" spellcheck="false" autocapitalize="off" enterkeyhint="go">
+        <button class="btn press" type="submit">Guess</button>
+        <button class="btn plain press" type="button" id="skip">Skip</button>
+      </form>${triesDots()}`;
+    $("answer").onsubmit = (e) => { e.preventDefault(); onTyped($("guess").value); };
+    $("guess").oninput = () => $("guess").classList.remove("invalid");
+    $("skip").onclick = () => giveUp();
+    if (window.matchMedia("(pointer: fine)").matches) $("guess").focus();
   }
   function updateTries() {
-    const t = document.querySelector(".tries");
+    const t = document.querySelector("#prompt .tries");
     if (t) t.outerHTML = triesDots();
   }
 
   function nextPrompt() {
-    clearLabels();
-    G.revealing = null;
     G.tries = 0;
     if (G.idx >= G.queue.length) return finish();
     const prev = G.current;
@@ -322,68 +464,69 @@
   }
 
   function settle(result) {
-    const id = G.current;
-    G.results.set(id, result);
-    paint(id);
+    G.results.set(G.current, result);
+    paint(G.current);
     updateStats();
   }
 
   function onMapClick(id) {
-    if (G.over || G.mode !== "click" || G.revealing) return;
+    if (G.over || G.mode !== "click") return;
     if (id === G.current) {
       settle(G.tries + 1);
-      toast(`✓ ${nameOf(id)}`, "good");
+      haptic(8);
+      toast(nameOf(id), "good");
       nextPrompt();
       return;
     }
     G.tries++;
     flashWrong(id);
-    if (G.tries >= MAX_TRIES) return reveal(`That's ${nameOf(id)}. Here's ${nameOf(G.current)}.`);
+    haptic(18);
+    if (G.tries >= MAX_TRIES) return reveal(`That's ${nameOf(id)}. ${nameOf(G.current)} is shown in red`);
     const left = MAX_TRIES - G.tries;
     toast(`That's ${nameOf(id)}. ${left} ${left === 1 ? "try" : "tries"} left`, "bad");
     updateTries();
   }
 
   function onTyped(text) {
-    if (G.over || G.revealing || !text.trim()) return;
+    if (G.over || !text.trim()) return;
     const id = identify(text);
     const input = $("guess");
     if (id === G.current) {
       settle(G.tries + 1);
-      toast(`✓ ${nameOf(id)}`, "good");
+      haptic(8);
+      toast(nameOf(id), "good");
       nextPrompt();
       return;
     }
-    input.classList.remove("shake"); void input.offsetWidth; input.classList.add("shake");
-    if (!id) { toast("I don't know that country name. Check the spelling."); return; }
+    input.classList.add("invalid");
+    if (!id) { toast("Not a country name I recognise"); return; }
     G.tries++;
+    haptic(18);
     if (G.tries >= MAX_TRIES) return reveal(`It was ${nameOf(G.current)}`);
     const left = MAX_TRIES - G.tries;
     toast(`Not ${nameOf(id)}. ${left} ${left === 1 ? "try" : "tries"} left`, "bad");
-    input.value = "";
+    input.select();
     updateTries();
   }
 
   function giveUp() {
-    if (G.over || G.revealing) return;
+    if (G.over) return;
     G.tries = MAX_TRIES;
     reveal(`Skipped: it was ${nameOf(G.current)}`);
   }
 
+  // The missed country stays marked and labelled for a moment, but the next prompt starts immediately.
   function reveal(msg) {
+    const id = G.current;
     settle(0);
-    G.revealing = G.current;
-    paint(G.current);
-    updateTries();
-    addLabel(G.current);
-    focusOn(G.current);
+    haptic([24, 60, 24]);
+    clearTimeout(G.reveals.get(id));
+    G.reveals.set(id, setTimeout(() => { G.reveals.delete(id); removeLabel(id); paint(id); }, REVEAL_MS));
+    paint(id);
+    addLabel(id);
     toast(msg, "bad");
-    setTimeout(() => {
-      if (G.revealing !== G.current) return;
-      G.revealing = null;
-      paint(G.current);
-      nextPrompt();
-    }, 1900);
+    if (G.mode === "click") focusOn(id);
+    nextPrompt();
   }
 
   function finish() {
@@ -404,69 +547,134 @@
       setBest(G.region.id, G.mode, { acc, ms: Math.round(G.elapsed) });
       newBest = true;
     }
-    const res = $("results");
-    res.innerHTML = `<div class="sheet" role="dialog" aria-label="Results">
-      <h2>${G.region.name}${fullRun ? "" : " · missed ones"}</h2>
-      <div class="big">
-        <div><b>${acc}%</b><span>Accuracy</span></div>
-        <div><b>${fmtTime(G.elapsed)}</b><span>Time</span></div>
+    const sw = (c) => `<i style="width:.6rem;height:.6rem;border-radius:50%;display:inline-block;background:var(${c})"></i>`;
+    const bestNote = newBest ? "New best for this region and mode."
+      : best && fullRun ? `Your best: ${best.acc}% in ${fmtTime(best.ms)}.`
+      : fullRun ? "" : "Rounds on missed countries don't count toward your best.";
+    $("sheet-body").innerHTML = `
+      <h2 class="t-title" id="sheet-title" data-drag>${G.region.name}${fullRun ? "" : " · missed ones"}</h2>
+      <div class="figures">
+        <div><b>${acc}%</b><span class="t-cap">Accuracy</span></div>
+        <div><b>${fmtTime(G.elapsed)}</b><span class="t-cap">Time</span></div>
       </div>
-      <div class="breakdown">
-        <span><i class="sw" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--t1)"></i> 1st try ${counts[0]}</span>
-        <span><i class="sw" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--t2)"></i> 2nd ${counts[1]}</span>
-        <span><i class="sw" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--t3)"></i> 3rd ${counts[2]}</span>
-        <span><i class="sw" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--miss)"></i> Missed ${counts[3]}</span>
+      <div class="breakdown t-foot">
+        <span>${sw("--green")} 1st try ${counts[0]}</span>
+        <span>${sw("--yellow")} 2nd ${counts[1]}</span>
+        <span>${sw("--orange")} 3rd ${counts[2]}</span>
+        <span>${sw("--red")} Missed ${counts[3]}</span>
       </div>
-      ${missed.length ? `<div><p class="note">Missed (tap to see on the map):</p><div class="missed">${missed.map((id) => `<button type="button" data-id="${id}">${nameOf(id)}</button>`).join("")}</div></div>` : `<p class="note">No misses.</p>`}
-      <p class="note">${newBest ? "New best for this region and mode." : best && fullRun ? `Best: ${best.acc}% in ${fmtTime(best.ms)}.` : fullRun ? "" : "Practice rounds on missed countries don't count toward your best."} Accuracy gives full credit on the 1st try, two-thirds on the 2nd, one-third on the 3rd. Hover the map to see every name.</p>
+      ${missed.length ? `<div><p class="note t-foot">Missed. Tap one to see it on the map.</p><div class="chips">${missed.map((id) => `<button type="button" class="press" data-id="${id}">${nameOf(id)}</button>`).join("")}</div></div>` : `<p class="note t-foot">No misses.</p>`}
+      <p class="note t-foot">${bestNote} Accuracy gives full credit on the 1st try, two-thirds on the 2nd and one-third on the 3rd. Drag this sheet down to explore the map; hovering shows every name.</p>
       <div class="actions">
-        ${missed.length ? `<button class="btn" type="button" id="r-missed">Retry the ${missed.length} missed</button>` : ""}
-        <button class="btn ${missed.length ? "ghost" : ""}" type="button" id="r-again">Play again</button>
-        <button class="btn ghost" type="button" id="r-map">View map</button>
-        <button class="btn ghost" type="button" id="r-home">Choose region</button>
-      </div>
-    </div>`;
-    res.hidden = false;
-    res.querySelectorAll(".missed button").forEach((b) => (b.onclick = () => {
-      res.hidden = true;
-      clearLabels();
-      addLabel(b.dataset.id);
-      focusOn(b.dataset.id);
-      showReturn();
+        ${missed.length ? `<button class="btn press" type="button" id="r-missed">Retry ${missed.length} missed</button>` : ""}
+        <button class="btn press ${missed.length ? "plain" : ""}" type="button" id="r-again">Play again</button>
+        <button class="btn plain press" type="button" id="r-home">Choose region</button>
+      </div>`;
+    $("sheet-body").querySelectorAll(".chips button").forEach((b) => (b.onclick = () => {
+      closeSheet(0, () => { clearLabels(); addLabel(b.dataset.id); focusOn(b.dataset.id); });
     }));
     if (missed.length) $("r-missed").onclick = () => startGame(G.region, missed);
     $("r-again").onclick = () => startGame(G.region, G.region.ids);
-    $("r-map").onclick = () => { res.hidden = true; showReturn(); };
     $("r-home").onclick = goHome;
+    openSheet();
   }
+
+  // ---------- Results sheet ----------
+  const sheet = $("sheet"), scrim = $("scrim");
+  let sheetY = 0, closedY = 0, sheetAnim = null, sheetDrag = null;
+  function setSheetY(y) {
+    sheetY = y;
+    sheet.style.transform = `translateY(${y}px)`;
+    scrim.style.opacity = closedY ? clamp(1 - y / closedY, 0, 1) : 1;
+  }
+  function measureSheet() {
+    const r = sheet.getBoundingClientRect(), g = $("game").getBoundingClientRect();
+    closedY = g.bottom - (r.top - sheetY) + 8; // far enough to sit fully below the bottom edge
+  }
+  function openSheet() {
+    sheet.hidden = false; scrim.hidden = false;
+    sheetAnim && sheetAnim.stop();
+    sheetY = 0; sheet.style.transform = "none";
+    measureSheet();
+    setSheetY(closedY);
+    sheetAnim = spring({ from: closedY, to: 0, response: 0.35, damping: 1, onUpdate: setSheetY });
+    $("prompt").innerHTML = `<span class="target">Finished</span>`;
+  }
+  // Leaves along the same path it arrived on, continuing whatever velocity the finger gave it.
+  function closeSheet(velocity = 0, after) {
+    sheetAnim && sheetAnim.stop();
+    measureSheet();
+    sheetAnim = spring({
+      from: sheetY, to: closedY, velocity, response: 0.3, damping: 1, onUpdate: setSheetY,
+      onDone: () => { hideSheet(); showReturn(); after && after(); },
+    });
+  }
+  function hideSheet() { sheetAnim && sheetAnim.stop(); sheetDrag = null; sheet.hidden = true; scrim.hidden = true; }
   function showReturn() {
-    $("prompt").innerHTML = `<button class="btn" type="button" id="r-show">Show results</button>`;
-    $("r-show").onclick = () => { $("results").hidden = false; renderPrompt(); };
+    $("prompt").innerHTML = `<button class="btn press" type="button" id="r-show">Show results</button>`;
+    $("r-show").onclick = openSheet;
   }
+
+  sheet.addEventListener("pointerdown", (e) => {
+    if (!e.target.closest("[data-drag], .grabber") || e.button > 0) return;
+    const wasMoving = sheetAnim && sheetAnim.running;
+    sheetAnim && sheetAnim.stop(); // grab it mid-flight: continue from where it is on screen
+    sheetDrag = { id: e.pointerId, y0: e.clientY, from: sheetY, live: wasMoving, hist: [{ t: e.timeStamp, y: e.clientY }] };
+    sheet.setPointerCapture(e.pointerId);
+  });
+  sheet.addEventListener("pointermove", (e) => {
+    const d = sheetDrag;
+    if (!d || e.pointerId !== d.id) return;
+    if (!d.live) {
+      if (Math.abs(e.clientY - d.y0) < 10) return; // small hysteresis before committing to a drag
+      d.live = true; d.y0 = e.clientY;
+    }
+    const raw = d.from + (e.clientY - d.y0);
+    setSheetY(raw < 0 ? -rubberband(-raw, sheet.offsetHeight) : raw);
+    d.hist.push({ t: e.timeStamp, y: e.clientY });
+    if (d.hist.length > 8) d.hist.shift();
+  });
+  const endSheetDrag = (e) => {
+    const d = sheetDrag;
+    if (!d || e.pointerId !== d.id) return;
+    sheetDrag = null;
+    if (!d.live) return;
+    const recent = d.hist.filter((s) => e.timeStamp - s.t < 100);
+    let v = 0;
+    if (recent.length >= 2) { const a = recent[0], b = recent[recent.length - 1]; if (b.t > a.t) v = ((b.y - a.y) / (b.t - a.t)) * 1000; }
+    if (e.timeStamp - d.hist[d.hist.length - 1].t > 60) v = 0;
+    // Decide from where the flick is heading, not where the finger let go.
+    if (sheetY + project(v) > closedY * 0.45) closeSheet(v);
+    else sheetAnim = spring({ from: sheetY, to: 0, velocity: v, response: 0.3, damping: Math.abs(v) > 300 ? 0.8 : 1, onUpdate: setSheetY });
+  };
+  sheet.addEventListener("pointerup", endSheetDrag);
+  sheet.addEventListener("pointercancel", endSheetDrag);
+  scrim.addEventListener("click", () => closeSheet());
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !sheet.hidden) closeSheet(); });
 
   function goHome() {
     clearInterval(timerId);
     G.over = true;
+    stopInertia();
+    hideSheet();
     $("game").hidden = true;
     $("home").hidden = false;
     renderHome();
   }
   $("back").onclick = goHome;
-  $("z-in").onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1.8);
-  $("z-out").onclick = () => svg.transition().duration(250).call(zoom.scaleBy, 1 / 1.8);
-  $("z-reset").onclick = () => svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+
+  const zoomBy = (f) => { stopInertia(); svg.transition().duration(transitionMs()).ease(springEase).call(zoom.scaleBy, f); };
+  $("z-in").onclick = () => zoomBy(1.8);
+  $("z-out").onclick = () => zoomBy(1 / 1.8);
+  $("z-reset").onclick = () => { stopInertia(); svg.transition().duration(transitionMs()).ease(springEase).call(zoom.transform, d3.zoomIdentity); };
 
   let resizeTimer, lastW = 0, lastH = 0;
   new ResizeObserver(([entry]) => {
     const { width, height } = entry.contentRect;
     if (!G.region || $("game").hidden || (Math.abs(width - lastW) < 2 && Math.abs(height - lastH) < 2)) return;
-    lastW = width; lastH = height;
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-      drawMap();
-      if (G.revealing) addLabel(G.revealing);
-    }, 150);
-  }).observe($("mapwrap"));
+    resizeTimer = setTimeout(drawMap, 150);
+  }).observe($("game"));
 
   setMode(mode);
 })();

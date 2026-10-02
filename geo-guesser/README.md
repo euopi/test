@@ -34,4 +34,4 @@ Cyprus; French and Dutch overseas territories (French Guiana, Réunion, Bonaire.
 from the mainland so clicking them doesn't count as France or the Netherlands. Each region uses
 a Lambert azimuthal equal-area projection centred on that region, which keeps shapes and
 relative sizes accurate. Microstates and small islands get a clickable round marker; the map
-zooms (scroll, pinch or the +/− buttons) and pans by dragging.
+zooms (scroll, pinch or the +/− buttons) and pans by dragging or flicking.
