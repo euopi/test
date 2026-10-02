@@ -468,6 +468,9 @@ window.REGION_GROUPS = [
       { id: "arab", name: "Arab League", bbox: [-18, -13, 60, 38], ids: R("DZA BHR COM DJI EGY IRQ JOR KWT LBN LBY MRT MAR OMN PSX QAT SAU SOM SDN SYR TUN ARE YEM") },
       { id: "yugoslavia", name: "Former Yugoslavia", bbox: [13, 40.6, 23.3, 47], ids: R("SVN HRV BIH SRB MNE MKD KOS") },
       { id: "soviet", name: "Former Soviet Union", bbox: [20, 35, 170, 75], ids: R("ARM AZE BLR EST GEO KAZ KGZ LVA LTU MDA RUS TJK TKM UKR UZB") },
+      // Countries once ruled by a communist (Marxist–Leninist) party and no longer.
+      // Only whole present-day countries: Germany (East Germany) and Yemen (South Yemen) were communist only in part.
+      { id: "ex-communist", name: "Former Communist States", bbox: [-5, -27, 135, 72], ids: R("ALB BGR CZE SVK HUN POL ROU SVN HRV BIH SRB MNE MKD KOS ARM AZE BLR EST GEO KAZ KGZ LVA LTU MDA RUS TJK TKM UKR UZB MNG KHM AFG AGO BEN COG ETH ERI MOZ SOM") },
       { id: "med", name: "Mediterranean Coast", bbox: [-10, 29, 42, 47.5], ids: R("ALB DZA BIH HRV CYP EGY FRA GRC ISR ITA LBN LBY MLT MCO MNE MAR PSX SVN ESP SYR TUN TUR") },
     ],
   },
@@ -582,7 +585,7 @@ window.REGION_GROUPS = [
         "s-europe": "Europa del Sur", balkans: "Los Balcanes",
         "n-america": "Toda América del Norte", "na-large": "Continente e islas grandes", "c-america": "Centroamérica", caribbean: "El Caribe",
         "s-america": "Toda América del Sur", oceania: "Toda Oceanía",
-        eu: "Unión Europea", arab: "Liga Árabe", yugoslavia: "Antigua Yugoslavia", soviet: "Antigua Unión Soviética", med: "Costa mediterránea",
+        eu: "Unión Europea", arab: "Liga Árabe", yugoslavia: "Antigua Yugoslavia", soviet: "Antigua Unión Soviética", "ex-communist": "Antiguos Estados comunistas", med: "Costa mediterránea",
       },
     },
     fr: {
@@ -640,7 +643,7 @@ window.REGION_GROUPS = [
         "s-europe": "Europe du Sud", balkans: "Les Balkans",
         "n-america": "Toute l'Amérique du Nord", "na-large": "Continent et grandes îles", "c-america": "Amérique centrale", caribbean: "Les Caraïbes",
         "s-america": "Toute l'Amérique du Sud", oceania: "Toute l'Océanie",
-        eu: "Union européenne", arab: "Ligue arabe", yugoslavia: "Ex-Yougoslavie", soviet: "Ex-URSS", med: "Côte méditerranéenne",
+        eu: "Union européenne", arab: "Ligue arabe", yugoslavia: "Ex-Yougoslavie", soviet: "Ex-URSS", "ex-communist": "Anciens États communistes", med: "Côte méditerranéenne",
       },
     },
   };

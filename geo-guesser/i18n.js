@@ -105,7 +105,7 @@
         "s-europe": "Europa del Sur", balkans: "Los Balcanes",
         "n-america": "Toda América del Norte", "na-large": "Continente e islas grandes", "c-america": "Centroamérica", caribbean: "El Caribe",
         "s-america": "Toda América del Sur", oceania: "Toda Oceanía",
-        eu: "Unión Europea", arab: "Liga Árabe", yugoslavia: "Antigua Yugoslavia", soviet: "Antigua Unión Soviética", med: "Costa mediterránea",
+        eu: "Unión Europea", arab: "Liga Árabe", yugoslavia: "Antigua Yugoslavia", soviet: "Antigua Unión Soviética", "ex-communist": "Antiguos Estados comunistas", med: "Costa mediterránea",
       },
     },
     fr: {
@@ -163,7 +163,7 @@
         "s-europe": "Europe du Sud", balkans: "Les Balkans",
         "n-america": "Toute l'Amérique du Nord", "na-large": "Continent et grandes îles", "c-america": "Amérique centrale", caribbean: "Les Caraïbes",
         "s-america": "Toute l'Amérique du Sud", oceania: "Toute l'Océanie",
-        eu: "Union européenne", arab: "Ligue arabe", yugoslavia: "Ex-Yougoslavie", soviet: "Ex-URSS", med: "Côte méditerranéenne",
+        eu: "Union européenne", arab: "Ligue arabe", yugoslavia: "Ex-Yougoslavie", soviet: "Ex-URSS", "ex-communist": "Anciens États communistes", med: "Côte méditerranéenne",
       },
     },
   };
