@@ -23,7 +23,7 @@ the best accuracy/time for each region and mode is saved in your browser.
 
 Continents (Africa, Asia, Europe, North America, South America, Oceania), their sub-regions
 (e.g. West Africa, the Balkans, the Caribbean, Southeast Asia) and notable groups
-(European Union, Arab League, Former Soviet Union, Mediterranean coast). 197 countries in total:
+(European Union, Arab League, Former Yugoslavia, Former Soviet Union, Mediterranean coast). 197 countries in total:
 the 193 UN members plus Kosovo, Palestine, Taiwan and Vatican City.
 
 ## Map data
