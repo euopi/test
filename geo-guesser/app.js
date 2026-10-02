@@ -269,7 +269,11 @@
     if (E < Wb) E += 360;
     const pts = [];
     for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) pts.push([Wb + ((E - Wb) * i) / 12, S + ((N - S) * j) / 12]);
-    const p = d3.geoAzimuthalEqualArea().rotate([-(Wb + E) / 2, -(S + N) / 2]).clipAngle(90).precision(0.2);
+    // Regional maps: azimuthal equal-area centred on the region. Maps spanning several continents
+    // would wrap past the azimuthal horizon, so they use the Equal Earth world projection instead.
+    const p = region.world
+      ? d3.geoEqualEarth().rotate([-(Wb + E) / 2, 0]).precision(0.2)
+      : d3.geoAzimuthalEqualArea().rotate([-(Wb + E) / 2, -(S + N) / 2]).clipAngle(90).precision(0.2);
     const pad = Math.min(24, w * 0.04);
     p.fitExtent([[pad, insetTop + pad / 2], [w - pad, h - insetBottom]], { type: "MultiPoint", coordinates: pts });
     p.clipExtent([[-4, -4], [w + 4, h + 4]]);
@@ -287,7 +291,7 @@
     zoomLayer.selectAll("*").remove();
     const { p, center } = makeProjection(G.region, W, H);
     const path = d3.geoPath(p);
-    $("proj").textContent = `${T().proj} · ${fmtLat(center[1])} ${fmtLon(center[0])}`;
+    $("proj").textContent = G.region.world ? T().projWorld : `${T().proj} · ${fmtLat(center[1])} ${fmtLon(center[0])}`;
 
     zoom.extent([[0, 0], [W, H]]).translateExtent([[0, 0], [W, H]]);
     zoomLayer.append("rect").attr("class", "sea").attr("width", W).attr("height", H);

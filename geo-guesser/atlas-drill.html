@@ -468,9 +468,18 @@ window.REGION_GROUPS = [
       { id: "arab", name: "Arab League", bbox: [-18, -13, 60, 38], ids: R("DZA BHR COM DJI EGY IRQ JOR KWT LBN LBY MRT MAR OMN PSX QAT SAU SOM SDN SYR TUN ARE YEM") },
       { id: "yugoslavia", name: "Former Yugoslavia", bbox: [13, 40.6, 23.3, 47], ids: R("SVN HRV BIH SRB MNE MKD KOS") },
       { id: "soviet", name: "Former Soviet Union", bbox: [20, 35, 170, 75], ids: R("ARM AZE BLR EST GEO KAZ KGZ LVA LTU MDA RUS TJK TKM UKR UZB") },
-      // Countries once ruled by a communist (Marxist–Leninist) party and no longer.
-      // Only whole present-day countries: Germany (East Germany) and Yemen (South Yemen) were communist only in part.
-      { id: "ex-communist", name: "Former Communist States", bbox: [-5, -27, 135, 72], ids: R("ALB BGR CZE SVK HUN POL ROU SVN HRV BIH SRB MNE MKD KOS ARM AZE BLR EST GEO KAZ KGZ LVA LTU MDA RUS TJK TKM UKR UZB MNG KHM AFG AGO BEN COG ETH ERI MOZ SOM") },
+      // States that officially declared themselves socialist (constitution, official name, or official
+      // state ideology), past or present, including every state ruled by a communist party.
+      // Elected governments whose state never redefined itself (Allende's Chile, Manley's Jamaica) are out,
+      // as are Germany and Yemen, which were socialist only in part (East Germany, South Yemen).
+      // Too wide for an azimuthal map, so this one uses Equal Earth.
+      { id: "socialist", name: "Socialist States, Past & Present", world: true, bbox: [-95, -30, 140, 72], ids: R(
+        // Former Marxist–Leninist states
+        "ALB BGR CZE SVK HUN POL ROU SVN HRV BIH SRB MNE MKD KOS ARM AZE BLR EST GEO KAZ KGZ LVA LTU MDA RUS TJK TKM UKR UZB MNG KHM AFG AGO BEN COG ETH ERI MOZ SOM " +
+        // Current communist states
+        "CHN VNM LAO CUB PRK " +
+        // Other self-declared socialist states
+        "DZA EGY LBY TUN SDN SDS GIN MLI GHA BFA MDG TZA CPV GNB STP SYC SEN SYR IRQ MMR IND BGD LKA NPL GUY GRD NIC VEN PRT") },
       { id: "med", name: "Mediterranean Coast", bbox: [-10, 29, 42, 47.5], ids: R("ALB DZA BIH HRV CYP EGY FRA GRC ISR ITA LBN LBY MLT MCO MNE MAR PSX SVN ESP SYR TUN TUR") },
     ],
   },
@@ -491,7 +500,7 @@ window.REGION_GROUPS = [
       play: "Play", learn: "Learn", learned: "Learned",
       countries: (n) => `${n} countries`,
       best: "Best",
-      foot: "Borders: Natural Earth 1:10m Admin 0 (de facto boundaries; Somaliland and Northern Cyprus are drawn as part of Somalia and Cyprus). Each map is a Lambert azimuthal equal-area projection centred on its region, so shapes and relative sizes stay true. Scroll or pinch to zoom, drag or flick to pan. Small countries also get a round marker you can click.",
+      foot: "Borders: Natural Earth 1:10m Admin 0 (de facto boundaries; Somaliland and Northern Cyprus are drawn as part of Somalia and Cyprus). Each map is a Lambert azimuthal equal-area projection centred on its region, so shapes and relative sizes stay true; the worldwide socialist-states map uses the Equal Earth projection, which also keeps sizes true. Scroll or pinch to zoom, drag or flick to pan. Small countries also get a round marker you can click.",
       regions: "Regions",
       clickMode: "Pin mode",
       typeMode: "Type mode",
@@ -500,7 +509,7 @@ window.REGION_GROUPS = [
       accuracy: "Accuracy",
       time: "Time",
       t1: "1st try", t2: "2nd", t3: "3rd", missed: "Missed",
-      proj: "Lambert azimuthal equal-area",
+      proj: "Lambert azimuthal equal-area", projWorld: "Equal Earth",
       placeholder: "Country name",
       guessAria: "Name the highlighted country",
       guess: "Guess",
@@ -539,7 +548,7 @@ window.REGION_GROUPS = [
       play: "Jugar", learn: "Aprender", learned: "Aprendidos",
       countries: (n) => `${n} países`,
       best: "Récord",
-      foot: "Fronteras: Natural Earth 1:10m Admin 0 (fronteras de facto; Somalilandia y el norte de Chipre se dibujan como parte de Somalia y Chipre). Cada mapa usa una proyección acimutal equivalente de Lambert centrada en su región, así que las formas y los tamaños relativos son fieles. Desplaza o pellizca para hacer zoom; arrastra o desliza para moverte. Los países pequeños tienen además un marcador redondo en el que puedes hacer clic.",
+      foot: "Fronteras: Natural Earth 1:10m Admin 0 (fronteras de facto; Somalilandia y el norte de Chipre se dibujan como parte de Somalia y Chipre). Cada mapa usa una proyección acimutal equivalente de Lambert centrada en su región, así que las formas y los tamaños relativos son fieles; el mapa mundial de Estados socialistas usa la proyección Equal Earth, que también respeta los tamaños. Desplaza o pellizca para hacer zoom; arrastra o desliza para moverte. Los países pequeños tienen además un marcador redondo en el que puedes hacer clic.",
       regions: "Regiones",
       clickMode: "Modo marcar",
       typeMode: "Modo escritura",
@@ -548,7 +557,7 @@ window.REGION_GROUPS = [
       accuracy: "Precisión",
       time: "Tiempo",
       t1: "1.er intento", t2: "2.º", t3: "3.º", missed: "Fallados",
-      proj: "Proyección acimutal equivalente de Lambert",
+      proj: "Proyección acimutal equivalente de Lambert", projWorld: "Proyección Equal Earth",
       placeholder: "Nombre del país",
       guessAria: "Escribe el país resaltado",
       guess: "Responder",
@@ -585,7 +594,7 @@ window.REGION_GROUPS = [
         "s-europe": "Europa del Sur", balkans: "Los Balcanes",
         "n-america": "Toda América del Norte", "na-large": "Continente e islas grandes", "c-america": "Centroamérica", caribbean: "El Caribe",
         "s-america": "Toda América del Sur", oceania: "Toda Oceanía",
-        eu: "Unión Europea", arab: "Liga Árabe", yugoslavia: "Antigua Yugoslavia", soviet: "Antigua Unión Soviética", "ex-communist": "Antiguos Estados comunistas", med: "Costa mediterránea",
+        eu: "Unión Europea", arab: "Liga Árabe", yugoslavia: "Antigua Yugoslavia", soviet: "Antigua Unión Soviética", socialist: "Estados socialistas, pasados y actuales", med: "Costa mediterránea",
       },
     },
     fr: {
@@ -597,7 +606,7 @@ window.REGION_GROUPS = [
       play: "Jouer", learn: "Apprendre", learned: "Acquis",
       countries: (n) => `${n} pays`,
       best: "Record",
-      foot: "Frontières : Natural Earth 1:10m Admin 0 (frontières de facto ; le Somaliland et Chypre du Nord sont rattachés à la Somalie et à Chypre). Chaque carte utilise une projection azimutale équivalente de Lambert centrée sur sa région, ce qui préserve les formes et les surfaces relatives. Faites défiler ou pincez pour zoomer, glissez ou lancez pour vous déplacer. Les petits pays ont aussi un marqueur rond cliquable.",
+      foot: "Frontières : Natural Earth 1:10m Admin 0 (frontières de facto ; le Somaliland et Chypre du Nord sont rattachés à la Somalie et à Chypre). Chaque carte utilise une projection azimutale équivalente de Lambert centrée sur sa région, ce qui préserve les formes et les surfaces relatives ; la carte mondiale des États socialistes utilise la projection Equal Earth, qui respecte aussi les surfaces. Faites défiler ou pincez pour zoomer, glissez ou lancez pour vous déplacer. Les petits pays ont aussi un marqueur rond cliquable.",
       regions: "Régions",
       clickMode: "Mode pointer",
       typeMode: "Mode saisie",
@@ -606,7 +615,7 @@ window.REGION_GROUPS = [
       accuracy: "Précision",
       time: "Temps",
       t1: "1er essai", t2: "2e", t3: "3e", missed: "Ratés",
-      proj: "Projection azimutale équivalente de Lambert",
+      proj: "Projection azimutale équivalente de Lambert", projWorld: "Projection Equal Earth",
       placeholder: "Nom du pays",
       guessAria: "Nommez le pays en surbrillance",
       guess: "Valider",
@@ -643,7 +652,7 @@ window.REGION_GROUPS = [
         "s-europe": "Europe du Sud", balkans: "Les Balkans",
         "n-america": "Toute l'Amérique du Nord", "na-large": "Continent et grandes îles", "c-america": "Amérique centrale", caribbean: "Les Caraïbes",
         "s-america": "Toute l'Amérique du Sud", oceania: "Toute l'Océanie",
-        eu: "Union européenne", arab: "Ligue arabe", yugoslavia: "Ex-Yougoslavie", soviet: "Ex-URSS", "ex-communist": "Anciens États communistes", med: "Côte méditerranéenne",
+        eu: "Union européenne", arab: "Ligue arabe", yugoslavia: "Ex-Yougoslavie", soviet: "Ex-URSS", socialist: "États socialistes, passés et actuels", med: "Côte méditerranéenne",
       },
     },
   };
@@ -957,7 +966,11 @@ window.REGION_GROUPS = [
     if (E < Wb) E += 360;
     const pts = [];
     for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) pts.push([Wb + ((E - Wb) * i) / 12, S + ((N - S) * j) / 12]);
-    const p = d3.geoAzimuthalEqualArea().rotate([-(Wb + E) / 2, -(S + N) / 2]).clipAngle(90).precision(0.2);
+    // Regional maps: azimuthal equal-area centred on the region. Maps spanning several continents
+    // would wrap past the azimuthal horizon, so they use the Equal Earth world projection instead.
+    const p = region.world
+      ? d3.geoEqualEarth().rotate([-(Wb + E) / 2, 0]).precision(0.2)
+      : d3.geoAzimuthalEqualArea().rotate([-(Wb + E) / 2, -(S + N) / 2]).clipAngle(90).precision(0.2);
     const pad = Math.min(24, w * 0.04);
     p.fitExtent([[pad, insetTop + pad / 2], [w - pad, h - insetBottom]], { type: "MultiPoint", coordinates: pts });
     p.clipExtent([[-4, -4], [w + 4, h + 4]]);
@@ -975,7 +988,7 @@ window.REGION_GROUPS = [
     zoomLayer.selectAll("*").remove();
     const { p, center } = makeProjection(G.region, W, H);
     const path = d3.geoPath(p);
-    $("proj").textContent = `${T().proj} · ${fmtLat(center[1])} ${fmtLon(center[0])}`;
+    $("proj").textContent = G.region.world ? T().projWorld : `${T().proj} · ${fmtLat(center[1])} ${fmtLon(center[0])}`;
 
     zoom.extent([[0, 0], [W, H]]).translateExtent([[0, 0], [W, H]]);
     zoomLayer.append("rect").attr("class", "sea").attr("width", W).attr("height", H);

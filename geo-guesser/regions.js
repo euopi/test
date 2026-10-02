@@ -131,9 +131,18 @@ window.REGION_GROUPS = [
       { id: "arab", name: "Arab League", bbox: [-18, -13, 60, 38], ids: R("DZA BHR COM DJI EGY IRQ JOR KWT LBN LBY MRT MAR OMN PSX QAT SAU SOM SDN SYR TUN ARE YEM") },
       { id: "yugoslavia", name: "Former Yugoslavia", bbox: [13, 40.6, 23.3, 47], ids: R("SVN HRV BIH SRB MNE MKD KOS") },
       { id: "soviet", name: "Former Soviet Union", bbox: [20, 35, 170, 75], ids: R("ARM AZE BLR EST GEO KAZ KGZ LVA LTU MDA RUS TJK TKM UKR UZB") },
-      // Countries once ruled by a communist (Marxist–Leninist) party and no longer.
-      // Only whole present-day countries: Germany (East Germany) and Yemen (South Yemen) were communist only in part.
-      { id: "ex-communist", name: "Former Communist States", bbox: [-5, -27, 135, 72], ids: R("ALB BGR CZE SVK HUN POL ROU SVN HRV BIH SRB MNE MKD KOS ARM AZE BLR EST GEO KAZ KGZ LVA LTU MDA RUS TJK TKM UKR UZB MNG KHM AFG AGO BEN COG ETH ERI MOZ SOM") },
+      // States that officially declared themselves socialist (constitution, official name, or official
+      // state ideology), past or present, including every state ruled by a communist party.
+      // Elected governments whose state never redefined itself (Allende's Chile, Manley's Jamaica) are out,
+      // as are Germany and Yemen, which were socialist only in part (East Germany, South Yemen).
+      // Too wide for an azimuthal map, so this one uses Equal Earth.
+      { id: "socialist", name: "Socialist States, Past & Present", world: true, bbox: [-95, -30, 140, 72], ids: R(
+        // Former Marxist–Leninist states
+        "ALB BGR CZE SVK HUN POL ROU SVN HRV BIH SRB MNE MKD KOS ARM AZE BLR EST GEO KAZ KGZ LVA LTU MDA RUS TJK TKM UKR UZB MNG KHM AFG AGO BEN COG ETH ERI MOZ SOM " +
+        // Current communist states
+        "CHN VNM LAO CUB PRK " +
+        // Other self-declared socialist states
+        "DZA EGY LBY TUN SDN SDS GIN MLI GHA BFA MDG TZA CPV GNB STP SYC SEN SYR IRQ MMR IND BGD LKA NPL GUY GRD NIC VEN PRT") },
       { id: "med", name: "Mediterranean Coast", bbox: [-10, 29, 42, 47.5], ids: R("ALB DZA BIH HRV CYP EGY FRA GRC ISR ITA LBN LBY MLT MCO MNE MAR PSX SVN ESP SYR TUN TUR") },
     ],
   },

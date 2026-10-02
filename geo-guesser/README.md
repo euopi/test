@@ -33,7 +33,7 @@ the best accuracy/time for each region and mode is saved in your browser.
 Continents (Africa, Asia, Europe, North America, South America, Oceania), their sub-regions
 (e.g. West Africa, the Balkans, the Caribbean, Southeast Asia, and North America's mainland and
 large islands without the seven Eastern Caribbean microstates) and notable groups
-(European Union, Arab League, Former Yugoslavia, Former Soviet Union, Former Communist States, Mediterranean coast). 197 countries in total:
+(European Union, Arab League, Former Yugoslavia, Former Soviet Union, Socialist States Past & Present, Mediterranean coast). 197 countries in total:
 the 193 UN members plus Kosovo, Palestine, Taiwan and Vatican City.
 
 ## Map data
@@ -43,5 +43,6 @@ stored in `data/world-topo.js`. Somaliland and Northern Cyprus are drawn as part
 Cyprus; French and Dutch overseas territories (French Guiana, Réunion, Bonaire...) are split off
 from the mainland so clicking them doesn't count as France or the Netherlands. Each region uses
 a Lambert azimuthal equal-area projection centred on that region, which keeps shapes and
-relative sizes accurate. Microstates and small islands get a clickable round marker; the map
+relative sizes accurate. The socialist-states group spans four continents, so it uses the Equal
+Earth world projection, which is also equal-area. Microstates and small islands get a clickable round marker; the map
 zooms (scroll, pinch or the +/− buttons) and pans by dragging or flicking.
