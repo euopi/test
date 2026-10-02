@@ -135,31 +135,14 @@
     lang = l;
     document.documentElement.lang = l;
     try { localStorage.setItem("atlas-drill:lang", l); } catch {}
-    const seg = $("seg-lang");
-    seg.style.setProperty("--n", LANGS.length);
-    seg.style.setProperty("--i", LANGS.indexOf(l));
-    seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.lang === l));
+    $("lang").value = l;
     const t = T();
     document.querySelectorAll("[data-i18n]").forEach((el) => (el.textContent = t[el.dataset.i18n]));
     document.querySelectorAll("[data-i18n-aria]").forEach((el) => el.setAttribute("aria-label", t[el.dataset.i18nAria]));
     document.querySelectorAll("[data-i18n-title]").forEach((el) => (el.title = t[el.dataset.i18nTitle]));
     renderHome();
   }
-  $("seg-lang").querySelectorAll("button").forEach((b) => (b.onclick = () => setLang(b.dataset.lang)));
-
-  // Scored rounds go through each country once; learn mode drills the region until you leave.
-  let style = "round";
-  try { style = localStorage.getItem("atlas-drill:style") === "learn" ? "learn" : "round"; } catch {}
-  function setStyle(st) {
-    style = st;
-    $("seg-style").style.setProperty("--i", st === "round" ? 0 : 1);
-    $("style-round").setAttribute("aria-pressed", st === "round");
-    $("style-learn").setAttribute("aria-pressed", st === "learn");
-    try { localStorage.setItem("atlas-drill:style", st); } catch {}
-    renderHome();
-  }
-  $("style-round").onclick = () => setStyle("round");
-  $("style-learn").onclick = () => setStyle("learn");
+  $("lang").onchange = (e) => setLang(e.target.value);
 
   function renderHome() {
     const root = $("groups");
@@ -170,16 +153,24 @@
       sec.className = "group";
       sec.innerHTML = `<h2 class="t-title">${T().groups[g.name]}${notable ? "" : ` <small>${T().countries(g.regions[0].ids.length)}</small>`}</h2><div class="cards"></div>`;
       const cards = sec.querySelector(".cards");
+      // Each region offers both session types right where you pick it:
+      // Play is a scored round through every country once; Learn drills it until you leave.
       for (const r of g.regions) {
-        const b = document.createElement("button");
-        b.type = "button";
-        b.className = "card press";
-        const best = style === "round" ? getBest(r.id, mode) : null;
-        b.innerHTML = `<span class="t-headline">${regionName(r)}</span>
+        const card = document.createElement("div");
+        card.className = "card";
+        const best = getBest(r.id, mode);
+        const name = regionName(r);
+        card.innerHTML = `<span class="t-headline">${name}</span>
           <span class="meta t-foot"><span>${T().countries(r.ids.length)}</span>${best ? `<span class="best">${T().best} ${fmtPct(best.acc)} · ${fmtTime(best.ms)}</span>` : ""}</span>
-          <span class="frame">${frameText(r.bbox)}</span>`;
-        b.onclick = () => startGame(r, r.ids);
-        cards.appendChild(b);
+          <span class="frame">${frameText(r.bbox)}</span>
+          <div class="card-actions">
+            <button type="button" class="btn press" aria-label="${T().play}: ${name}">${T().play}</button>
+            <button type="button" class="btn tinted press" aria-label="${T().learn}: ${name}">${T().learn}</button>
+          </div>`;
+        const [play, learn] = card.querySelectorAll("button");
+        play.onclick = () => startGame(r, r.ids, false);
+        learn.onclick = () => startGame(r, r.ids, true);
+        cards.appendChild(card);
       }
       root.appendChild(sec);
     }
@@ -434,7 +425,7 @@
   const G = { results: new Map(), set: new Set(), reveals: new Map() };
   let timerId;
 
-  function startGame(region, ids, learn = style === "learn") {
+  function startGame(region, ids, learn = false) {
     for (const timer of G.reveals.values()) clearTimeout(timer);
     Object.assign(G, {
       region, mode, ids, set: new Set(region.ids), queue: shuffle(ids), idx: 0, tries: 0,
@@ -748,8 +739,6 @@
   }).observe($("game"));
 
   $("seg-mode").style.setProperty("--n", 2);
-  $("seg-style").style.setProperty("--n", 2);
   setMode(mode);
-  setStyle(style);
   setLang(lang);
 })();

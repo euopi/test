@@ -9,12 +9,12 @@ and opened on its own. Regenerate it with `python3 build-single.py` after changi
 
 ## Modes
 
-- **Click the map**: you're given a country name and click it on the map.
-- **Type the name**: a country is highlighted and you type its name. Common alternatives
+- **Pin**: you're given a country name and click it on the map.
+- **Type**: a country is highlighted and you type its name. Common alternatives
   (UK, USA, DRC, Ivory Coast, Burma, Czech Republic, Swaziland...) and small typos are accepted.
   A name the game doesn't recognise doesn't cost a try.
 
-Both modes come in two session types. A **scored round** asks every country in the region once,
+Both modes come in two session types. **Play** (a scored round) asks every country in the region once,
 then shows your results. **Learn** drills the region indefinitely: a country you miss comes back
 within a few turns, countries you keep getting right on the first try come up less often, and the
 counter shows how many you've learned (right on the first try four times in a row; any answer
