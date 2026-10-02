@@ -54,15 +54,28 @@
     );
   }
   const byId = new Map(features.map((f) => [f.id, f]));
-  const nameOf = (id) => (COUNTRIES[id] ? COUNTRIES[id][0] : byId.get(id)?.properties.n || id);
+  const LANGS = ["en", "es", "fr"];
+  let lang = "en";
+  try { lang = localStorage.getItem("atlas-drill:lang") || ""; } catch {}
+  if (!LANGS.includes(lang)) lang = LANGS.find((l) => (navigator.language || "").toLowerCase().startsWith(l)) || "en";
+  const T = () => I18N[lang];
+  const nameOf = (id) => {
+    if (lang !== "en" && NAMES[lang][id]) return NAMES[lang][id];
+    return (COUNTRIES[id] && COUNTRIES[id][0]) || NAMES.en[id] || byId.get(id)?.properties.n || id;
+  };
+  const regionName = (r) => T().regionNames[r.id] || r.name;
 
   // ---------- Name matching ----------
   const norm = (s) =>
     s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
-      .replace(/[.'’]/g, "").replace(/&/g, " and ").replace(/\bst\b/g, "saint")
-      .replace(/[^a-z0-9]+/g, " ").replace(/\bthe\b/g, " ").replace(/\s+/g, " ").trim();
+      .replace(/^\s*l['’]\s*/, "").replace(/[.'’]/g, "").replace(/&/g, " and ").replace(/\bst\b/g, "saint")
+      .replace(/[^a-z0-9]+/g, " ").replace(/\bthe\b/g, " ").replace(/^\s*(el|la|las|los|le|les)\s+/, "").replace(/\s+/g, " ").trim();
   const aliasTable = new Map();
-  for (const [id, names] of Object.entries(COUNTRIES)) for (const n of names) aliasTable.set(norm(n), id);
+  // Typed answers are accepted in any of the three languages, whatever the interface language.
+  for (const [id, names] of Object.entries(COUNTRIES)) {
+    const all = [...names, NAMES.es[id], NAMES.fr[id], ...(EXTRA_ALIASES[id] || [])];
+    for (const n of all) if (n) aliasTable.set(norm(n), id);
+  }
 
   function lev(a, b) {
     if (Math.abs(a.length - b.length) > 2) return 9;
@@ -96,9 +109,10 @@
 
   // ---------- Helpers ----------
   const fmtTime = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
-  const deg = (v) => +Math.abs(v).toFixed(1);
+  const deg = (v) => (+Math.abs(v).toFixed(1)).toLocaleString(lang);
   const fmtLat = (v) => `${deg(v)}°${v >= 0 ? "N" : "S"}`;
-  const fmtLon = (v) => { v = ((v + 540) % 360) - 180; return `${deg(v)}°${v >= 0 ? "E" : "W"}`; };
+  const fmtLon = (v) => { v = ((v + 540) % 360) - 180; return `${deg(v)}°${v >= 0 ? T().east : T().west}`; };
+  const fmtPct = (n) => new Intl.NumberFormat(lang, { style: "percent" }).format(n / 100);
   const frameText = (b) => `${fmtLat(b[1])}–${fmtLat(b[3])} · ${fmtLon(b[0])}–${fmtLon(b[2])}`;
   const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
@@ -107,7 +121,7 @@
   try { mode = localStorage.getItem("atlas-drill:mode") || "click"; } catch {}
   function setMode(m) {
     mode = m;
-    $("seg").dataset.mode = m;
+    $("seg-mode").style.setProperty("--i", m === "click" ? 0 : 1);
     $("mode-click").setAttribute("aria-pressed", m === "click");
     $("mode-type").setAttribute("aria-pressed", m === "type");
     try { localStorage.setItem("atlas-drill:mode", m); } catch {}
@@ -116,6 +130,36 @@
   $("mode-click").onclick = () => setMode("click");
   $("mode-type").onclick = () => setMode("type");
 
+  function setLang(l) {
+    lang = l;
+    document.documentElement.lang = l;
+    try { localStorage.setItem("atlas-drill:lang", l); } catch {}
+    const seg = $("seg-lang");
+    seg.style.setProperty("--n", LANGS.length);
+    seg.style.setProperty("--i", LANGS.indexOf(l));
+    seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.lang === l));
+    const t = T();
+    document.querySelectorAll("[data-i18n]").forEach((el) => (el.textContent = t[el.dataset.i18n]));
+    document.querySelectorAll("[data-i18n-aria]").forEach((el) => el.setAttribute("aria-label", t[el.dataset.i18nAria]));
+    document.querySelectorAll("[data-i18n-title]").forEach((el) => (el.title = t[el.dataset.i18nTitle]));
+    renderHome();
+  }
+  $("seg-lang").querySelectorAll("button").forEach((b) => (b.onclick = () => setLang(b.dataset.lang)));
+
+  // Scored rounds go through each country once; learn mode drills the region until you leave.
+  let style = "round";
+  try { style = localStorage.getItem("atlas-drill:style") === "learn" ? "learn" : "round"; } catch {}
+  function setStyle(st) {
+    style = st;
+    $("seg-style").style.setProperty("--i", st === "round" ? 0 : 1);
+    $("style-round").setAttribute("aria-pressed", st === "round");
+    $("style-learn").setAttribute("aria-pressed", st === "learn");
+    try { localStorage.setItem("atlas-drill:style", st); } catch {}
+    renderHome();
+  }
+  $("style-round").onclick = () => setStyle("round");
+  $("style-learn").onclick = () => setStyle("learn");
+
   function renderHome() {
     const root = $("groups");
     root.innerHTML = "";
@@ -123,15 +167,15 @@
       const notable = g.name === "Notable groups";
       const sec = document.createElement("section");
       sec.className = "group";
-      sec.innerHTML = `<h2 class="t-title">${g.name}${notable ? "" : ` <small>${g.regions[0].ids.length} countries</small>`}</h2><div class="cards"></div>`;
+      sec.innerHTML = `<h2 class="t-title">${T().groups[g.name]}${notable ? "" : ` <small>${T().countries(g.regions[0].ids.length)}</small>`}</h2><div class="cards"></div>`;
       const cards = sec.querySelector(".cards");
       for (const r of g.regions) {
         const b = document.createElement("button");
         b.type = "button";
         b.className = "card press";
-        const best = getBest(r.id, mode);
-        b.innerHTML = `<span class="t-headline">${r.name}</span>
-          <span class="meta t-foot"><span>${r.ids.length} countries</span>${best ? `<span class="best">Best ${best.acc}% · ${fmtTime(best.ms)}</span>` : ""}</span>
+        const best = style === "round" ? getBest(r.id, mode) : null;
+        b.innerHTML = `<span class="t-headline">${regionName(r)}</span>
+          <span class="meta t-foot"><span>${T().countries(r.ids.length)}</span>${best ? `<span class="best">${T().best} ${fmtPct(best.acc)} · ${fmtTime(best.ms)}</span>` : ""}</span>
           <span class="frame">${frameText(r.bbox)}</span>`;
         b.onclick = () => startGame(r, r.ids);
         cards.appendChild(b);
@@ -251,7 +295,7 @@
     zoomLayer.selectAll("*").remove();
     const { p, center } = makeProjection(G.region, W, H);
     const path = d3.geoPath(p);
-    $("proj").textContent = `Lambert azimuthal equal-area · ${fmtLat(center[1])} ${fmtLon(center[0])}`;
+    $("proj").textContent = `${T().proj} · ${fmtLat(center[1])} ${fmtLon(center[0])}`;
 
     zoom.extent([[0, 0], [W, H]]).translateExtent([[0, 0], [W, H]]);
     zoomLayer.append("rect").attr("class", "sea").attr("width", W).attr("height", H);
@@ -389,17 +433,19 @@
   const G = { results: new Map(), set: new Set(), reveals: new Map() };
   let timerId;
 
-  function startGame(region, ids) {
+  function startGame(region, ids, learn = style === "learn") {
     for (const timer of G.reveals.values()) clearTimeout(timer);
     Object.assign(G, {
       region, mode, ids, set: new Set(region.ids), queue: shuffle(ids), idx: 0, tries: 0,
       results: new Map(), reveals: new Map(), over: false, current: null, start: performance.now(), elapsed: 0,
+      learn, levels: new Map(ids.map((id) => [id, 0])), recent: [], due: [], turn: 0, points: 0, answered: 0,
     });
+    $("s-prog-label").textContent = learn ? T().learned : T().done;
     $("home").hidden = true;
     $("game").hidden = false;
     hideSheet();
     $("prompt").innerHTML = "";
-    $("where").textContent = `${region.name} · ${G.mode === "click" ? "Click mode" : "Type mode"}`;
+    $("where").textContent = `${regionName(region)} · ${G.mode === "click" ? T().clickMode : T().typeMode}${learn ? ` · ${T().learn}` : ""}`;
     $("game").className = "mode-" + G.mode;
     drawMap();
     clearInterval(timerId);
@@ -413,33 +459,35 @@
   }
 
   function accuracy() {
+    if (G.learn) return G.answered ? Math.round((G.points / (MAX_TRIES * G.answered)) * 100) : null;
     let pts = 0;
     for (const r of G.results.values()) pts += r === 0 ? 0 : MAX_TRIES + 1 - r;
     return G.results.size ? Math.round((pts / (MAX_TRIES * G.results.size)) * 100) : null;
   }
   function updateStats() {
-    $("s-prog").textContent = `${G.results.size}/${G.ids.length}`;
+    const learned = G.learn ? [...G.levels.values()].filter((lv) => lv >= 2).length : G.results.size;
+    $("s-prog").textContent = `${learned}/${G.ids.length}`;
     const a = accuracy();
-    $("s-acc").textContent = a === null ? "–" : a + "%";
+    $("s-acc").textContent = a === null ? "–" : fmtPct(a);
   }
 
   function triesDots() {
-    return `<span class="tries" role="img" aria-label="${MAX_TRIES - G.tries} of ${MAX_TRIES} tries left">${Array.from({ length: MAX_TRIES }, (_, i) => `<i class="${i < G.tries ? "used" : ""}"></i>`).join("")}</span>`;
+    return `<span class="tries" role="img" aria-label="${T().triesAria(MAX_TRIES - G.tries, MAX_TRIES)}">${Array.from({ length: MAX_TRIES }, (_, i) => `<i class="${i < G.tries ? "used" : ""}"></i>`).join("")}</span>`;
   }
 
   function renderPrompt() {
     const el = $("prompt");
-    if (G.over) { el.innerHTML = `<span class="target">Finished</span>`; return; }
+    if (G.over) { el.innerHTML = `<span class="target">${T().finished}</span>`; return; }
     if (G.mode === "click") {
-      el.innerHTML = `<span class="verb t-cap">Find</span><span class="target">${nameOf(G.current)}</span>${triesDots()}`;
+      el.innerHTML = `<span class="verb t-cap">${T().find}</span><span class="target">${nameOf(G.current)}</span>${triesDots()}`;
       return;
     }
     const input = $("guess");
     if (input) { input.value = ""; input.classList.remove("invalid"); updateTries(); return; }
     el.innerHTML = `<form class="answer" id="answer" autocomplete="off">
-        <input id="guess" type="text" placeholder="Country name" aria-label="Name the highlighted country" spellcheck="false" autocapitalize="off" enterkeyhint="go">
-        <button class="btn press" type="submit">Guess</button>
-        <button class="btn plain press" type="button" id="skip">Skip</button>
+        <input id="guess" type="text" placeholder="${T().placeholder}" aria-label="${T().guessAria}" spellcheck="false" autocapitalize="off" enterkeyhint="go">
+        <button class="btn press" type="submit">${T().guess}</button>
+        <button class="btn plain press" type="button" id="skip">${T().skip}</button>
       </form>${triesDots()}`;
     $("answer").onsubmit = (e) => { e.preventDefault(); onTyped($("guess").value); };
     $("guess").oninput = () => $("guess").classList.remove("invalid");
@@ -451,11 +499,27 @@
     if (t) t.outerHTML = triesDots();
   }
 
+  // Learn mode: missed countries come back within a few turns; ones you keep getting
+  // right on the first try get rarer. Never the same country twice in a row.
+  function pickLearn() {
+    G.turn++;
+    const avoid = new Set(G.recent.slice(-Math.min(2, G.ids.length - 1)));
+    const dueAt = G.due.findIndex((d) => d.turn <= G.turn && !avoid.has(d.id));
+    if (dueAt >= 0) return G.due.splice(dueAt, 1)[0].id;
+    const pool = G.ids.filter((id) => !avoid.has(id) && !G.due.some((d) => d.id === id));
+    const choices = pool.length ? pool : G.ids.filter((id) => !avoid.has(id));
+    const weight = (id) => (G.results.has(id) ? 2 ** (4 - Math.min(4, G.levels.get(id))) : 8);
+    let r = Math.random() * choices.reduce((sum, id) => sum + weight(id), 0);
+    for (const id of choices) if ((r -= weight(id)) <= 0) return id;
+    return choices[choices.length - 1];
+  }
+
   function nextPrompt() {
     G.tries = 0;
-    if (G.idx >= G.queue.length) return finish();
+    if (!G.learn && G.idx >= G.queue.length) return finish();
     const prev = G.current;
-    G.current = G.queue[G.idx++];
+    G.current = G.learn ? pickLearn() : G.queue[G.idx++];
+    if (G.learn) G.recent.push(G.current);
     if (prev) paint(prev);
     paint(G.current);
     updateStats();
@@ -464,7 +528,14 @@
   }
 
   function settle(result) {
-    G.results.set(G.current, result);
+    if (G.learn) {
+      const lv = G.levels.get(G.current);
+      G.levels.set(G.current, result === 1 ? lv + 1 : result === 2 ? lv : result === 3 ? Math.max(0, lv - 1) : 0);
+      if (result === 0 || result === 3) G.due.push({ id: G.current, turn: G.turn + 3 });
+      G.points += result === 0 ? 0 : MAX_TRIES + 1 - result;
+      G.answered++;
+    }
+    G.results.set(G.current, result); // in learn mode the colour shows your latest attempt
     paint(G.current);
     updateStats();
   }
@@ -481,9 +552,8 @@
     G.tries++;
     flashWrong(id);
     haptic(18);
-    if (G.tries >= MAX_TRIES) return reveal(`That's ${nameOf(id)}. ${nameOf(G.current)} is shown in red`);
-    const left = MAX_TRIES - G.tries;
-    toast(`That's ${nameOf(id)}. ${left} ${left === 1 ? "try" : "tries"} left`, "bad");
+    if (G.tries >= MAX_TRIES) return reveal(T().revealClick(nameOf(id), nameOf(G.current)));
+    toast(T().wrongClick(nameOf(id), MAX_TRIES - G.tries), "bad");
     updateTries();
   }
 
@@ -499,12 +569,11 @@
       return;
     }
     input.classList.add("invalid");
-    if (!id) { toast("Not a country name I recognise"); return; }
+    if (!id) { toast(T().unknown); return; }
     G.tries++;
     haptic(18);
-    if (G.tries >= MAX_TRIES) return reveal(`It was ${nameOf(G.current)}`);
-    const left = MAX_TRIES - G.tries;
-    toast(`Not ${nameOf(id)}. ${left} ${left === 1 ? "try" : "tries"} left`, "bad");
+    if (G.tries >= MAX_TRIES) return reveal(T().revealTyped(nameOf(G.current)));
+    toast(T().wrongTyped(nameOf(id), MAX_TRIES - G.tries), "bad");
     input.select();
     updateTries();
   }
@@ -512,7 +581,7 @@
   function giveUp() {
     if (G.over) return;
     G.tries = MAX_TRIES;
-    reveal(`Skipped: it was ${nameOf(G.current)}`);
+    reveal(T().skipped(nameOf(G.current)));
   }
 
   // The missed country stays marked and labelled for a moment, but the next prompt starts immediately.
@@ -548,33 +617,34 @@
       newBest = true;
     }
     const sw = (c) => `<i style="width:.6rem;height:.6rem;border-radius:50%;display:inline-block;background:var(${c})"></i>`;
-    const bestNote = newBest ? "New best for this region and mode."
-      : best && fullRun ? `Your best: ${best.acc}% in ${fmtTime(best.ms)}.`
-      : fullRun ? "" : "Rounds on missed countries don't count toward your best.";
+    const t = T();
+    const bestNote = newBest ? t.newBest
+      : best && fullRun ? t.yourBest(fmtPct(best.acc), fmtTime(best.ms))
+      : fullRun ? "" : t.practice;
     $("sheet-body").innerHTML = `
-      <h2 class="t-title" id="sheet-title" data-drag>${G.region.name}${fullRun ? "" : " · missed ones"}</h2>
+      <h2 class="t-title" id="sheet-title" data-drag>${regionName(G.region)}${fullRun ? "" : ` · ${t.missedOnes}`}</h2>
       <div class="figures">
-        <div><b>${acc}%</b><span class="t-cap">Accuracy</span></div>
-        <div><b>${fmtTime(G.elapsed)}</b><span class="t-cap">Time</span></div>
+        <div><b>${fmtPct(acc)}</b><span class="t-cap">${t.accuracy}</span></div>
+        <div><b>${fmtTime(G.elapsed)}</b><span class="t-cap">${t.time}</span></div>
       </div>
       <div class="breakdown t-foot">
-        <span>${sw("--green")} 1st try ${counts[0]}</span>
-        <span>${sw("--yellow")} 2nd ${counts[1]}</span>
-        <span>${sw("--orange")} 3rd ${counts[2]}</span>
-        <span>${sw("--red")} Missed ${counts[3]}</span>
+        <span>${sw("--green")} ${t.t1} ${counts[0]}</span>
+        <span>${sw("--yellow")} ${t.t2} ${counts[1]}</span>
+        <span>${sw("--orange")} ${t.t3} ${counts[2]}</span>
+        <span>${sw("--red")} ${t.missed} ${counts[3]}</span>
       </div>
-      ${missed.length ? `<div><p class="note t-foot">Missed. Tap one to see it on the map.</p><div class="chips">${missed.map((id) => `<button type="button" class="press" data-id="${id}">${nameOf(id)}</button>`).join("")}</div></div>` : `<p class="note t-foot">No misses.</p>`}
-      <p class="note t-foot">${bestNote} Accuracy gives full credit on the 1st try, two-thirds on the 2nd and one-third on the 3rd. Drag this sheet down to explore the map; hovering shows every name.</p>
+      ${missed.length ? `<div><p class="note t-foot">${t.missedTap}</p><div class="chips">${missed.map((id) => `<button type="button" class="press" data-id="${id}">${nameOf(id)}</button>`).join("")}</div></div>` : `<p class="note t-foot">${t.noMisses}</p>`}
+      <p class="note t-foot">${bestNote} ${t.accExplain}</p>
       <div class="actions">
-        ${missed.length ? `<button class="btn press" type="button" id="r-missed">Retry ${missed.length} missed</button>` : ""}
-        <button class="btn press ${missed.length ? "plain" : ""}" type="button" id="r-again">Play again</button>
-        <button class="btn plain press" type="button" id="r-home">Choose region</button>
+        ${missed.length ? `<button class="btn press" type="button" id="r-missed">${t.retry(missed.length)}</button>` : ""}
+        <button class="btn press ${missed.length ? "plain" : ""}" type="button" id="r-again">${t.again}</button>
+        <button class="btn plain press" type="button" id="r-home">${t.choose}</button>
       </div>`;
     $("sheet-body").querySelectorAll(".chips button").forEach((b) => (b.onclick = () => {
       closeSheet(0, () => { clearLabels(); addLabel(b.dataset.id); focusOn(b.dataset.id); });
     }));
-    if (missed.length) $("r-missed").onclick = () => startGame(G.region, missed);
-    $("r-again").onclick = () => startGame(G.region, G.region.ids);
+    if (missed.length) $("r-missed").onclick = () => startGame(G.region, missed, false);
+    $("r-again").onclick = () => startGame(G.region, G.region.ids, false);
     $("r-home").onclick = goHome;
     openSheet();
   }
@@ -598,7 +668,7 @@
     measureSheet();
     setSheetY(closedY);
     sheetAnim = spring({ from: closedY, to: 0, response: 0.35, damping: 1, onUpdate: setSheetY });
-    $("prompt").innerHTML = `<span class="target">Finished</span>`;
+    $("prompt").innerHTML = `<span class="target">${T().finished}</span>`;
   }
   // Leaves along the same path it arrived on, continuing whatever velocity the finger gave it.
   function closeSheet(velocity = 0, after) {
@@ -611,7 +681,7 @@
   }
   function hideSheet() { sheetAnim && sheetAnim.stop(); sheetDrag = null; sheet.hidden = true; scrim.hidden = true; }
   function showReturn() {
-    $("prompt").innerHTML = `<button class="btn press" type="button" id="r-show">Show results</button>`;
+    $("prompt").innerHTML = `<button class="btn press" type="button" id="r-show">${T().show}</button>`;
     $("r-show").onclick = openSheet;
   }
 
@@ -676,5 +746,9 @@
     resizeTimer = setTimeout(drawMap, 150);
   }).observe($("game"));
 
+  $("seg-mode").style.setProperty("--n", 2);
+  $("seg-style").style.setProperty("--n", 2);
   setMode(mode);
+  setStyle(style);
+  setLang(lang);
 })();

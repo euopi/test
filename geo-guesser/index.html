@@ -87,13 +87,12 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action
 
 /* ---------- Home ---------- */
 #home { max-width: 1080px; margin: 0 auto; padding: 2.75rem 1rem 3rem; }
-.masthead { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 1.25rem 2rem; }
+.masthead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.25rem 2rem; }
 .masthead h1 { margin: 0; font-size: clamp(2.125rem, 6vw, 3rem); }
-.masthead p { margin: .4rem 0 0; color: var(--label-2); max-width: 46ch; }
 
 .seg { position: relative; display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 2px; border-radius: 9px; background: var(--fill); isolation: isolate; }
-.seg .thumb { position: absolute; z-index: -1; top: 2px; bottom: 2px; left: 2px; width: calc(50% - 2px); border-radius: 7px; background: var(--thumb); box-shadow: 0 3px 8px rgb(0 0 0 / .12), 0 3px 1px rgb(0 0 0 / .04); transition: transform var(--spring-ms) var(--ease-spring); }
-.seg[data-mode="type"] .thumb { transform: translateX(100%); }
+.controls { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: flex-end; }
+.seg .thumb { position: absolute; z-index: -1; top: 2px; bottom: 2px; left: 2px; width: calc((100% - 4px) / var(--n, 2)); transform: translateX(calc(var(--i, 0) * 100%)); border-radius: 7px; background: var(--thumb); box-shadow: 0 3px 8px rgb(0 0 0 / .12), 0 3px 1px rgb(0 0 0 / .04); transition: transform var(--spring-ms) var(--ease-spring); }
 .seg button { border: 0; background: transparent; padding: .4rem 1.1rem; font-size: .875rem; font-weight: 600; letter-spacing: -.006em; white-space: nowrap; }
 .seg button[aria-pressed="false"] { color: var(--label-2); }
 
@@ -182,7 +181,7 @@ form.answer input.invalid { box-shadow: inset 0 0 0 2px var(--red); }
 .legend .proj { color: var(--label-2); font-family: var(--font-mono); font-size: .6875rem; letter-spacing: 0; }
 
 .toast {
-  position: absolute; z-index: 4; left: 50%; top: 0; padding: .55rem 1rem; border-radius: 999px;
+  position: absolute; z-index: 2; left: 50%; top: 0; padding: .55rem 1rem; border-radius: 999px; /* slides out from under the top bar */
   display: inline-flex; align-items: center; gap: .5rem; font-weight: 600; font-size: .9375rem; letter-spacing: -.008em;
   white-space: nowrap; max-width: calc(100% - 2rem); overflow: hidden; text-overflow: ellipsis; pointer-events: none;
   transform: translate(-50%, -140%); opacity: 0;
@@ -227,6 +226,9 @@ form.answer input.invalid { box-shadow: inset 0 0 0 2px var(--red); }
   .toast { white-space: normal; text-align: center; width: max-content; border-radius: 18px; }
   .stats { gap: .8rem; }
   .legend .proj { display: none; }
+  .controls { justify-content: flex-start; width: 100%; }
+  .controls .seg { width: 100%; }
+  .seg button { padding: .4rem .7rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .land.current, .mk.current, .land.reveal, .mk.reveal { animation: none; }
@@ -247,51 +249,61 @@ form.answer input.invalid { box-shadow: inset 0 0 0 2px var(--red); }
 
 <main id="home">
   <header class="masthead">
-    <div>
-      <h1 class="t-large">Atlas Drill</h1>
-      <p>Pick a region and find every country in it. Three tries each; the map colours every country by how many it took.</p>
-    </div>
-    <div class="seg" id="seg" role="group" aria-label="Game mode" data-mode="click">
-      <span class="thumb" aria-hidden="true"></span>
-      <button id="mode-click" class="press" type="button" aria-pressed="true">Click the map</button>
-      <button id="mode-type" class="press" type="button" aria-pressed="false">Type the name</button>
+    <h1 class="t-large">Atlas Drill</h1>
+    <div class="controls">
+      <div class="seg" id="seg-mode" role="group" aria-label="Game mode" data-i18n-aria="gameMode">
+        <span class="thumb" aria-hidden="true"></span>
+        <button id="mode-click" class="press" type="button" aria-pressed="true" data-i18n="click">Click the map</button>
+        <button id="mode-type" class="press" type="button" aria-pressed="false" data-i18n="type">Type the name</button>
+      </div>
+      <div class="seg" id="seg-style" role="group" aria-label="Session type" data-i18n-aria="session">
+        <span class="thumb" aria-hidden="true"></span>
+        <button id="style-round" class="press" type="button" aria-pressed="true" data-i18n="round">Scored round</button>
+        <button id="style-learn" class="press" type="button" aria-pressed="false" data-i18n="learn">Learn</button>
+      </div>
+      <div class="seg" id="seg-lang" role="group" aria-label="Language" data-i18n-aria="language">
+        <span class="thumb" aria-hidden="true"></span>
+        <button class="press" type="button" data-lang="en" lang="en">English</button>
+        <button class="press" type="button" data-lang="es" lang="es">Español</button>
+        <button class="press" type="button" data-lang="fr" lang="fr">Français</button>
+      </div>
     </div>
   </header>
   <div class="groups" id="groups"></div>
-  <p class="foot t-foot">Borders: Natural Earth 1:10m Admin 0 (de facto boundaries; Somaliland and Northern Cyprus are drawn as part of Somalia and Cyprus). Each map is a Lambert azimuthal equal-area projection centred on its region, so shapes and relative sizes stay true. Scroll or pinch to zoom, drag or flick to pan. Small countries also get a round marker you can click.</p>
+  <p class="foot t-foot" data-i18n="foot">Borders: Natural Earth 1:10m Admin 0 (de facto boundaries; Somaliland and Northern Cyprus are drawn as part of Somalia and Cyprus). Each map is a Lambert azimuthal equal-area projection centred on its region, so shapes and relative sizes stay true. Scroll or pinch to zoom, drag or flick to pan. Small countries also get a round marker you can click.</p>
 </main>
 
 <section id="game" hidden>
   <svg id="map" aria-label="Map"></svg>
   <header class="strip glass" id="strip">
     <div class="nav">
-      <button class="back" id="back" type="button"><svg viewBox="0 0 12 20" aria-hidden="true"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Regions</button>
+      <button class="back" id="back" type="button"><svg viewBox="0 0 12 20" aria-hidden="true"><path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="regions">Regions</span></button>
       <div class="where t-cap" id="where"></div>
     </div>
     <div class="prompt" id="prompt"></div>
     <div class="stats">
-      <div class="stat"><b id="s-prog">0/0</b><span class="t-cap">Done</span></div>
-      <div class="stat"><b id="s-acc">–</b><span class="t-cap">Accuracy</span></div>
-      <div class="stat"><b id="s-time">0:00</b><span class="t-cap">Time</span></div>
+      <div class="stat"><b id="s-prog">0/0</b><span class="t-cap" id="s-prog-label">Done</span></div>
+      <div class="stat"><b id="s-acc">–</b><span class="t-cap" data-i18n="accuracy">Accuracy</span></div>
+      <div class="stat"><b id="s-time">0:00</b><span class="t-cap" data-i18n="time">Time</span></div>
     </div>
   </header>
   <div class="legend glass t-foot">
-    <span class="key"><i class="sw" style="background:var(--green)"></i>1st try</span>
-    <span class="key"><i class="sw" style="background:var(--yellow)"></i>2nd</span>
-    <span class="key"><i class="sw" style="background:var(--orange)"></i>3rd</span>
-    <span class="key"><i class="sw" style="background:var(--red)"></i>Missed</span>
+    <span class="key"><i class="sw" style="background:var(--green)"></i><span data-i18n="t1">1st try</span></span>
+    <span class="key"><i class="sw" style="background:var(--yellow)"></i><span data-i18n="t2">2nd</span></span>
+    <span class="key"><i class="sw" style="background:var(--orange)"></i><span data-i18n="t3">3rd</span></span>
+    <span class="key"><i class="sw" style="background:var(--red)"></i><span data-i18n="missed">Missed</span></span>
     <span class="key proj" id="proj"></span>
   </div>
   <div class="zoom glass">
-    <button type="button" id="z-in" aria-label="Zoom in"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-    <button type="button" id="z-out" aria-label="Zoom out"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-    <button type="button" id="z-reset" aria-label="Fit whole region"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button type="button" id="z-in" aria-label="Zoom in" data-i18n-aria="zoomIn"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    <button type="button" id="z-out" aria-label="Zoom out" data-i18n-aria="zoomOut"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    <button type="button" id="z-reset" aria-label="Fit whole region" data-i18n-aria="fit"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
   <div class="toast glass" id="toast" role="status" aria-live="polite"></div>
   <div class="tip glass" id="tip" hidden></div>
   <div class="scrim" id="scrim" hidden></div>
   <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
-    <div class="grabber" id="grabber" title="Drag down to see the map"><i></i></div>
+    <div class="grabber" id="grabber" title="Drag down to see the map" data-i18n-title="grabber"><i></i></div>
     <div class="sheet-body" id="sheet-body"></div>
   </div>
 </section>
@@ -299,7 +311,9 @@ form.answer input.invalid { box-shadow: inset 0 0 0 2px var(--red); }
 <script src="vendor/d3.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
 <script src="data/world-topo.js"></script>
+<script src="data/names.js"></script>
 <script src="regions.js"></script>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -14,6 +14,14 @@ and opened on its own. Regenerate it with `python3 build-single.py` after changi
   (UK, USA, DRC, Ivory Coast, Burma, Czech Republic, Swaziland...) and small typos are accepted.
   A name the game doesn't recognise doesn't cost a try.
 
+Both modes come in two session types. A **scored round** asks every country in the region once,
+then shows your results. **Learn** drills the region indefinitely: a country you miss comes back
+within a few turns, countries you keep getting right on the first try come up less often, and the
+counter shows how many you've learned (right on the first try twice in a row since your last miss).
+
+The interface and country names are available in English, Spanish and French. Typed answers are
+accepted in any of the three languages whichever one the interface is in.
+
 You get three tries per country before the answer is revealed. Countries are coloured by how
 many tries they took (green 1st, yellow 2nd, orange 3rd, red missed). Accuracy gives full credit
 on the 1st try, two-thirds on the 2nd and one-third on the 3rd. A timer runs for each round, and
@@ -22,7 +30,8 @@ the best accuracy/time for each region and mode is saved in your browser.
 ## Regions
 
 Continents (Africa, Asia, Europe, North America, South America, Oceania), their sub-regions
-(e.g. West Africa, the Balkans, the Caribbean, Southeast Asia) and notable groups
+(e.g. West Africa, the Balkans, the Caribbean, Southeast Asia, and North America's mainland and
+large islands without the seven Eastern Caribbean microstates) and notable groups
 (European Union, Arab League, Former Yugoslavia, Former Soviet Union, Mediterranean coast). 197 countries in total:
 the 193 UN members plus Kosovo, Palestine, Taiwan and Vatican City.
 

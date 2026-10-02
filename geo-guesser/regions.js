@@ -106,6 +106,8 @@ window.REGION_GROUPS = [
     name: "North America",
     regions: [
       { id: "n-america", name: "All of North America", bbox: [-170, 7, -52, 72], ids: R("CAN USA MEX BLZ CRI SLV GTM HND NIC PAN ATG BHS BRB CUB DMA DOM GRD HTI JAM KNA LCA VCT TTO") },
+      // Everything except the seven Eastern Caribbean microstates (each under 1,000 km²).
+      { id: "na-large", name: "Mainland & Large Islands", bbox: [-170, 7, -52, 72], ids: R("CAN USA MEX BLZ CRI SLV GTM HND NIC PAN BHS CUB DOM HTI JAM TTO") },
       { id: "c-america", name: "Central America", bbox: [-92.5, 7, -77, 18.6], ids: R("BLZ CRI SLV GTM HND NIC PAN") },
       { id: "caribbean", name: "The Caribbean", bbox: [-85.5, 10, -59, 27.5], ids: R("ATG BHS BRB CUB DMA DOM GRD HTI JAM KNA LCA VCT TTO") },
     ],
