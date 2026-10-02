@@ -4,6 +4,9 @@ A browser geography quiz: pick a region and locate every country in it.
 
 Open `index.html` in a browser (double-clicking it works; no server or build step needed).
 
+`atlas-drill.html` is the same game as a single self-contained file, so it can be downloaded
+and opened on its own. Regenerate it with `python3 build-single.py` after changing any source file.
+
 ## Modes
 
 - **Click the map**: you're given a country name and click it on the map.
