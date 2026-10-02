@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Atlas Drill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a survey-office chart table. Region index as a field ledger; the game is a full-bleed map with an instrument strip above it. */
+:root {
+  --paper: #edf1f0;
+  --panel: #f8faf9;
+  --ink: #15242b;
+  --muted: #5b6d72;
+  --rule: #c9d3d2;
+  --sea: #b9d0d9;
+  --grat: #a7c0c9;
+  --land: #fbfaf4;
+  --land-off: #d6dbd6;
+  --border: #6f8286;
+  --accent: #0d6b8c;
+  --accent-ink: #ffffff;
+  --focus: #e09b12;
+  --t1: #2f9a5b;
+  --t2: #d3b21f;
+  --t3: #e07b25;
+  --miss: #cc3d36;
+  --wrong: #8a2f2a;
+  --shadow: 0 1px 2px rgb(21 36 43 / .08), 0 6px 20px rgb(21 36 43 / .08);
+  --f-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e1619; --panel: #142024; --ink: #e3ece9; --muted: #93a6a8; --rule: #26363b;
+    --sea: #10232b; --grat: #1b323b; --land: #3c4e49; --land-off: #1e2b2e; --border: #0b1316;
+    --accent: #4fb3d4; --accent-ink: #06141a; --focus: #f2b33a;
+    --t1: #3fb36c; --t2: #e3c63a; --t3: #ef8d3a; --miss: #e2554c; --wrong: #ff8a7f;
+    --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e1619; --panel: #142024; --ink: #e3ece9; --muted: #93a6a8; --rule: #26363b;
+  --sea: #10232b; --grat: #1b323b; --land: #3c4e49; --land-off: #1e2b2e; --border: #0b1316;
+  --accent: #4fb3d4; --accent-ink: #06141a; --focus: #f2b33a;
+  --t1: #3fb36c; --t2: #e3c63a; --t3: #ef8d3a; --miss: #e2554c; --wrong: #ff8a7f;
+  --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 15px/1.5 var(--f-body);
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* ---------- Region index ---------- */
+#home { max-width: 1120px; margin: 0 auto; padding: 28px 16px 48px; }
+.masthead { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 20px 32px; padding-bottom: 20px; border-bottom: 2px solid var(--ink); }
+.brand h1 { font-family: var(--f-display); font-weight: 800; font-size: clamp(2.4rem, 6vw, 3.6rem); line-height: .95; letter-spacing: -.02em; margin: 0; }
+.brand p { margin: 10px 0 0; color: var(--muted); max-width: 52ch; }
+.modes { display: grid; gap: 6px; }
+.modes .label { font: 500 11px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.seg { display: inline-flex; border: 1.5px solid var(--ink); border-radius: 999px; padding: 3px; background: var(--panel); }
+.seg button { border: 0; background: transparent; padding: 8px 16px; border-radius: 999px; font-weight: 700; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+.groups { display: grid; gap: 28px; margin-top: 28px; }
+.group h2 { font: 700 1.35rem/1.1 var(--f-display); margin: 0 0 10px; display: flex; align-items: baseline; gap: 10px; }
+.group h2 small { font: 400 12px var(--f-mono); color: var(--muted); letter-spacing: .04em; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.card {
+  text-align: left; display: grid; align-content: start; gap: 4px; padding: 14px 16px 12px; min-width: 0;
+  background: var(--panel); border: 1px solid var(--rule); border-radius: 10px;
+  transition: border-color .15s, transform .15s, box-shadow .15s;
+}
+.card:hover { border-color: var(--accent); box-shadow: var(--shadow); transform: translateY(-1px); }
+.card .name { font: 700 1.05rem/1.2 var(--f-display); }
+.card.primary .name { font-size: 1.2rem; }
+.card .meta { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--f-mono); color: var(--muted); }
+.card .best { color: var(--accent); }
+.foot { margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 13px; max-width: 80ch; }
+
+/* ---------- Game ---------- */
+#game { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+.strip {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px 20px;
+  padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--rule); position: relative; z-index: 2;
+}
+.back { border: 1px solid var(--rule); background: transparent; border-radius: 8px; padding: 6px 12px; font-weight: 700; }
+.back:hover { border-color: var(--ink); }
+.where { font: 500 11px/1.2 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.prompt { display: flex; align-items: center; gap: 14px; justify-content: center; flex-wrap: wrap; min-width: 0; }
+.prompt .verb { font: 500 12px var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.prompt .target { font: 800 clamp(1.4rem, 3.2vw, 2.1rem)/1 var(--f-display); letter-spacing: -.01em; text-wrap: balance; text-align: center; }
+.tries { display: inline-flex; gap: 5px; }
+.tries i { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--ink); }
+.tries i.used { background: var(--miss); border-color: var(--miss); }
+form.answer { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+form.answer input {
+  width: min(320px, 70vw); padding: 9px 12px; border-radius: 8px; border: 1.5px solid var(--ink);
+  background: var(--paper); font-size: 1.05rem; font-weight: 700;
+}
+form.answer input.shake { animation: shake .35s; border-color: var(--miss); }
+@keyframes shake { 25% { transform: translateX(-6px) } 50% { transform: translateX(5px) } 75% { transform: translateX(-3px) } }
+.btn { border: 1.5px solid var(--ink); border-radius: 8px; padding: 8px 14px; font-weight: 700; background: var(--ink); color: var(--paper); }
+.btn.ghost { background: transparent; color: var(--ink); }
+.stats { display: flex; gap: 18px; }
+.stat { display: grid; justify-items: end; }
+.stat b { font: 500 1.2rem/1.1 var(--f-mono); font-variant-numeric: tabular-nums; }
+.stat span { font: 500 10px var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+
+.mapwrap { position: relative; overflow: hidden; background: var(--sea); min-height: 0; }
+svg#map { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; }
+.sea { fill: var(--sea); }
+.grat { fill: none; stroke: var(--grat); stroke-width: .6; vector-effect: non-scaling-stroke; }
+.land { stroke: var(--border); stroke-width: .7; vector-effect: non-scaling-stroke; stroke-linejoin: round; transition: fill .25s; }
+.land.off { fill: var(--land-off); }
+.land.on { fill: var(--land); cursor: pointer; }
+.playing.click .land:hover { filter: brightness(.94); }
+.land.r1, .mk.r1 { fill: var(--t1); }
+.land.r2, .mk.r2 { fill: var(--t2); }
+.land.r3, .mk.r3 { fill: var(--t3); }
+.land.rmiss, .mk.rmiss { fill: var(--miss); }
+.land.current, .mk.current { fill: var(--accent); animation: pulse 1.4s ease-in-out infinite; }
+.land.wrongflash, .mk.wrongflash { fill: var(--wrong) !important; }
+.land.reveal, .mk.reveal { fill: var(--miss); animation: pulse .7s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .55 } }
+.mk { fill: var(--land); stroke: var(--ink); stroke-width: 1.2; vector-effect: non-scaling-stroke; cursor: pointer; }
+.mk.current, .mk.reveal { stroke-width: 2; }
+.lbl { font: 700 13px var(--f-body); fill: var(--ink); paint-order: stroke; stroke: var(--panel); stroke-width: 3.5px; stroke-linejoin: round; pointer-events: none; text-anchor: middle; }
+
+.zoom { position: absolute; right: 12px; bottom: 40px; display: grid; gap: 4px; }
+.zoom button { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--rule); background: var(--panel); font: 700 18px/1 var(--f-mono); box-shadow: var(--shadow); }
+.legend {
+  position: absolute; left: 12px; bottom: 10px; right: 64px; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center;
+  font: 12px var(--f-mono); color: var(--ink);
+}
+.legend .key { display: inline-flex; align-items: center; gap: 6px; background: color-mix(in srgb, var(--panel) 85%, transparent); padding: 2px 8px; border-radius: 6px; }
+.legend .sw { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+.legend .proj { color: var(--muted); }
+.toast {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper);
+  padding: 8px 16px; border-radius: 999px; font-weight: 700; box-shadow: var(--shadow); white-space: nowrap; max-width: calc(100% - 32px);
+  overflow: hidden; text-overflow: ellipsis; pointer-events: none; transition: opacity .2s;
+}
+.toast.good { background: var(--t1); color: #fff; }
+.toast.bad { background: var(--miss); color: #fff; }
+.tip { position: absolute; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 13px; box-shadow: var(--shadow); white-space: nowrap; }
+
+/* ---------- Results ---------- */
+.results {
+  position: absolute; inset: 0; display: grid; place-items: center; padding: 16px;
+  background: color-mix(in srgb, var(--paper) 55%, transparent);
+}
+.results .sheet { width: min(560px, 100%); max-height: 100%; overflow: auto; background: var(--panel); border: 1.5px solid var(--ink); border-radius: 14px; padding: 22px; box-shadow: var(--shadow); display: grid; gap: 16px; }
+.results h2 { margin: 0; font: 800 1.7rem/1.1 var(--f-display); }
+.results .big { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.results .big div { border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; }
+.results .big b { display: block; font: 500 2rem/1.1 var(--f-mono); font-variant-numeric: tabular-nums; }
+.results .big span { font: 500 11px var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.breakdown { display: flex; flex-wrap: wrap; gap: 6px 14px; font: 13px var(--f-mono); }
+.missed { display: flex; flex-wrap: wrap; gap: 6px; }
+.missed button { border: 1px solid var(--miss); color: var(--ink); background: transparent; border-radius: 999px; padding: 3px 10px; font-size: 13px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.note { margin: 0; color: var(--muted); font-size: 13px; }
+
+@media (max-width: 760px) {
+  .strip { grid-template-columns: 1fr auto; }
+  .prompt { grid-column: 1 / -1; grid-row: 2; }
+  .stats { gap: 12px; }
+  .legend .proj { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .land.current, .mk.current, .land.reveal, .mk.reveal { animation: none; }
+  .card, .land { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<main id="home">
+  <header class="masthead">
+    <div class="brand">
+      <h1>Atlas Drill</h1>
+      <p>Pick a region, then find every country in it. You get three tries per country; the map colours each one by how many tries it took.</p>
+    </div>
+    <div class="modes">
+      <span class="label">Game mode</span>
+      <div class="seg" role="group" aria-label="Game mode">
+        <button id="mode-click" type="button" aria-pressed="true">Click the map</button>
+        <button id="mode-type" type="button" aria-pressed="false">Type the name</button>
+      </div>
+    </div>
+  </header>
+  <div class="groups" id="groups"></div>
+  <p class="foot">Borders: Natural Earth 1:10m Admin 0 (de facto boundaries; Somaliland and Northern Cyprus are drawn as part of Somalia and Cyprus). Each map is a Lambert azimuthal equal-area projection centred on its region, so shapes and relative sizes stay true. Scroll or pinch to zoom, drag to pan. Small countries also get a round marker you can click.</p>
+</main>
+
+<section id="game" hidden>
+  <div class="strip">
+    <div>
+      <button class="back" id="back" type="button">← Regions</button>
+      <div class="where" id="where"></div>
+    </div>
+    <div class="prompt" id="prompt"></div>
+    <div class="stats">
+      <div class="stat"><b id="s-prog">0/0</b><span>Done</span></div>
+      <div class="stat"><b id="s-acc">–</b><span>Accuracy</span></div>
+      <div class="stat"><b id="s-time">0:00</b><span>Time</span></div>
+    </div>
+  </div>
+  <div class="mapwrap" id="mapwrap">
+    <svg id="map" aria-label="Map"></svg>
+    <div class="zoom">
+      <button type="button" id="z-in" aria-label="Zoom in">+</button>
+      <button type="button" id="z-out" aria-label="Zoom out">−</button>
+      <button type="button" id="z-reset" aria-label="Reset view">⌂</button>
+    </div>
+    <div class="legend">
+      <span class="key"><i class="sw" style="background:var(--t1)"></i>1st try</span>
+      <span class="key"><i class="sw" style="background:var(--t2)"></i>2nd</span>
+      <span class="key"><i class="sw" style="background:var(--t3)"></i>3rd</span>
+      <span class="key"><i class="sw" style="background:var(--miss)"></i>Missed</span>
+      <span class="key proj" id="proj"></span>
+    </div>
+    <div class="toast" id="toast" style="opacity:0"></div>
+    <div class="tip" id="tip" hidden></div>
+    <div class="results" id="results" hidden></div>
+  </div>
+</section>
+
+<script src="vendor/d3.min.js"></script>
+<script src="vendor/topojson-client.min.js"></script>
+<script src="data/world-topo.js"></script>
+<script src="regions.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
