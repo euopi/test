@@ -23,6 +23,9 @@ that takes more than one try resets that country's streak).
 The interface and country names are available in English, Spanish and French. Typed answers are
 accepted in any of the three languages whichever one the interface is in.
 
+In Pin mode, clicks on countries outside the region are ignored, and so are clicks on countries
+you've already answered in a scored round, so a stray click never costs a try.
+
 You get three tries per country before the answer is revealed. Countries are coloured by how
 many tries they took (green 1st, yellow 2nd, orange 3rd, red missed). Accuracy gives full credit
 on the 1st try, two-thirds on the 2nd and one-third on the 3rd. A timer runs for each round, and

@@ -165,7 +165,7 @@ form.answer input.invalid { box-shadow: inset 0 0 0 2px var(--red); }
 .land { stroke: var(--border); stroke-width: .6; vector-effect: non-scaling-stroke; stroke-linejoin: round; transition: fill .25s ease; }
 .land.off { fill: var(--land-off); }
 .land.on { fill: var(--land); }
-.mode-click .land { cursor: pointer; }
+.mode-click .land.on:not(.locked) { cursor: pointer; }
 .land.pressed, .mk.pressed { filter: brightness(.88); }
 .land.r1, .mk.r1 { fill: var(--green); }
 .land.r2, .mk.r2 { fill: var(--yellow); }
@@ -178,6 +178,7 @@ form.answer input.invalid { box-shadow: inset 0 0 0 2px var(--red); }
 .mk { fill: var(--land); stroke: var(--label); stroke-width: 1.2; vector-effect: non-scaling-stroke; pointer-events: none; }
 .mk.current, .mk.reveal { stroke-width: 2; }
 .mkhit { fill: transparent; cursor: pointer; }
+.mkhit.locked { cursor: default; pointer-events: none; }
 .lbl { font: 600 13px var(--font); letter-spacing: -.004em; fill: var(--label); paint-order: stroke; stroke: var(--material-solid); stroke-width: 3.5px; stroke-linejoin: round; pointer-events: none; text-anchor: middle; transition: opacity .3s ease; }
 
 .zoom { position: absolute; z-index: 2; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); display: grid; border-radius: 12px; overflow: hidden; }
@@ -1045,8 +1046,14 @@ window.REGION_GROUPS = [
   }
 
   // Feedback on pointer-down; the answer itself commits on release (click).
+  // Only countries you can still be asked about take clicks. Countries outside the region never do,
+  // and in a scored round neither do ones you've already answered, so a stray click costs nothing.
+  // (In learn mode answered countries come back as targets, so they stay clickable.)
+  function clickable(id) {
+    return !G.over && G.mode === "click" && G.set.has(id) && (G.learn || !G.results.has(id));
+  }
   function press(id) {
-    if (G.over || G.mode !== "click") return;
+    if (!clickable(id)) return;
     zoomLayer.selectAll(`[data-id="${id}"]`).classed("pressed", true);
   }
   function releasePress() { zoomLayer.selectAll(".pressed").classed("pressed", false); }
@@ -1065,6 +1072,8 @@ window.REGION_GROUPS = [
       const base = this.tagName === "circle" ? "mk" : "land " + (G.set.has(id) ? "on" : "off");
       this.setAttribute("class", `${base} ${cls}${cur}${rev}`.trim());
     });
+    zoomLayer.selectAll(`[data-hit="${id}"]`).classed("locked", !clickable(id));
+    zoomLayer.selectAll(`path[data-id="${id}"]`).classed("locked", !clickable(id));
   }
   function paintAll() { for (const id of G.set) paint(id); applyZoomScale(); }
 
@@ -1234,7 +1243,7 @@ window.REGION_GROUPS = [
   }
 
   function onMapClick(id) {
-    if (G.over || G.mode !== "click") return;
+    if (!clickable(id)) return;
     if (id === G.current) {
       settle(G.tries + 1);
       haptic(8);

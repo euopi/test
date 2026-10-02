@@ -348,8 +348,14 @@
   }
 
   // Feedback on pointer-down; the answer itself commits on release (click).
+  // Only countries you can still be asked about take clicks. Countries outside the region never do,
+  // and in a scored round neither do ones you've already answered, so a stray click costs nothing.
+  // (In learn mode answered countries come back as targets, so they stay clickable.)
+  function clickable(id) {
+    return !G.over && G.mode === "click" && G.set.has(id) && (G.learn || !G.results.has(id));
+  }
   function press(id) {
-    if (G.over || G.mode !== "click") return;
+    if (!clickable(id)) return;
     zoomLayer.selectAll(`[data-id="${id}"]`).classed("pressed", true);
   }
   function releasePress() { zoomLayer.selectAll(".pressed").classed("pressed", false); }
@@ -368,6 +374,8 @@
       const base = this.tagName === "circle" ? "mk" : "land " + (G.set.has(id) ? "on" : "off");
       this.setAttribute("class", `${base} ${cls}${cur}${rev}`.trim());
     });
+    zoomLayer.selectAll(`[data-hit="${id}"]`).classed("locked", !clickable(id));
+    zoomLayer.selectAll(`path[data-id="${id}"]`).classed("locked", !clickable(id));
   }
   function paintAll() { for (const id of G.set) paint(id); applyZoomScale(); }
 
@@ -537,7 +545,7 @@
   }
 
   function onMapClick(id) {
-    if (G.over || G.mode !== "click") return;
+    if (!clickable(id)) return;
     if (id === G.current) {
       settle(G.tries + 1);
       haptic(8);

@@ -165,7 +165,7 @@ form.answer input.invalid { box-shadow: inset 0 0 0 2px var(--red); }
 .land { stroke: var(--border); stroke-width: .6; vector-effect: non-scaling-stroke; stroke-linejoin: round; transition: fill .25s ease; }
 .land.off { fill: var(--land-off); }
 .land.on { fill: var(--land); }
-.mode-click .land { cursor: pointer; }
+.mode-click .land.on:not(.locked) { cursor: pointer; }
 .land.pressed, .mk.pressed { filter: brightness(.88); }
 .land.r1, .mk.r1 { fill: var(--green); }
 .land.r2, .mk.r2 { fill: var(--yellow); }
@@ -178,6 +178,7 @@ form.answer input.invalid { box-shadow: inset 0 0 0 2px var(--red); }
 .mk { fill: var(--land); stroke: var(--label); stroke-width: 1.2; vector-effect: non-scaling-stroke; pointer-events: none; }
 .mk.current, .mk.reveal { stroke-width: 2; }
 .mkhit { fill: transparent; cursor: pointer; }
+.mkhit.locked { cursor: default; pointer-events: none; }
 .lbl { font: 600 13px var(--font); letter-spacing: -.004em; fill: var(--label); paint-order: stroke; stroke: var(--material-solid); stroke-width: 3.5px; stroke-linejoin: round; pointer-events: none; text-anchor: middle; transition: opacity .3s ease; }
 
 .zoom { position: absolute; z-index: 2; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); display: grid; border-radius: 12px; overflow: hidden; }
