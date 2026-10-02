@@ -17,7 +17,8 @@ and opened on its own. Regenerate it with `python3 build-single.py` after changi
 Both modes come in two session types. A **scored round** asks every country in the region once,
 then shows your results. **Learn** drills the region indefinitely: a country you miss comes back
 within a few turns, countries you keep getting right on the first try come up less often, and the
-counter shows how many you've learned (right on the first try twice in a row since your last miss).
+counter shows how many you've learned (right on the first try four times in a row; any answer
+that takes more than one try resets that country's streak).
 
 The interface and country names are available in English, Spanish and French. Typed answers are
 accepted in any of the three languages whichever one the interface is in.
