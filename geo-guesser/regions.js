@@ -113,6 +113,17 @@ window.REGION_GROUPS = [
     ],
   },
   {
+    // US states use the US Census Bureau's four official regions.
+    name: "United States",
+    regions: [
+      { id: "us-all", name: "All 50 States", us: true, bbox: [-170, 18, -66, 72], ids: R("US-AL US-AK US-AZ US-AR US-CA US-CO US-CT US-DE US-FL US-GA US-HI US-ID US-IL US-IN US-IA US-KS US-KY US-LA US-ME US-MD US-MA US-MI US-MN US-MS US-MO US-MT US-NE US-NV US-NH US-NJ US-NM US-NY US-NC US-ND US-OH US-OK US-OR US-PA US-RI US-SC US-SD US-TN US-TX US-UT US-VT US-VA US-WA US-WV US-WI US-WY") },
+      { id: "us-ne", name: "Northeast", us: true, bbox: [-80.6, 38.9, -66.9, 47.5], ids: R("US-CT US-ME US-MA US-NH US-RI US-VT US-NJ US-NY US-PA") },
+      { id: "us-mw", name: "Midwest", us: true, bbox: [-104.1, 36, -80.5, 49.4], ids: R("US-IL US-IN US-MI US-OH US-WI US-IA US-KS US-MN US-MO US-NE US-ND US-SD") },
+      { id: "us-s", name: "South", us: true, bbox: [-106.7, 24.5, -75, 40.7], ids: R("US-DE US-FL US-GA US-MD US-NC US-SC US-VA US-WV US-AL US-KY US-MS US-TN US-AR US-LA US-OK US-TX") },
+      { id: "us-w", name: "West", us: true, bbox: [-170, 18, -102, 72], ids: R("US-AZ US-CO US-ID US-MT US-NV US-NM US-UT US-WY US-AK US-CA US-HI US-OR US-WA") },
+    ],
+  },
+  {
     name: "South America",
     regions: [
       { id: "s-america", name: "All of South America", bbox: [-82, -56, -34, 13], ids: R("ARG BOL BRA CHL COL ECU GUY PRY PER SUR URY VEN") },

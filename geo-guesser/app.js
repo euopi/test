@@ -48,23 +48,26 @@
 
   // ---------- Geometry ----------
   const features = topojson.feature(WORLD, WORLD.objects.c).features.filter((f) => f.geometry);
+  const stateFeatures = topojson.feature(WORLD, WORLD.objects.s).features.filter((f) => f.geometry);
   // Quantisation can flip a tiny island ring; d3 would then fill the whole globe.
-  for (const f of features) {
+  for (const f of [...features, ...stateFeatures]) {
     f.geometry.coordinates = f.geometry.coordinates.filter((poly) => poly[0] && poly[0].length >= 4).map((poly) =>
       d3.geoArea({ type: "Polygon", coordinates: poly }) > 2 * Math.PI ? poly.map((r) => r.slice().reverse()) : poly
     );
   }
-  const byId = new Map(features.map((f) => [f.id, f]));
+  const byId = new Map([...features, ...stateFeatures].map((f) => [f.id, f]));
   const LANGS = ["en", "es", "fr"];
   let lang = "en";
   try { lang = localStorage.getItem("atlas-drill:lang") || ""; } catch {}
   if (!LANGS.includes(lang)) lang = LANGS.find((l) => (navigator.language || "").toLowerCase().startsWith(l)) || "en";
   const T = () => I18N[lang];
   const nameOf = (id) => {
+    if (id.startsWith("US-")) { const p = byId.get(id).properties; return (lang !== "en" && p[lang]) || p.n; }
     if (lang !== "en" && NAMES[lang][id]) return NAMES[lang][id];
     return (COUNTRIES[id] && COUNTRIES[id][0]) || NAMES.en[id] || byId.get(id)?.properties.n || id;
   };
   const regionName = (r) => T().regionNames[r.id] || r.name;
+  const unitCount = (r) => (r.us ? T().states(r.ids.length) : T().countries(r.ids.length));
 
   // ---------- Name matching ----------
   const norm = (s) =>
@@ -76,6 +79,12 @@
   for (const [id, names] of Object.entries(COUNTRIES)) {
     const all = [...names, NAMES.es[id], NAMES.fr[id], ...(EXTRA_ALIASES[id] || [])];
     for (const n of all) if (n) aliasTable.set(norm(n), id);
+  }
+  // State names get their own table: "Georgia" is a country on a world map and a state on a US one.
+  const stateAliasTable = new Map();
+  for (const f of stateFeatures) {
+    if (f.id === "US-DC") continue; // not a state, never a target
+    for (const n of [f.properties.n, f.properties.es, f.properties.fr]) if (n) stateAliasTable.set(norm(n), f.id);
   }
 
   function lev(a, b) {
@@ -93,13 +102,14 @@
   }
   // Returns a country id, or null if the text isn't a recognisable country name.
   function identify(text) {
+    const table = G.region && G.region.us ? stateAliasTable : aliasTable;
     const q = norm(text);
     if (!q) return null;
-    if (aliasTable.has(q)) return aliasTable.get(q);
+    if (table.has(q)) return table.get(q);
     if (q.length < 5) return null;
     const allowed = q.length >= 10 ? 2 : 1;
     const hits = new Set();
-    for (const [alias, id] of aliasTable) if (alias.length >= 5 && lev(q, alias) <= allowed) hits.add(id);
+    for (const [alias, id] of table) if (alias.length >= 5 && lev(q, alias) <= allowed) hits.add(id);
     return hits.size === 1 ? [...hits][0] : null;
   }
 
@@ -151,7 +161,7 @@
       const notable = g.name === "Notable groups";
       const sec = document.createElement("section");
       sec.className = "group";
-      sec.innerHTML = `<h2 class="t-title">${T().groups[g.name]}${notable ? "" : ` <small>${T().countries(g.regions[0].ids.length)}</small>`}</h2><div class="cards"></div>`;
+      sec.innerHTML = `<h2 class="t-title">${T().groups[g.name]}${notable ? "" : ` <small>${unitCount(g.regions[0])}</small>`}</h2><div class="cards"></div>`;
       const cards = sec.querySelector(".cards");
       // Each region offers both session types right where you pick it:
       // Play is a scored round through every country once; Learn drills it until you leave.
@@ -161,7 +171,7 @@
         const best = getBest(r.id, mode);
         const name = regionName(r);
         card.innerHTML = `<span class="t-headline">${name}</span>
-          <span class="meta t-foot"><span>${T().countries(r.ids.length)}</span>${best ? `<span class="best">${T().best} ${fmtPct(best.acc)} · ${fmtTime(best.ms)}</span>` : ""}</span>
+          <span class="meta t-foot"><span>${unitCount(r)}</span>${best ? `<span class="best">${T().best} ${fmtPct(best.acc)} · ${fmtTime(best.ms)}</span>` : ""}</span>
           <span class="frame">${frameText(r.bbox)}</span>
           <div class="card-actions">
             <button type="button" class="btn press" aria-label="${T().play}: ${name}">${T().play}</button>
@@ -265,6 +275,14 @@
   function stopInertia() { if (inertia) cancelAnimationFrame(inertia); inertia = 0; }
 
   function makeProjection(region, w, h) {
+    const pad = Math.min(24, w * 0.04);
+    const extent = [[pad, insetTop + pad / 2], [w - pad, h - insetBottom]];
+    // US states: the standard Albers equal-area conic, with Alaska and Hawaii moved into insets.
+    if (region.us) {
+      const p = d3.geoAlbersUsa().precision(0.2);
+      p.fitExtent(extent, { type: "FeatureCollection", features: region.ids.map((id) => byId.get(id)) });
+      return { p, center: null };
+    }
     let [Wb, S, E, N] = region.bbox;
     if (E < Wb) E += 360;
     const pts = [];
@@ -274,8 +292,7 @@
     const p = region.world
       ? d3.geoEqualEarth().rotate([-(Wb + E) / 2, 0]).precision(0.2)
       : d3.geoAzimuthalEqualArea().rotate([-(Wb + E) / 2, -(S + N) / 2]).clipAngle(90).precision(0.2);
-    const pad = Math.min(24, w * 0.04);
-    p.fitExtent([[pad, insetTop + pad / 2], [w - pad, h - insetBottom]], { type: "MultiPoint", coordinates: pts });
+    p.fitExtent(extent, { type: "MultiPoint", coordinates: pts });
     p.clipExtent([[-4, -4], [w + 4, h + 4]]);
     return { p, center: [(Wb + E) / 2, (S + N) / 2] };
   }
@@ -291,21 +308,44 @@
     zoomLayer.selectAll("*").remove();
     const { p, center } = makeProjection(G.region, W, H);
     const path = d3.geoPath(p);
-    $("proj").textContent = G.region.world ? T().projWorld : `${T().proj} · ${fmtLat(center[1])} ${fmtLon(center[0])}`;
+    $("proj").textContent = G.region.us ? T().projUs : G.region.world ? T().projWorld : `${T().proj} · ${fmtLat(center[1])} ${fmtLon(center[0])}`;
 
     zoom.extent([[0, 0], [W, H]]).translateExtent([[0, 0], [W, H]]);
     zoomLayer.append("rect").attr("class", "sea").attr("width", W).attr("height", H);
-    zoomLayer.append("path").attr("class", "grat").attr("d", path(d3.geoGraticule().step([10, 10])()));
+    // The US map's insets would break graticule lines, so it goes without them.
+    if (!G.region.us) zoomLayer.append("path").attr("class", "grat").attr("d", path(d3.geoGraticule().step([10, 10])()));
 
     const drawn = [];
-    for (const f of features) {
+    let insets = [];
+    if (G.region.us) {
+      // Neighbouring countries are drawn only in the main (lower-48) Albers projection, so they never
+      // show through the Alaska and Hawaii insets; the insets then sit on their own sea-coloured panels.
+      // Panel geometry matches d3.geoAlbersUsa's inset layout.
+      const k = p.scale(), [tx, ty] = p.translate();
+      const ctxPath = d3.geoPath(d3.geoAlbers().scale(k).translate([tx, ty]).clipExtent([[-4, -4], [W + 4, H + 4]]).precision(0.2));
+      for (const f of features) {
+        if (f.id === "USA") continue;
+        const d = ctxPath(f);
+        if (d) drawn.push({ f, d });
+      }
+      insets = [
+        [[tx - 0.425 * k, ty + 0.12 * k], [tx - 0.214 * k, ty + 0.234 * k]],
+        [[tx - 0.214 * k, ty + 0.166 * k], [tx - 0.115 * k, ty + 0.234 * k]],
+      ];
+    }
+    for (const f of G.region.us ? stateFeatures : features) {
       const d = path(f);
       if (d) drawn.push({ f, d });
     }
-    landSel = zoomLayer.append("g").selectAll("path").data(drawn).join("path")
+    const lands = zoomLayer.append("g");
+    landSel = lands.selectAll("path").data(drawn).join("path")
       .attr("d", (o) => o.d)
       .attr("data-id", (o) => o.f.id)
       .attr("class", (o) => "land " + (G.set.has(o.f.id) ? "on" : "off"));
+    for (const [[x0, y0], [x1, y1]] of insets) {
+      lands.insert("rect", 'path[data-id^="US-"]').attr("class", "inset")
+        .attr("x", x0).attr("y", y0).attr("width", x1 - x0).attr("height", y1 - y0).attr("rx", 6);
+    }
 
     sizeOf = new Map();
     const markers = [];

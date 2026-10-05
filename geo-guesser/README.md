@@ -33,6 +33,10 @@ the best accuracy/time for each region and mode is saved in your browser.
 
 ## Regions
 
+A **United States** group quizzes the 50 states, all at once or by the four US Census Bureau regions
+(Northeast, Midwest, South, West). It uses the standard Albers equal-area US map, with Alaska
+(at 35% scale) and Hawaii in insets.
+
 Continents (Africa, Asia, Europe, North America, South America, Oceania), their sub-regions
 (e.g. West Africa, the Balkans, the Caribbean, Southeast Asia, and North America's mainland and
 large islands without the seven Eastern Caribbean microstates) and notable groups
@@ -41,8 +45,9 @@ the 193 UN members plus Kosovo, Palestine, Taiwan and Vatican City.
 
 ## Map data
 
-Borders come from Natural Earth 1:10m Admin 0 countries (public domain), simplified for size and
-stored in `data/world-topo.js`. Somaliland and Northern Cyprus are drawn as part of Somalia and
+Borders come from Natural Earth 1:10m Admin 0 countries and Admin 1 states (public domain), in the
+editions with large lakes cut out, simplified for size and stored in `data/world-topo.js`
+(rebuild with `data/build-data.mjs`). Somaliland and Northern Cyprus are drawn as part of Somalia and
 Cyprus; French and Dutch overseas territories (French Guiana, Réunion, Bonaire...) are split off
 from the mainland so clicking them doesn't count as France or the Netherlands. Each region uses
 a Lambert azimuthal equal-area projection centred on that region, which keeps shapes and
