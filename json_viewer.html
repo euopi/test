@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JSON Viewer</title>
+<style>
+  :root {
+    --bg: #fafaf9; --panel: #ffffff; --fg: #1c1917; --muted: #78716c; --border: #e7e5e4;
+    --key: #7c3aed; --str: #15803d; --num: #c2410c; --bool: #0369a1; --null: #a8a29e;
+    --hit: #fde68a; --accent: #2563eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c0a09; --panel: #1c1917; --fg: #e7e5e4; --muted: #a8a29e; --border: #292524;
+      --key: #c4b5fd; --str: #86efac; --num: #fdba74; --bool: #7dd3fc; --null: #78716c;
+      --hit: #854d0e; --accent: #60a5fa;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, sans-serif; }
+  header { position: sticky; top: 0; z-index: 2; background: var(--panel); border-bottom: 1px solid var(--border);
+           padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  header h1 { font-size: 15px; margin: 0 8px 0 0; }
+  button, input[type=search] { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--border);
+           border-radius: 6px; padding: 5px 10px; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  input[type=search] { flex: 1 1 200px; min-width: 0; }
+  #status { color: var(--muted); font-size: 12px; width: 100%; }
+  #path { font-family: ui-monospace, monospace; font-size: 12px; color: var(--accent); width: 100%; min-height: 1em; }
+  main { padding: 16px; }
+  #drop { border: 2px dashed var(--border); border-radius: 10px; padding: 40px 16px; text-align: center; color: var(--muted); }
+  #drop.over { border-color: var(--accent); color: var(--accent); }
+  #drop textarea { width: 100%; max-width: 700px; height: 140px; margin-top: 16px; font: 12px ui-monospace, monospace;
+           background: var(--panel); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+  #tree, #raw { font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+  #raw { white-space: pre-wrap; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .row { padding-left: 18px; position: relative; }
+  .toggle { position: absolute; left: 0; width: 16px; cursor: pointer; color: var(--muted); user-select: none; }
+  .key { color: var(--key); cursor: pointer; }
+  .str { color: var(--str); white-space: pre-wrap; }
+  .num { color: var(--num); } .bool { color: var(--bool); } .null { color: var(--null); }
+  .meta { color: var(--muted); font-size: 12px; }
+  .more { color: var(--accent); cursor: pointer; font-size: 12px; margin-left: 4px; }
+  .collapsed > .children { display: none; }
+  mark { background: var(--hit); color: inherit; border-radius: 2px; }
+  .error { color: #dc2626; white-space: pre-wrap; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>JSON Viewer</h1>
+  <button id="open">Open file</button>
+  <input type="file" id="file" accept=".json,application/json,text/plain" hidden>
+  <input type="search" id="search" placeholder="Search keys and values (Enter)" disabled>
+  <button id="expand" disabled>Expand all</button>
+  <button id="collapse" disabled>Collapse all</button>
+  <button id="mode" disabled>Raw</button>
+  <button id="reset" disabled>Close</button>
+  <div id="status"></div>
+  <div id="path"></div>
+</header>
+<main>
+  <div id="drop">
+    Drop a .json file here, click <b>Open file</b>, or paste JSON below.
+    <br><textarea id="paste" placeholder='{"paste": "json here"}'></textarea>
+    <br><button id="parse">View pasted JSON</button>
+  </div>
+  <div id="tree" hidden></div>
+  <pre id="raw" hidden></pre>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const STR_LIMIT = 300;      // long strings get truncated with a "more" link
+const CHILD_LIMIT = 200;    // big arrays/objects render children in pages
+let data = null, fileName = '';
+
+function load(text, name) {
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    $('tree').hidden = false; $('drop').hidden = true;
+    $('tree').innerHTML = '<div class="error"></div>';
+    $('tree').firstChild.textContent = 'Could not parse ' + name + ':\n' + e.message;
+    $('reset').disabled = false;
+    return;
+  }
+  fileName = name;
+  $('drop').hidden = true; $('raw').hidden = true; $('tree').hidden = false;
+  ['search', 'expand', 'collapse', 'mode', 'reset'].forEach(id => $(id).disabled = false);
+  $('mode').textContent = 'Raw';
+  $('status').textContent = `${name} · ${(text.length / 1024).toFixed(1)} KB · ${describe(data)}`;
+  render();
+}
+
+function describe(v) {
+  if (Array.isArray(v)) return `array[${v.length}]`;
+  if (v && typeof v === 'object') return `object{${Object.keys(v).length}}`;
+  return typeof v;
+}
+
+function render(openDepth = 1, query = '') {
+  const tree = $('tree');
+  tree.innerHTML = '';
+  tree.appendChild(node(null, data, '$', 0, openDepth, query.toLowerCase()));
+}
+
+function matches(v, q) {
+  if (!q) return false;
+  if (v && typeof v === 'object') return Object.entries(v).some(([k, c]) => k.toLowerCase().includes(q) || matches(c, q));
+  return String(v).toLowerCase().includes(q);
+}
+
+function highlight(el, text, q) {
+  if (!q) { el.textContent = text; return; }
+  const lower = text.toLowerCase();
+  let i = 0, j;
+  while ((j = lower.indexOf(q, i)) !== -1) {
+    el.append(text.slice(i, j));
+    const m = document.createElement('mark'); m.textContent = text.slice(j, j + q.length); el.append(m);
+    i = j + q.length;
+  }
+  el.append(text.slice(i));
+}
+
+function node(key, value, path, depth, openDepth, q) {
+  const row = document.createElement('div');
+  row.className = 'row';
+  if (key !== null) {
+    const k = document.createElement('span');
+    k.className = 'key';
+    k.title = 'Click to copy path';
+    highlight(k, typeof key === 'number' ? String(key) : JSON.stringify(key), q);
+    k.onclick = e => { e.stopPropagation(); showPath(path); };
+    row.append(k, ': ');
+  }
+
+  if (value && typeof value === 'object') {
+    const isArr = Array.isArray(value);
+    const entries = isArr ? value.map((v, i) => [i, v]) : Object.entries(value);
+    const toggle = document.createElement('span');
+    toggle.className = 'toggle';
+    row.prepend(toggle);
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    meta.textContent = isArr ? `[${entries.length}]` : `{${entries.length}}`;
+    row.append(meta);
+    const children = document.createElement('div');
+    children.className = 'children';
+    row.append(children);
+
+    let rendered = 0;
+    const renderMore = () => {
+      const end = Math.min(entries.length, rendered + CHILD_LIMIT);
+      for (; rendered < end; rendered++) {
+        const [ck, cv] = entries[rendered];
+        const cpath = isArr ? `${path}[${ck}]` : /^[A-Za-z_$][\w$]*$/.test(ck) ? `${path}.${ck}` : `${path}[${JSON.stringify(ck)}]`;
+        children.append(node(ck, cv, cpath, depth + 1, openDepth, q));
+      }
+      children.querySelector(':scope > .more')?.remove();
+      if (rendered < entries.length) {
+        const more = document.createElement('div');
+        more.className = 'more row';
+        more.textContent = `show ${Math.min(CHILD_LIMIT, entries.length - rendered)} more of ${entries.length - rendered} remaining`;
+        more.onclick = renderMore;
+        children.append(more);
+      }
+    };
+
+    // children render lazily on first expand, which keeps big files fast
+    const setOpen = open => {
+      row.classList.toggle('collapsed', !open);
+      toggle.textContent = open ? '▾' : '▸';
+      if (open && rendered === 0 && entries.length) renderMore();
+    };
+    toggle.onclick = () => setOpen(row.classList.contains('collapsed'));
+    meta.style.cursor = 'pointer';
+    meta.onclick = toggle.onclick;
+    setOpen(entries.length > 0 && (depth < openDepth || (q && matches(value, q))));
+    if (!entries.length) toggle.textContent = '';
+  } else {
+    const v = document.createElement('span');
+    if (typeof value === 'string') {
+      v.className = 'str';
+      const full = JSON.stringify(value);
+      const qHit = q && value.toLowerCase().includes(q);
+      if (full.length > STR_LIMIT && !qHit) {
+        highlight(v, full.slice(0, STR_LIMIT) + '…', q);
+        const more = document.createElement('span');
+        more.className = 'more';
+        more.textContent = `(+${full.length - STR_LIMIT} chars)`;
+        more.onclick = () => { v.textContent = ''; highlight(v, full, q); more.remove(); };
+        row.append(v, more);
+        return row;
+      }
+      highlight(v, full, q);
+    } else {
+      v.className = value === null ? 'null' : typeof value === 'number' ? 'num' : 'bool';
+      highlight(v, String(value), q);
+    }
+    row.append(v);
+  }
+  return row;
+}
+
+function showPath(path) {
+  $('path').textContent = path;
+  navigator.clipboard?.writeText(path).then(() => $('path').textContent = path + '  (copied)', () => {});
+}
+
+function readFile(f) {
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => load(r.result, f.name);
+  r.readAsText(f);
+}
+
+$('open').onclick = () => $('file').click();
+$('file').onchange = e => readFile(e.target.files[0]);
+$('parse').onclick = () => load($('paste').value, 'pasted JSON');
+$('expand').onclick = () => render(Infinity, $('search').value.trim());
+$('collapse').onclick = () => render(0);
+$('search').onkeydown = e => { if (e.key === 'Enter') render(1, e.target.value.trim()); };
+$('search').onsearch = e => { if (!e.target.value) render(1); };
+$('mode').onclick = () => {
+  const raw = $('raw').hidden;
+  if (raw) $('raw').textContent = JSON.stringify(data, null, 2);
+  $('raw').hidden = !raw; $('tree').hidden = raw;
+  $('mode').textContent = raw ? 'Tree' : 'Raw';
+};
+$('reset').onclick = () => {
+  data = null; $('file').value = ''; $('search').value = ''; $('status').textContent = ''; $('path').textContent = '';
+  $('tree').hidden = true; $('raw').hidden = true; $('drop').hidden = false;
+  ['search', 'expand', 'collapse', 'mode', 'reset'].forEach(id => $(id).disabled = true);
+};
+
+// drag and drop works anywhere on the page
+addEventListener('dragover', e => { e.preventDefault(); $('drop').classList.add('over'); });
+addEventListener('dragleave', () => $('drop').classList.remove('over'));
+addEventListener('drop', e => { e.preventDefault(); $('drop').classList.remove('over'); readFile(e.dataTransfer.files[0]); });
+</script>
+</body>
+</html>
