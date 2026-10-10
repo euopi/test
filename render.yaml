@@ -1,0 +1,12 @@
+# One-click deploy of the sidebar browser on Render (free tier supports WebSockets).
+services:
+  - type: web
+    name: sidebar-browser
+    runtime: node
+    plan: free
+    rootDir: browser
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"

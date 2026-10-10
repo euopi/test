@@ -31,6 +31,14 @@ host has to allow WebSockets (for `/wisp/`).
 loopback addresses so it can't be used to reach the server's own network; set
 `ALLOW_PRIVATE=1` to allow that for local testing.
 
+## Host it (Chromebooks, phones, anything)
+
+`render.yaml` at the repo root deploys this to [Render](https://render.com) for free:
+sign in to Render with GitHub, choose New > Blueprint, pick this repository and
+branch, and apply. You get an `https://….onrender.com` address that works in any
+browser. Free instances sleep after 15 minutes idle, so the first load after a
+break takes about a minute.
+
 ## Use
 
 - Type a URL or search terms (DuckDuckGo) in the sidebar box.
