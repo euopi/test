@@ -11,6 +11,12 @@ browser by the epoxy transport, so the server only relays encrypted bytes.
 
 ## Run
 
+Easiest: install [Node.js](https://nodejs.org) (version 18 or newer), then
+double-click `start.bat` on Windows or `start.command` on macOS/Linux. It
+installs dependencies the first time and opens the browser for you.
+
+Or by hand:
+
 ```
 cd browser
 npm install
