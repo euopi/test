@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sidebar Browser</title>
+  <link rel="stylesheet" href="/app.css" />
+  <script src="/uv/uv.bundle.js"></script>
+  <script src="/uv/uv.config.js"></script>
+  <script src="/baremux/index.js"></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="nav">
+      <button id="back" title="Back (Alt+Left)">&#8592;</button>
+      <button id="forward" title="Forward (Alt+Right)">&#8594;</button>
+      <button id="reload" title="Reload (Alt+R)">&#8635;</button>
+    </div>
+    <form id="url-form" autocomplete="off">
+      <input id="url" spellcheck="false" placeholder="Search or enter URL" />
+    </form>
+    <button id="new-tab" class="new-tab" title="New tab (Alt+T)">+ New Tab</button>
+    <ul id="tabs" class="tabs"></ul>
+    <div id="status" class="status">Starting…</div>
+  </aside>
+  <main id="frames" class="frames">
+    <div id="empty" class="empty">Type a URL or search in the sidebar.</div>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
