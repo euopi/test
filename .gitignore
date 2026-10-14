@@ -6,3 +6,4 @@ venv/
 seen.json
 articles.json
 digest.md
+twelve-axes/dist/
