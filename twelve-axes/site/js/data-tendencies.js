@@ -281,7 +281,7 @@
     'Pierre-Joseph Proudhon, Benjamin Tucker, Kevin Carson');
   T('socialeco', 'anarch', 'Social Ecology (Libertarian Municipalism)',
     { rupture: -0.3, arena: 0, org: 0.2, state: 0.7, form: 0.8, coord: -0.6, ctrl: 0.3, scope: 0.6, geo: 0.8, verdict: 1, tech: 0.8, opp: 0.4, nat: -0.6 },
-    ['tech', 'ctrl'],
+    ['state', 'tech'],
     'Ecological crisis comes from social hierarchy. Free municipalities run by citizens\' assemblies, confederated together, should own and direct the economy, rather than workers in each industry.',
     'Murray Bookchin, Janet Biehl');
   T('demconf', 'anarch', 'Democratic Confederalism',

@@ -325,8 +325,8 @@
     { mtw: 1, cabral: 1 }, { race: 1 });
   L('ind1', 'Indigenous peoples\' collective land rights and self-government should take priority over national development plans.', { opp: 0.5, tech: 0.5, nat: 0.4 },
     { mariategui: 1, zapat: 1, ml: -0.5, deng: -1, bolivar: -0.2, castro: -0.2, naxal: 0.8, gandhian: 0.3, sankara: 0.3, nkrumah: -0.6 }, { ind: 1 });
-  L('ind2', 'Precolonial communal traditions offer a model for socialism today.', { ctrl: 0.3 },
-    { ujamaa: 1, mariategui: 1, zapat: 1, cabral: 0.6, narod: 0.8, nkrumah: 0.4, gandhian: 0.6, ml: -0.6, kautsky: -0.8, bordiga: -1, deng: -0.6 }, { ind: 1 });
+  L('ind2', 'Precolonial communal traditions offer a model for socialism today.', null,
+    { ujamaa: 1, mariategui: 1, zapat: 1, cabral: 0.6, narod: 0.8, nkrumah: 0.4, gandhian: 0.6, socialeco: 0.5, demconf: 0.6, degrowth: 0.4, ml: -0.6, kautsky: -0.8, bordiga: -1, deng: -0.6 }, { ind: 1 });
 
   /* ===== Autogestion: self-management beyond the workplace ===== */
   L('ag1', 'Residents should collectively decide how their city\'s land, housing and public space are used: a right to the city, not just a right to housing.', { ctrl: 0.6, state: 0.3 }, null, { autog: 1 });
