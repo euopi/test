@@ -69,8 +69,8 @@
     '</g><circle cx="16" cy="16" r="3.2" fill="currentColor"/></svg>';
 
   function header(kind) {
-    var nav = kind === 'landing' ? '<nav class="nav" aria-label="Sections"><a href="#how">How it works</a><a href="#axes">The 12 axes</a><a href="#depth">Versions</a><a href="#families">Tendencies</a><a href="#faq">FAQ</a></nav>' : '';
-    var action = kind === 'landing' ? '<button class="btn primary small startbtn" data-act="start-std">Start ' + ARROW + '</button>'
+    var nav = kind === 'landing' ? '<nav class="nav" aria-label="Sections"><a href="#how">How it works</a><a href="#axes">The 12 axes</a><a href="#test">The test</a><a href="#families">Tendencies</a><a href="#faq">FAQ</a></nav>' : '';
+    var action = kind === 'landing' ? '<button class="btn primary small startbtn" data-act="start">Start ' + ARROW + '</button>'
       : kind === 'quiz' ? '<button class="btn soft small" data-act="home">Save &amp; exit</button>'
         : '<button class="btn soft small" data-act="home">Start page</button>';
     return '<header class="top"><div class="wrap topin">' +
@@ -80,8 +80,7 @@
   }
   function render(html) { app.innerHTML = html; window.scrollTo(0, 0); }
   function counts() {
-    var core = CORE_N, drillLo = MOD_MIN * 2, drillHi = MOD_MAX * 3;
-    return { std: (core + drillLo) + '–' + (core + drillHi), full: (core + drillLo + THEORY_N) + '–' + (core + drillHi + THEORY_N) };
+    return { all: (CORE_N + MOD_MIN * 2 + THEORY_N) + '\u2013' + (CORE_N + MOD_MAX * 3 + THEORY_N) };
   }
 
   /* ---------- flow ---------- */
@@ -90,9 +89,9 @@
     S.queue = S.queue.concat(ids);
     S.next = next;
   }
-  function start(withTheory) {
+  function start() {
     S = fresh();
-    S.withTheory = !!withTheory;
+    S.withTheory = true;
     S.phase = 'q';
     addSegment(E.part1Order(), 'Part 1 · Core', 'pickMods');
     save(); show();
@@ -154,7 +153,7 @@
         famMembers(f.id).map(function (t) { return '<li>' + esc(t.n) + '</li>'; }).join('') + '</ul></article>';
     }).join('');
     var faq = [
-      ['How long does it take?', 'The standard version is ' + c.std + ' questions, about 35 to 45 minutes. Adding the theory module brings it to ' + c.full + '. Your progress is saved in this browser, so you can stop and come back.'],
+      ['How long does it take?', c.all + ' questions in total, about 40 to 50 minutes. Most answers take one tap, and your progress is saved in this browser, so you can stop and come back whenever you like.'],
       ['Are my answers collected anywhere?', 'No. The test runs entirely in your browser. Answers are stored only in this browser\'s local storage, and the results code you can copy contains them so you can reopen or share your result yourself.'],
       ['How is my result calculated?', 'Each tendency has a hand-built position on every scale. For agree/disagree questions the test compares your answer with what each tendency would say; for multiple-choice questions each option sits at a position on the scales, so in-between answers count as themselves. Where a tradition has a specific documented line, that answer is set by hand. Drill-down answers only reorder tendencies within their own family.'],
       ['Why are so many questions scenarios with several options?', 'Real positions are often hybrids, like a democratic rupture or legitimate illegality. A scale running only between two poles would average those positions into the middle and misread them.'],
@@ -168,19 +167,19 @@
       '<section class="hero"><div class="wrap hero-grid"><div>' +
       '<span class="eyebrow">Socialist tendency test</span>' +
       '<h1>Which socialist are you, <em>really?</em></h1>' +
-      '<p class="lede">Find where you stand among ' + TA.tendencies.length + ' tendencies of the socialist left, from council communism and Left Eurocommunism to labor republicanism, autogestion and degrowth communism.</p>' +
-      '<div class="row"><button class="btn primary big" data-act="start-std">Start the test ' + ARROW + '</button><a class="btn big" href="#axes">See the 12 axes</a></div>' +
-      '<div class="ticks"><span>Free</span><span>Anonymous</span><span>No sign-up</span><span>Answers stay in your browser</span></div>' +
+      '<p class="lede">Not another left-right quiz. ' + TA.tendencies.length + ' tendencies, 12 axes and ' + TA.schools.length + ' schools of Marxist theory, from council communism and Left Eurocommunism to labor republicanism and autogestion. It adapts to you, and the result shows its working.</p>' +
+      '<div class="row"><button class="btn primary big" data-act="start">Start the test ' + ARROW + '</button><a class="btn big" href="#test">What makes it different</a></div>' +
+      '<div class="ticks"><span>Free</span><span>Anonymous</span><span>Adaptive</span><span>Save and resume</span></div>' +
       (resumable ? '<div class="resume"><span><b>You have a test in progress.</b> ' + Object.keys(saved.answers).length + ' answers saved.</span><span class="row"><button class="btn primary small" data-act="resume">Resume</button><button class="btn ghost small" data-act="restart-confirm">Start over</button></span></div>' : '') +
       '</div>' + exampleCard() + '</div></section>' +
 
       '<section class="block band" id="how"><div class="wrap">' +
-      '<span class="eyebrow">How it works</span><h2 class="h2">Three parts, one result</h2>' +
-      '<p class="sub" style="margin-top:0.8rem">The test starts broad, then narrows in on the traditions closest to you.</p>' +
+      '<span class="eyebrow">How it works</span><h2 class="h2">Broad, then sharp, then deep</h2>' +
+      '<p class="sub" style="margin-top:0.8rem">It starts wide, zooms in on the traditions you are actually near, then finds which Marxists you think like.</p>' +
       '<ol class="steps">' +
       '<li><span class="no">01</span><h3>Core questions</h3><p>' + CORE_N + ' questions on the twelve axes, plus capitalism, legality and violence, social values, the national question, Marxist feminism, republican freedom, self-management and technology. Many are scenarios with in-between answers.</p></li>' +
       '<li><span class="no">02</span><h3>Drill-down</h3><p>The two families closest to you (three when it\'s close) get ' + MOD_MIN + ' to ' + MOD_MAX + ' targeted questions each, written to separate tendencies that look alike on the axes.</p></li>' +
-      '<li><span class="no">03</span><h3>Your result</h3><p>Your closest tendencies with match scores, all twelve axes, tags, the answers that decided it, and optionally your school of Marxist theory.</p></li>' +
+      '<li><span class="no">03</span><h3>Theory, then your result</h3><p>' + THEORY_N + ' questions on value, the state, crisis, hegemony and the origins of capitalism place you among ' + TA.schools.length + ' schools. Then: your closest tendencies, all twelve axes, your tags, and the exact answers that decided it.</p></li>' +
       '</ol></div></section>' +
 
       '<section class="block" id="axes"><div class="wrap">' +
@@ -188,21 +187,23 @@
       '<p class="sub">Strategy is split into two axes, Transition and Arena, so positions like a democratic rupture or legitimate illegality register as themselves instead of averaging out.</p></div>' +
       '<div class="axgrid">' + axisCards + '</div></div></section>' +
 
-      '<section class="block alt" id="depth"><div class="wrap">' +
-      '<span class="eyebrow">Versions</span><h2 class="h2">Choose the depth</h2>' +
-      '<p class="sub" style="margin:0.8rem 0 2rem">Both versions use the same core and drill-down. The complete version adds ' + THEORY_N + ' questions on Marxist theory, and you can also add it later from the results page.</p>' +
-      '<div class="depth">' +
-      '<article class="dcard rec"><div class="kicker"><span>Standard</span><span class="badge">Recommended</span></div>' +
-      '<div class="num"><b>' + c.std + '</b><span>questions</span></div>' +
-      '<ul><li>' + CORE_N + ' core questions</li><li>2 or 3 drill-down modules</li><li>' + TA.tendencies.length + ' tendencies, ' + TA.families.length + ' families</li></ul>' +
-      '<div class="time">About 35 to 45 minutes</div>' +
-      '<button class="btn primary" data-act="start-std">Start standard ' + ARROW + '</button></article>' +
-      '<article class="dcard"><div class="kicker"><span>Complete</span></div>' +
-      '<div class="num"><b>' + c.full + '</b><span>questions</span></div>' +
-      '<ul><li>Everything in standard</li><li>' + THEORY_N + ' theory questions</li><li>' + TA.schools.length + ' schools, from dialectical materialism to Political Marxism</li></ul>' +
-      '<div class="time">About 50 to 60 minutes</div>' +
-      '<button class="btn" data-act="start-full">Start complete ' + ARROW + '</button></article>' +
-      '</div></div></section>' +
+      '<section class="block alt" id="test"><div class="wrap">' +
+      '<div class="sechead"><div><span class="eyebrow">The test</span><h2 class="h2">One test. Every tendency. Nothing skipped.</h2></div>' +
+      '<p class="sub">Most political quizzes ask thirty questions and hand you a label. This one goes all the way down, and it is built so the whole thing moves fast.</p></div>' +
+      '<div class="stats">' +
+      '<div class="stat"><b>' + CORE_N + '</b><span>core questions, many of them real scenarios with in-between answers</span></div>' +
+      '<div class="stat"><b>2&ndash;3</b><span>drill-downs chosen for you, so you only get the ones that matter</span></div>' +
+      '<div class="stat"><b>' + THEORY_N + '</b><span>theory questions, from Hegel and Althusser to Brenner and Federici</span></div>' +
+      '<div class="stat"><b>' + TA.tendencies.length + '</b><span>tendencies scored against every answer you give</span></div>' +
+      '</div>' +
+      '<div class="fast">' +
+      '<div><h3>One tap, next question</h3><p>Auto-advance moves you on the moment you answer. No scrolling, no submit buttons.</p></div>' +
+      '<div><h3>Built for the keyboard</h3><p>1&ndash;7 or A&ndash;E answers instantly, Enter moves on, Backspace goes back.</p></div>' +
+      '<div><h3>Only what\'s relevant</h3><p>The drill-down comes from your closest families, not all ' + TA.families.length + '. No wasted questions.</p></div>' +
+      '<div><h3>Stop anytime</h3><p>Progress saves in your browser. Close the tab and pick up exactly where you left off.</p></div>' +
+      '</div>' +
+      '<div class="row" style="margin-top:2rem"><button class="btn primary big" data-act="start">Start the test ' + ARROW + '</button><span class="muted small">' + c.all + ' questions &middot; about 40 to 50 minutes &middot; free and anonymous</span></div>' +
+      '</div></section>' +
 
       '<section class="block" id="families"><div class="wrap">' +
       '<div class="sechead"><div><span class="eyebrow">Tendencies</span><h2 class="h2">' + TA.tendencies.length + ' tendencies in ' + TA.families.length + ' families</h2></div>' +
@@ -392,6 +393,128 @@
     return L.join('\n') + '\n';
   }
 
+  /* ---------- result image ---------- */
+  // Draws the homepage example card with the visitor's own result, as a PNG.
+  var lastCanvas = null;
+  function rrect(x, X, Y, w, h, r) {
+    x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r);
+    x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath();
+  }
+  function wrapLines(x, text, maxW) {
+    var words = text.split(' '), lines = [], cur = '';
+    words.forEach(function (w) {
+      var t = cur ? cur + ' ' + w : w;
+      if (x.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t;
+    });
+    if (cur) lines.push(cur);
+    return lines;
+  }
+  function spaced(x, px) { if ('letterSpacing' in x) x.letterSpacing = px + 'px'; }
+  function drawCard(d) {
+    var F = '"Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif';
+    var W = 1080, cw = 720, cx = (W - cw) / 2, cy = 150, pad = 56, inner = cw - pad * 2;
+    var meas = document.createElement('canvas').getContext('2d');
+    var nameSize = 66;
+    meas.font = '800 ' + nameSize + 'px ' + F;
+    var nameLines = wrapLines(meas, d.name, inner);
+    while (nameLines.length > 2 && nameSize > 44) { nameSize -= 4; meas.font = '800 ' + nameSize + 'px ' + F; nameLines = wrapLines(meas, d.name, inner); }
+    var rowH = 44, panelH = 74 + rowH * d.rows.length + 22;
+    var yHead = cy + pad + 18, yFam = yHead + 72, yName = yFam + 22 + nameSize;
+    var yNameEnd = yName + (nameLines.length - 1) * (nameSize * 1.04);
+    var yFit = yNameEnd + 128, yPanel = yFit + 44, yFoot = yPanel + panelH + 58;
+    var ch = (yFoot + (d.school ? 46 : 0) + pad - 6) - cy;
+    var H = cy + ch + 150;
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var x = c.getContext('2d');
+    x.fillStyle = '#f4f1ea'; x.fillRect(0, 0, W, H);
+    // the two cards behind
+    [[-7, '#2c2a26', -130, d.ghosts[0]], [6, '#b8892f', 130, d.ghosts[1]]].forEach(function (g) {
+      x.save(); x.translate(W / 2 + g[2], cy + ch / 2 + 20); x.rotate(g[0] * Math.PI / 180);
+      x.shadowColor = 'rgba(40,30,20,0.18)'; x.shadowBlur = 40; x.shadowOffsetY = 16;
+      rrect(x, -cw * 0.43, -ch * 0.44, cw * 0.86, ch * 0.88, 52); x.fillStyle = g[1]; x.fill();
+      x.shadowColor = 'transparent';
+      if (g[3]) { x.font = '700 22px ' + F; spaced(x, 3); x.fillStyle = 'rgba(255,255,255,0.72)'; x.textAlign = 'left'; x.fillText(g[3].toUpperCase(), -cw * 0.43 + 40, -ch * 0.44 + 62); }
+      x.restore();
+    });
+    // main card
+    x.save();
+    x.shadowColor = 'rgba(58,16,22,0.38)'; x.shadowBlur = 90; x.shadowOffsetY = 34;
+    rrect(x, cx, cy, cw, ch, 56);
+    var grad = x.createRadialGradient(cx + cw, cy, 0, cx + cw, cy, cw * 1.45);
+    grad.addColorStop(0, '#7a2230'); grad.addColorStop(0.55, '#4a121b'); grad.addColorStop(1, '#33090f');
+    x.fillStyle = grad; x.fill(); x.restore();
+    var L = cx + pad, R = cx + cw - pad;
+    x.textBaseline = 'alphabetic';
+    // header rule
+    x.font = '600 22px ' + F; spaced(x, 3.5); x.fillStyle = '#e4cfc8';
+    x.textAlign = 'left'; x.fillText('TWELVE AXES', L, yHead);
+    x.textAlign = 'right'; x.fillText('MY RESULT', R, yHead);
+    var lw = x.measureText('TWELVE AXES').width, rw = x.measureText('MY RESULT').width;
+    x.fillStyle = 'rgba(255,255,255,0.25)'; x.fillRect(L + lw + 24, yHead - 8, (R - rw - 24) - (L + lw + 24), 2);
+    // family and name
+    x.textAlign = 'left'; x.fillStyle = '#e4cfc8'; x.font = '600 21px ' + F; spaced(x, 3.5);
+    x.fillText(d.fam.toUpperCase(), L, yFam);
+    x.fillStyle = '#f7efe6'; x.font = '800 ' + nameSize + 'px ' + F; spaced(x, -1.5);
+    nameLines.forEach(function (ln, i) { x.fillText(ln, L, yName + i * nameSize * 1.04); });
+    // match
+    x.font = '800 112px ' + F; spaced(x, -4); x.fillStyle = '#f7efe6';
+    var fitTxt = d.fit + '%'; x.fillText(fitTxt, L, yFit);
+    var fw = x.measureText(fitTxt).width;
+    x.font = '600 22px ' + F; spaced(x, 3.5); x.fillStyle = '#e4cfc8'; x.fillText('MATCH', L + fw + 20, yFit);
+    // axes panel
+    rrect(x, L, yPanel, inner, panelH, 34); x.fillStyle = 'rgba(0,0,0,0.24)'; x.fill();
+    var pl = L + 30, pr = L + inner - 30;
+    x.font = '600 19px ' + F; spaced(x, 3.5); x.fillStyle = '#e4cfc8'; x.fillText('MY 12 AXES', pl, yPanel + 52);
+    d.rows.forEach(function (r, i) {
+      var y = yPanel + 74 + rowH * (i + 1) - 14;
+      var fs = 25, room = pr - 92 - 130 - pl - 18;
+      x.font = '500 ' + fs + 'px ' + F; spaced(x, 0);
+      while (x.measureText(r.name).width > room && fs > 17) { fs--; x.font = '500 ' + fs + 'px ' + F; }
+      x.fillStyle = '#f7efe6'; x.textAlign = 'left'; x.fillText(r.name, pl, y);
+      x.textAlign = 'right'; x.fillStyle = '#f2b8a8'; x.font = '600 24px ' + F; x.fillText(r.share + '%', pr, y);
+      var bx = pr - 92 - 130, by = y - 12;
+      rrect(x, bx, by, 130, 8, 4); x.fillStyle = 'rgba(255,255,255,0.18)'; x.fill();
+      rrect(x, bx, by, Math.max(8, 130 * r.share / 100), 8, 4); x.fillStyle = '#f2b8a8'; x.fill();
+    });
+    // footer
+    x.textAlign = 'left'; x.font = '600 20px ' + F; spaced(x, 3); x.fillStyle = '#e4cfc8';
+    x.fillText(('Runner-up: ' + d.runner.name).toUpperCase(), L, yFoot);
+    x.textAlign = 'right'; x.fillText(d.runner.fit + '%', R, yFoot);
+    if (d.school) { x.textAlign = 'left'; x.fillText(('Theory: ' + d.school.name).toUpperCase(), L, yFoot + 46); x.textAlign = 'right'; x.fillText(d.school.fit + '%', R, yFoot + 46); }
+    // caption under the card
+    x.textAlign = 'center'; x.fillStyle = '#57534b'; x.font = '600 24px ' + F; spaced(x, 0.5);
+    x.fillText('Twelve Axes · socialist tendency test', W / 2, cy + ch + 96);
+    return c;
+  }
+  function cardData(scores, sc, schools) {
+    var top = scores[0];
+    function trim(t) { return t.length > 34 ? t.slice(0, 32).replace(/\s+\S*$/, '') + '…' : t; }
+    return {
+      fam: famName(top.t.fam), name: top.t.n, fit: pct(top.fit),
+      rows: TA.axes.map(function (a) { var st = strength(sc[a.id] ? sc[a.id].v : null, a); return { name: st.pole || (a.n + ': balanced'), share: st.share === null ? 50 : st.share }; }),
+      runner: { name: trim(scores[1].t.n), fit: pct(scores[1].fit) },
+      school: schools ? { name: trim(schools[0].s.n), fit: pct(schools[0].fit) } : null,
+      ghosts: [scores[2] ? scores[2].t.n : '', scores[1].t.n]
+    };
+  }
+  function buildImage(d) {
+    var img = document.getElementById('cardImg');
+    if (!img) return;
+    var draw = function () {
+      try {
+        lastCanvas = drawCard(d);
+        img.src = lastCanvas.toDataURL('image/png');
+        img.hidden = false;
+        document.querySelectorAll('[data-img]').forEach(function (b) { b.disabled = false; });
+      } catch (e) { document.getElementById('cardErr').hidden = false; }
+    };
+    var fontsReady = document.fonts && document.fonts.load
+      ? Promise.all(['500 25px "Plus Jakarta Sans"', '600 22px "Plus Jakarta Sans"', '800 66px "Plus Jakarta Sans"'].map(function (f) { return document.fonts.load(f); }))
+      : Promise.resolve();
+    var timeout = new Promise(function (res) { setTimeout(res, 2500); });
+    Promise.race([fontsReady, timeout]).then(draw, draw);
+  }
+
   function renderResults() {
     if (!S.shared && !S.done) { S.done = true; save(); }
     var answers = S.answers;
@@ -434,6 +557,13 @@
       (tags.length ? '<article class="card sidecard"><div class="kicker"><span>Tags</span><span>' + tags.length + '</span></div><div class="tagwrap">' + tags.map(function (t) { return '<span class="pill" title="' + esc(t.d) + '">' + esc(t.n) + '</span>'; }).join('') + '</div></article>' : '') +
       '</div></div>' +
 
+      '<section class="rsec cardsec"><div class="cardprev"><img id="cardImg" alt="Your result card: ' + esc(top.t.n) + ', ' + pct(top.fit) + '% match" hidden></div>' +
+      '<div><h2>Your result card</h2><p class="muted">Your result in one image, ready to post or send. It shows your top tendency, your match, all twelve axes, your runner-up' + (schools ? ' and your theory school' : '') + '.</p>' +
+      '<div class="row">' + (inFrame ? '' : '<button class="btn primary" data-img="download" disabled>Download image ' + ARROW + '</button>') +
+      '<button class="btn' + (inFrame ? ' primary' : '') + '" data-img="copy" disabled>Copy image</button></div>' +
+      '<p class="muted small" style="margin-top:0.8rem">' + (inFrame ? 'Right-click or long-press the image to save it.' : 'You can also right-click or long-press the image to save it.') + '</p>' +
+      '<p class="err" id="cardErr" hidden>The image could not be drawn in this browser.</p></div></section>' +
+
       '<section class="rsec"><h2>Your closest tendencies</h2><p class="muted">Every tendency is scored against all your answers; drill-downs separate tendencies within a family.</p><div class="rank">' + rankRows(scores.slice(0, 6)) + '</div>' +
       '<details class="all"><summary>Full ranking of all ' + scores.length + ' tendencies</summary><div class="rank">' + rankRows(scores.slice(6), 6) + '</div></details></section>' +
       (why ? '<section class="rsec"><h2>Why ' + esc(top.t.n) + ' over ' + esc(second.t.n) + '</h2><p class="muted">The answers that separated your top two matches most.</p><ul class="why">' + why + '</ul></section>' : '') +
@@ -455,6 +585,7 @@
       '<div class="row" style="margin-top:2rem">' + (S.shared ? '<button class="btn primary" data-act="home">Take the test yourself</button>' :
         '<button class="btn soft" data-act="review">Review my answers</button><button class="btn ghost" data-act="restart-confirm">Start over</button>') + '</div>' +
       '</div></main>' + foot());
+    buildImage(cardData(scores, sc, schools));
   }
 
   /* ---------- events ---------- */
@@ -464,6 +595,24 @@
     var act = t.getAttribute('data-act'), codeAttr = t.getAttribute('data-code');
     if (codeAttr && S.phase === 'q') return choose(+codeAttr);
     if (t.hasAttribute('data-fam')) return startExtraModule(t.getAttribute('data-fam'));
+    if (t.hasAttribute('data-img') && lastCanvas) {
+      var kind = t.getAttribute('data-img'), lbl = t.innerHTML;
+      var flash = function (msg) { t.textContent = msg; setTimeout(function () { t.innerHTML = lbl; }, 1800); };
+      if (kind === 'download') {
+        lastCanvas.toBlob(function (blob) {
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob); a.download = 'twelve-axes-result.png';
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function () { URL.revokeObjectURL(a.href); }, 1500);
+        }, 'image/png');
+        return;
+      }
+      try {
+        var blobP = new Promise(function (res) { lastCanvas.toBlob(res, 'image/png'); });
+        navigator.clipboard.write([new ClipboardItem({ 'image/png': blobP })]).then(function () { flash('Copied'); }, function () { flash('Copy not allowed here: save the image instead'); });
+      } catch (e) { flash('Copy not allowed here: save the image instead'); }
+      return;
+    }
     if (t.hasAttribute('data-copy')) {
       var inp = document.getElementById(t.getAttribute('data-copy'));
       var label = t.textContent;
@@ -473,15 +622,14 @@
     }
     switch (act) {
       case 'theme': return toggleTheme();
-      case 'start-std': return start(false);
-      case 'start-full': return start(true);
+      case 'start': return start();
       case 'resume': S = load() || fresh(); return show();
       case 'restart-confirm':
         t.textContent = 'Erase all answers and restart?';
         t.setAttribute('data-act', 'restart');
         t.classList.add('primary'); t.classList.remove('ghost');
         return;
-      case 'restart': clearSaved(); return start(false);
+      case 'restart': clearSaved(); return start();
       case 'home':
         if (S.shared) { S = load() || fresh(); if (S.phase === 'results') S.phase = 'intro'; }
         else if (S.phase !== 'intro') { save(); S = load() || fresh(); S.phase = 'intro'; }
