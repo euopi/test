@@ -248,6 +248,50 @@
         '<span class="meter"><span style="width:' + pct(s.fit) + '%"></span></span><span class="pct">' + pct(s.fit) + '%</span></div>';
     }).join('');
   }
+  /* ---------- export ---------- */
+  // Markdown: readable as plain text, and keeps structure when pasted into a doc or an LLM.
+  function exportText() {
+    var answers = S.answers, scores = E.scoreTendencies(answers), sc = E.scaleScores(answers);
+    var schools = E.scoreSchools(answers), tags = E.tags(answers, sc);
+    var ids = S.queue.length ? S.queue.slice() : [];
+    TA.items.forEach(function (it) { if (answers[it.id] && ids.indexOf(it.id) < 0) ids.push(it.id); });
+    ids = ids.filter(function (id) { return answers[id]; });
+    var L = [];
+    L.push('# Twelve Axes: answers');
+    L.push('');
+    L.push('Results code: ' + E.encode(answers));
+    L.push('Questions answered: ' + ids.length);
+    L.push('');
+    L.push('## Results');
+    L.push('');
+    L.push('Top matches:');
+    scores.slice(0, 6).forEach(function (s, i) { L.push((i + 1) + '. ' + s.t.n + ' (' + famName(s.t.fam) + ') ' + pct(s.fit) + '%'); });
+    L.push('');
+    L.push('Axes (-100 to +100):');
+    TA.axes.concat(TA.supp).forEach(function (a) {
+      var v = sc[a.id] && sc[a.id].v;
+      L.push('- ' + a.n + ' (' + a.neg + ' -100 / ' + a.pos + ' +100): ' + (v === null || v === undefined ? 'no answers' : Math.round(v * 100)));
+    });
+    if (tags.length) { L.push(''); L.push('Tags: ' + tags.map(function (t) { return t.n; }).join(', ')); }
+    if (schools) { L.push(''); L.push('Theory schools: ' + schools.slice(0, 3).map(function (x) { return x.s.n + ' ' + pct(x.fit) + '%'; }).join(', ')); }
+    var lastSec = null, n = 0;
+    ids.forEach(function (id) {
+      var it = E.itemById[id], code = answers[id];
+      var sec = it.part === 'core' ? 'Part 1: Core' : it.part === 'theory' ? 'Part 3: Theory' : 'Drill-down: ' + famName(it.fam);
+      if (sec !== lastSec) { L.push(''); L.push('## ' + sec); lastSec = sec; }
+      n++;
+      L.push('');
+      L.push('### ' + n + '. [' + it.id + '] ' + it.q);
+      if (it.h) L.push('Context: ' + it.ctx);
+      var opts = it.t === 'm' ? it.opts.map(function (o, k) { return String.fromCharCode(65 + k) + '. ' + o.t; })
+        : it.t === 'c' ? CHOICE.map(function (c, k) { return c + (k === 0 ? ' (A: ' + it.opts[0] + ')' : k === 4 ? ' (B: ' + it.opts[1] + ')' : ''); })
+        : LIKERT.slice();
+      opts.forEach(function (o, k) { L.push('- [' + (code === k + 2 ? 'x' : ' ') + '] ' + o); });
+      L.push('- [' + (code === 1 ? 'x' : ' ') + '] ' + (it.h ? 'Unfamiliar' : 'Unsure / no view'));
+    });
+    return L.join('\n') + '\n';
+  }
+
   function renderResults() {
     if (!S.shared && !S.done) { S.done = true; save(); }
     var answers = S.answers;
@@ -305,6 +349,12 @@
       '<p class="muted small">This code holds all of your answers. Paste it on the start page to reopen these results.</p>' +
       '<div class="share"><input id="codeOut" aria-label="Results code" readonly value="' + esc(code) + '"><button class="btn" data-copy="codeOut">Copy code</button></div>' +
       (inFrame ? '' : '<div class="share" style="margin-top:0.5rem"><input id="linkOut" aria-label="Results link" readonly value="' + esc(link) + '"><button class="btn" data-copy="linkOut">Copy link</button></div>') +
+      '<h2 class="sec">Export answers</h2>' +
+      '<p class="muted small">Every question you answered, in the order you saw it, with all the options and the one you picked marked [x]. Markdown, so it reads as plain text and keeps its structure in a document.</p>' +
+      '<div class="row"><button class="btn" data-act="export">Show export</button>' +
+      '<button class="btn" data-copy="exportOut" hidden id="exportCopy">Copy all</button>' +
+      (inFrame ? '' : '<button class="btn" data-act="download" hidden id="exportDl">Download .md</button>') + '</div>' +
+      '<textarea id="exportOut" class="export" aria-label="Exported answers" readonly hidden></textarea>' +
       '<div class="row" style="margin-top:2rem">' + (S.shared ? '<button class="btn" data-act="home">Take the test yourself</button>' :
         '<button class="btn" data-act="review">Review my answers</button><button class="btn ghost" data-act="restart-confirm">Start over</button>') + '</div>' +
       '</main>' + foot();
@@ -320,7 +370,8 @@
     if (t.hasAttribute('data-fam')) return startExtraModule(t.getAttribute('data-fam'));
     if (t.hasAttribute('data-copy')) {
       var inp = document.getElementById(t.getAttribute('data-copy'));
-      var done = function () { t.textContent = 'Copied'; setTimeout(function () { t.textContent = t.getAttribute('data-copy') === 'linkOut' ? 'Copy link' : 'Copy code'; }, 1600); };
+      var label = t.textContent;
+      var done = function () { t.textContent = 'Copied'; setTimeout(function () { t.textContent = label; }, 1600); };
       try {
         navigator.clipboard.writeText(inp.value).then(done, function () { inp.select(); });
       } catch (e) { inp.select(); }
@@ -345,6 +396,24 @@
       case 'skip-results': S.phase = 'results'; save(); return show();
       case 'theory': return startTheory();
       case 'results': S.phase = 'results'; save(); return show();
+      case 'export': {
+        var ta = document.getElementById('exportOut');
+        ta.value = exportText(); ta.hidden = false;
+        document.getElementById('exportCopy').hidden = false;
+        var dl = document.getElementById('exportDl'); if (dl) dl.hidden = false;
+        t.hidden = true; ta.focus(); ta.select();
+        return;
+      }
+      case 'download': {
+        try {
+          var blob = new Blob([document.getElementById('exportOut').value], { type: 'text/markdown' });
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob); a.download = 'twelve-axes-answers.md';
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+        } catch (e) { /* fall back to copy */ }
+        return;
+      }
       case 'review': S.pos = 0; S.phase = 'q'; save(); return show();
     }
   });

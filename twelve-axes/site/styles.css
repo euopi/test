@@ -206,6 +206,7 @@ p { margin: 0 0 0.9rem; }
 .schools .r { grid-template-columns: 1.6rem minmax(0, 1fr) 7rem 3rem; }
 .more-fams { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .more-fams .btn { min-height: 2.4rem; font-size: 0.85rem; padding: 0 0.8rem; border-width: 1px; }
+.export { display: block; width: 100%; min-height: 22rem; margin-top: 0.75rem; padding: 0.8rem; border: 1px solid var(--rule); background: var(--sheet); color: var(--ink); border-radius: 2px; font: 400 0.78rem/1.5 var(--mono); resize: vertical; }
 details.all { border-top: 1px solid var(--rule); margin-top: 1rem; }
 details.all summary { cursor: pointer; padding: 0.8rem 0; font-weight: 600; }
 .share { display: flex; gap: 0.5rem; flex-wrap: wrap; }
