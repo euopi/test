@@ -16,36 +16,36 @@
     'A great revolutionary whose achievements far outweigh his errors.',
     'A leader who built socialism but committed serious crimes that later leaders were right to denounce.',
     'A dictator whose rule betrayed socialism.'
-  ], { ml: 0, hoxha: 0, juche: [0, 1], poststalin: 1, deng: 1, hochiminh: [1, 0], castro: [1, 0], tito: 2, reformcomm: 2 });
+  ], { ml: 0, hoxha: 0, poststalin: 1, deng: 1, hochiminh: [1, 0], castro: [1, 0], tito: 2 });
   M('ml2', 'In the Sino-Soviet split of the 1960s, which side was closer to right?', [
     'China, which accused the Soviet leadership of abandoning revolution.',
     'The Soviet Union, which accused China of adventurism and splitting the movement.',
     'Neither: both had valid points, and the split itself was the disaster.'
-  ], { ml: [0, 2], poststalin: 1, hoxha: 0, tito: 2, castro: [2, 1], hochiminh: 2, juche: 2, deng: [2, 0], reformcomm: [1, 2] });
+  ], { ml: [0, 2], poststalin: 1, hoxha: 0, tito: 2, castro: [2, 1], hochiminh: 2, deng: [2, 0] });
   H('ml3', 'In 1978 Albania under Enver Hoxha broke with China, declaring Mao\'s theory and China\'s policies revisionist.',
     'Mao Zedong was not a genuine Marxist-Leninist.',
-    { ml: -0.6, poststalin: 0.2, hoxha: 1, tito: -0.3, castro: -0.6, hochiminh: -1, juche: -0.4, deng: -1, reformcomm: -0.2 });
+    { ml: -0.6, poststalin: 0.2, hoxha: 1, tito: -0.3, castro: -0.6, hochiminh: -1, deng: -1 });
   L('ml4', 'Stalin\'s leadership was, on balance, positive for the international communist movement.',
-    { ml: 1, poststalin: -0.2, hoxha: 1, tito: -1, castro: 0.3, hochiminh: 0.6, juche: 0.6, deng: 0.4, reformcomm: -1 });
+    { ml: 1, poststalin: -0.2, hoxha: 1, tito: -1, castro: 0.3, hochiminh: 0.6, deng: 0.4 });
   L('ml5', 'Socialist countries should stay out of the great-power blocs and follow a non-aligned foreign policy.',
-    { ml: -0.6, poststalin: -1, hoxha: 0.6, tito: 1, castro: -0.2, hochiminh: 0.2, juche: 0.8, deng: 0.4, reformcomm: 0.3 });
+    { ml: -0.6, poststalin: -1, hoxha: 0.6, tito: 1, castro: -0.2, hochiminh: 0.2, deng: 0.4 });
   L('ml6', 'A small group of armed guerrillas can create the conditions for revolution without waiting for a mass party to be built.',
-    { ml: -0.8, poststalin: -1, hoxha: -0.8, tito: -0.5, castro: 1, hochiminh: -0.2, juche: 0, deng: -0.8, reformcomm: -1 });
+    { ml: -0.8, poststalin: -1, hoxha: -0.8, tito: -0.5, castro: 1, hochiminh: -0.2, deng: -0.8 });
   L('ml7', 'Moral incentives, such as solidarity and pride in work, should replace material incentives like bonuses as quickly as possible under socialism.',
-    { ml: -0.3, poststalin: -0.6, hoxha: 0, tito: -0.6, castro: 1, hochiminh: 0, juche: 0.6, deng: -1, reformcomm: -0.6 });
+    { ml: -0.3, poststalin: -0.6, hoxha: 0, tito: -0.6, castro: 1, hochiminh: 0, deng: -1 });
   L('ml8', 'A socialist country should rely as far as possible on its own resources and avoid dependence on foreign trade and aid, even from allies.',
-    { ml: 0, poststalin: -0.6, hoxha: 1, tito: -0.4, castro: -0.4, hochiminh: -0.2, juche: 1, deng: -1, reformcomm: -0.6 });
+    { ml: 0, poststalin: -0.6, hoxha: 1, tito: -0.4, castro: -0.4, hochiminh: -0.2, deng: -1 });
   L('ml9', 'A strong leader who embodies the revolution and the nation is essential to a socialist state.',
-    { ml: 0.4, poststalin: -0.4, hoxha: 0.5, tito: 0.5, castro: 0.4, hochiminh: 0.3, juche: 1, deng: -0.3, reformcomm: -1 });
+    { ml: 0.4, poststalin: -0.4, hoxha: 0.5, tito: 0.5, castro: 0.4, hochiminh: 0.3, deng: -0.3 });
   H('ml10', 'In 1968 Czechoslovak communists under Alexander Dubček introduced press freedom and economic reform (the Prague Spring). Warsaw Pact troops invaded and reversed it.',
     'The Prague Spring was an attempt at a better socialism, and the invasion was wrong.',
-    { ml: -0.8, poststalin: -0.7, hoxha: 0, tito: 1, castro: -0.8, hochiminh: -0.5, juche: -0.3, deng: 0, reformcomm: 1 });
+    { ml: -0.8, poststalin: -0.7, hoxha: 0, tito: 1, castro: -0.8, hochiminh: -0.5, deng: 0 });
   L('ml11', 'In colonized countries, national liberation is the most urgent task of the revolution, ahead of building socialism.',
-    { ml: 0, poststalin: 0, hoxha: -0.3, tito: 0, castro: 0.4, hochiminh: 1, juche: 0.6, deng: 0, reformcomm: 0 });
+    { ml: 0, poststalin: 0, hoxha: -0.3, tito: 0, castro: 0.4, hochiminh: 1, deng: 0 });
   L('ml12', 'A socialist country can pass through a long stage of market economy and private capital, lasting a century or more, under Communist Party leadership.',
-    { ml: -0.6, poststalin: -0.5, hoxha: -1, tito: 0.3, castro: -0.3, hochiminh: 0.6, juche: -0.7, deng: 1, reformcomm: 0.4 });
+    { ml: -0.6, poststalin: -0.5, hoxha: -1, tito: 0.3, castro: -0.3, hochiminh: 0.6, deng: 1 });
   L('ml13', 'Once socialism is secure, the Communist Party\'s monopoly on power should be relaxed to allow competitive elections.',
-    { ml: -0.6, poststalin: -0.6, hoxha: -1, tito: -0.3, castro: -0.6, hochiminh: -0.5, juche: -1, deng: -0.8, reformcomm: 1 });
+    { ml: -0.6, poststalin: -0.6, hoxha: -1, tito: -0.3, castro: -0.6, hochiminh: -0.5, deng: -0.8 });
 
   /* ---------- Maoist ---------- */
   F('mao');
@@ -108,58 +108,50 @@
   /* ---------- Classical and pre-Leninist ---------- */
   F('classic');
   L('cl1', 'The final goal of socialism matters less than the movement itself and the reforms it wins day to day.',
-    { kautsky: -1, bernstein: 1, austro: -0.3, lassalle: 0.4, blanqui: -1, utopian: -0.4, narod: -0.6 });
+    { kautsky: -1, bernstein: 1, austro: -0.3, lassalle: 0.4 });
   L('cl2', 'Socialist revolution will come from capitalism\'s own development. A socialist party\'s job is to organize the working class and prepare, not to make the revolution happen.',
-    { kautsky: 1, bernstein: -0.3, austro: 0.6, lassalle: 0, blanqui: -1, utopian: -0.6, narod: -0.6 });
-  L('cl3', 'A small, determined group of conspirators can seize power and then educate the masses in socialism.',
-    { kautsky: -1, bernstein: -1, austro: -1, lassalle: -0.6, blanqui: 1, utopian: -0.8, narod: -0.2 });
-  L('cl4', 'Socialism is best achieved by founding model communities that show people a better way of living.',
-    { kautsky: -1, bernstein: -0.4, austro: -0.4, lassalle: -0.3, blanqui: -0.8, utopian: 1, narod: 0.2 });
+    { kautsky: 1, bernstein: -0.3, austro: 0.6, lassalle: 0 });
   L('cl5', 'An existing state, made democratic through universal suffrage, can fund workers\' cooperatives and bring about socialism.',
-    { kautsky: -0.4, bernstein: 0.4, austro: 0.2, lassalle: 1, blanqui: -0.6, utopian: 0, narod: -0.3 });
-  L('cl6', 'Peasant village communes can be the foundation of socialism, letting a country skip full capitalist development.',
-    { kautsky: -1, bernstein: -0.8, austro: -0.6, lassalle: -0.5, blanqui: -0.2, utopian: 0.4, narod: 1 });
+    { kautsky: -0.4, bernstein: 0.4, austro: 0.2, lassalle: 1 });
   L('cl7', 'Each nationality in a multinational state should form a self-governing cultural community, regardless of where its members live.',
-    { kautsky: -0.4, bernstein: 0, austro: 1, lassalle: -0.3, blanqui: -0.3, utopian: 0, narod: 0.2 });
+    { kautsky: -0.4, bernstein: 0, austro: 1, lassalle: -0.3 });
   L('cl8', 'Marx\'s prediction that capitalism would polarize society into a tiny bourgeoisie and an impoverished mass has been proven wrong, and socialist theory must be revised to match.',
-    { kautsky: -1, bernstein: 1, austro: 0.2, lassalle: 0, blanqui: -0.2, utopian: 0, narod: 0 });
-  L('cl9', 'Socialists can appeal to the conscience and reason of all classes, including the wealthy, rather than relying on class struggle.',
-    { kautsky: -1, bernstein: 0.4, austro: -0.5, lassalle: -0.4, blanqui: -1, utopian: 1, narod: -0.3 });
-  L('cl10', 'Assassinating tyrants and officials can be a legitimate revolutionary tactic.',
-    { kautsky: -1, bernstein: -1, austro: -1, lassalle: -1, blanqui: 0.6, utopian: -1, narod: 0.8 });
+    { kautsky: -1, bernstein: 1, austro: 0.2, lassalle: 0 });
   L('cl11', 'Workers\' councils can exist alongside an elected parliament as a permanent part of socialist democracy.',
-    { kautsky: -0.3, bernstein: -0.4, austro: 1, lassalle: -0.6, blanqui: -0.3, utopian: 0, narod: 0.5 });
+    { kautsky: -0.3, bernstein: -0.4, austro: 1, lassalle: -0.6 });
+  L('cl13', 'A socialist party should refuse ministerial posts in a coalition with bourgeois parties until it can govern on its own program.',
+    { kautsky: 0.8, bernstein: -0.8, austro: 0.4, lassalle: -0.4 });
+  L('cl14', 'In a multinational state, socialism requires a federation of self-governing nationalities rather than a centralized republic.',
+    { kautsky: -0.4, bernstein: 0, austro: 1, lassalle: -0.8 });
   L('cl12', 'Socialists should be willing to deal with a strong national government, even a conservative one, to win social reforms for workers.',
-    { kautsky: -0.8, bernstein: 0.2, austro: -0.4, lassalle: 1, blanqui: -0.8, utopian: 0.2, narod: -0.8 });
+    { kautsky: -0.8, bernstein: 0.2, austro: -0.4, lassalle: 1 });
 
   /* ---------- Left communist and syndicalist ---------- */
   F('leftcom');
   L('lc1', 'Socialists should take part in parliamentary elections, at least to use them as a platform.',
-    { lux: 1, council: -1, bordiga: -1, communization: -1, impossib: 1, deleon: 1, situ: -1, revsynd: -0.6 });
+    { lux: 1, council: -1, bordiga: -1, communization: -1, situ: -1, revsynd: -0.6 });
   L('lc2', 'Workers\' self-management of individual enterprises is not socialism. It just turns workers into managers of their own exploitation.',
-    { lux: 0, council: -0.8, bordiga: 1, communization: 1, impossib: 0.3, deleon: -0.8, situ: -0.6, revsynd: -1 });
+    { lux: 0, council: -0.8, bordiga: 1, communization: 1, situ: -0.6, revsynd: -1 });
   L('lc3', 'Democracy, including workers\' democracy, is not a principle of communism. What matters is the correct program, not majority votes.',
-    { lux: -1, council: -0.8, bordiga: 1, communization: 0.3, impossib: -1, deleon: -0.6, situ: -0.6, revsynd: -0.5 });
+    { lux: -1, council: -0.8, bordiga: 1, communization: 0.3, situ: -0.6, revsynd: -0.5 });
   L('lc4', 'There should be no transitional period. The revolution should immediately abolish money, wages and exchange.',
-    { lux: -0.6, council: -0.4, bordiga: -0.5, communization: 1, impossib: 0.8, deleon: -0.2, situ: 0.4, revsynd: -0.3 });
-  L('lc5', 'Socialism will come only when a majority of workers consciously want it and vote for it. Until then, revolutionaries should concentrate on spreading socialist ideas.',
-    { lux: -0.3, council: -0.4, bordiga: -1, communization: -1, impossib: 1, deleon: 0.6, situ: -0.6, revsynd: -0.4 });
+    { lux: -0.6, council: -0.4, bordiga: -0.5, communization: 1, situ: 0.4, revsynd: -0.3 });
   L('lc6', 'Industrial unions, organized by industry rather than craft, should become the governing bodies of a socialist society.',
-    { lux: -0.2, council: 0.2, bordiga: -1, communization: -1, impossib: -0.4, deleon: 1, situ: -0.2, revsynd: 0.9 });
+    { lux: -0.2, council: 0.2, bordiga: -1, communization: -1, situ: -0.2, revsynd: 0.9 });
   L('lc7', 'Trade unions have become part of the capitalist system and can no longer serve as organs of revolution.',
-    { lux: -0.4, council: 1, bordiga: 0.6, communization: 1, impossib: 0, deleon: 0.2, situ: 0.8, revsynd: -1 });
+    { lux: -0.4, council: 1, bordiga: 0.6, communization: 1, situ: 0.8, revsynd: -1 });
   L('lc8', 'Modern capitalism rules less through force than through spectacle: images, consumption and entertainment that make people passive spectators of their own lives.',
-    { lux: -0.2, council: 0, bordiga: -0.6, communization: 0.4, impossib: -0.3, deleon: -0.4, situ: 1, revsynd: -0.3 });
+    { lux: -0.2, council: 0, bordiga: -0.6, communization: 0.4, situ: 1, revsynd: -0.3 });
   L('lc9', 'A general strike, rather than an insurrection or an election, is the main way capitalism will be overthrown.',
-    { lux: 0.6, council: 0.3, bordiga: -0.6, communization: 0, impossib: -1, deleon: 0.2, situ: 0, revsynd: 1 });
+    { lux: 0.6, council: 0.3, bordiga: -0.6, communization: 0, situ: 0, revsynd: 1 });
   L('lc10', 'Revolutionary unions should be open to all workers whatever their political views, rather than tied to an ideology or party.',
-    { lux: -0.2, council: 0, bordiga: -0.8, communization: -0.4, impossib: -0.2, deleon: -0.4, situ: -0.3, revsynd: 1 });
+    { lux: -0.2, council: 0, bordiga: -0.8, communization: -0.4, situ: -0.3, revsynd: 1 });
   L('lc11', 'The October Revolution of 1917 was a genuine proletarian revolution, even if it later degenerated.',
-    { lux: 1, council: -0.4, bordiga: 1, communization: -0.2, impossib: -0.8, deleon: 0.5, situ: -0.2, revsynd: 0.4 });
+    { lux: 1, council: -0.4, bordiga: 1, communization: -0.2, situ: -0.2, revsynd: 0.4 });
   L('lc12', 'The revolutionary party should be a small, centralized body that preserves the communist program unchanged, not a mass organization.',
-    { lux: -1, council: -1, bordiga: 1, communization: -0.6, impossib: -0.5, deleon: -0.3, situ: -0.6, revsynd: -0.8 });
+    { lux: -1, council: -1, bordiga: 1, communization: -0.6, situ: -0.6, revsynd: -0.8 });
   L('lc13', 'Subverting everyday life, by refusing work and turning advertising and media against themselves, is as revolutionary as organized political activity.',
-    { lux: -0.6, council: -0.3, bordiga: -1, communization: 0.3, impossib: -0.8, deleon: -0.8, situ: 1, revsynd: -0.2 });
+    { lux: -0.6, council: -0.3, bordiga: -1, communization: 0.3, situ: 1, revsynd: -0.2 });
 
   /* ---------- Autonomist and libertarian Marxist ---------- */
   F('auto');
@@ -303,63 +295,34 @@
   L('ec12', 'Craft and meaningful work matter as much as efficiency. Mass industrial production should give way to skilled, self-directed work.',
     { marketsoc: -0.4, econdem: -0.2, coop: 0.2, guild: 1, parecon: 0.2, cyber: -0.8, accel: -1, platcoop: -0.2 });
 
-  /* ---------- National liberation socialism ---------- */
-  F('gsouth');
-  L('gs1', 'Socialism in formerly colonized countries should be rooted in the nation\'s own religious and cultural traditions rather than in imported Marxist theory.',
-    { nasser: 0.8, baath: 1, ujamaa: 1, nkrumah: 0.2, sankara: -0.3, cabral: 0.4, bolivar: 0.4, mariategui: 0.4, zapat: 0.6, connolly: 0.2 });
-  L('gs2', 'The Arab peoples should unite into a single state, and this unity is a precondition for socialism in the Arab world.',
-    { nasser: 1, baath: 1, ujamaa: -0.2, nkrumah: 0.4, sankara: -0.2, cabral: 0, bolivar: 0.2, mariategui: -0.2, zapat: -0.6, connolly: -0.4 });
-  L('gs3', 'African countries must unite under a single continental government to defeat neo-colonialism.',
-    { nasser: 0.3, baath: 0, ujamaa: 0.4, nkrumah: 1, sankara: 0.6, cabral: 0.5, bolivar: 0, mariategui: 0, zapat: -0.4, connolly: 0 });
-  L('gs4', 'National unity comes before class struggle. A revolutionary nationalist movement should include patriotic business owners and landowners.',
-    { nasser: 0.8, baath: 1, ujamaa: 0.4, nkrumah: 0.2, sankara: -0.6, cabral: -0.4, bolivar: 0, mariategui: -0.6, zapat: -0.6, connolly: -0.6 });
-  L('gs5', 'In a newly independent country, the national middle class is likely to become a new elite that betrays the masses.',
-    { nasser: -0.6, baath: -0.6, ujamaa: 0.4, nkrumah: 0.2, sankara: 0.8, cabral: 1, bolivar: 0.4, mariategui: 0.6, zapat: 0.8, connolly: 0.6 });
-  L('gs6', 'Rural villages organized as cooperative communities should be the basic unit of socialism.',
-    { nasser: -0.2, baath: -0.4, ujamaa: 1, nkrumah: -0.4, sankara: 0.6, cabral: 0.4, bolivar: 0.2, mariategui: 0.8, zapat: 0.8, connolly: -0.2 });
-  L('gs7', 'Local communal councils should gradually take over power from the old state, with the support of an elected socialist government.',
-    { nasser: -0.6, baath: -0.8, ujamaa: 0.2, nkrumah: -0.4, sankara: 0, cabral: 0, bolivar: 1, mariategui: 0.4, zapat: -0.4, connolly: 0 });
-  L('gs8', 'Movements should build autonomous self-government in their own territories without trying to win control of the national state.',
-    { nasser: -1, baath: -1, ujamaa: -0.6, nkrumah: -0.8, sankara: -0.6, cabral: -0.4, bolivar: -0.6, mariategui: -0.2, zapat: 1, connolly: -0.6 });
-  L('gs9', 'Violence against the colonizer is not only necessary but psychologically liberating for the colonized.',
-    { nasser: -0.2, baath: 0, ujamaa: -0.8, nkrumah: -0.4, sankara: 0, cabral: 0.6, bolivar: -0.4, mariategui: 0, zapat: -0.2, connolly: 0.4 });
-  L('gs10', 'Indigenous communal traditions, not European industrial working-class models, are the basis for socialism in Latin America.',
-    { nasser: 0, baath: 0, ujamaa: 0.4, nkrumah: 0, sankara: 0, cabral: 0.2, bolivar: 0.4, mariategui: 1, zapat: 0.9, connolly: 0 });
-  L('gs11', 'A poor country should refuse foreign aid and debt and aim to feed itself from its own production, even at the cost of slower growth.',
-    { nasser: -0.5, baath: -0.3, ujamaa: 0.6, nkrumah: -0.3, sankara: 1, cabral: 0.3, bolivar: -0.4, mariategui: 0.3, zapat: 0.6, connolly: 0 });
-  L('gs12', 'In an oppressed nation within the rich world, such as Ireland or the Basque Country, national independence and socialism are a single struggle.',
-    { nasser: 0, baath: 0, ujamaa: 0, nkrumah: 0.3, sankara: 0.3, cabral: 0.5, bolivar: 0.3, mariategui: 0.2, zapat: 0.3, connolly: 1 });
-  L('gs15', 'The revolutionary party should be a single organization spanning the whole nation across existing borders, ruling wherever it takes power.',
-    { nasser: -0.2, baath: 1, ujamaa: -0.4, nkrumah: 0.2, sankara: -0.4, cabral: 0, bolivar: -0.6, mariategui: -0.4, zapat: -1, connolly: -0.2 });
-  L('gs16', 'Progressive leaders should rule through a broad national front or mass movement rather than an ideological party.',
-    { nasser: 1, baath: -0.8, ujamaa: 0.4, nkrumah: 0, sankara: 0.2, cabral: -0.2, bolivar: 0.6, mariategui: -0.2, zapat: -0.4, connolly: 0 });
-  L('gs13', 'The army can be a revolutionary force, with progressive officers leading a socialist transformation.',
-    { nasser: 1, baath: 0.6, ujamaa: -0.4, nkrumah: -0.2, sankara: 0.8, cabral: -0.6, bolivar: 0.8, mariategui: -0.4, zapat: -1, connolly: -0.4 });
-  L('gs14', 'A socialist government may ban communist parties if they threaten national unity.',
-    { nasser: 0.6, baath: 0.8, ujamaa: 0.2, nkrumah: -0.2, sankara: -0.8, cabral: -1, bolivar: -0.8, mariategui: -1, zapat: -0.8, connolly: -1 });
-
-  /* ---------- Religious, ethical and nonviolent ---------- */
-  F('relig');
-  L('rg1', 'God has a preferential option for the poor, and religious communities must take the side of the oppressed in their struggles.',
-    { christsoc: 0.6, libtheo: 1, islamic: 0.2, ethical: 0.3, christanarch: 0.8, gandhian: 0.2 });
-  L('rg2', 'People of faith should refuse all participation in state violence, including military service, police and prisons.',
-    { christsoc: -0.5, libtheo: -0.5, islamic: -0.8, ethical: -0.6, christanarch: 1, gandhian: 0.6 });
-  L('rg3', 'Believers can use Marxist social analysis while rejecting Marxist atheism.',
-    { christsoc: 0, libtheo: 1, islamic: 0.4, ethical: 0.3, christanarch: -0.3, gandhian: -0.2 });
-  L('rg4', 'Islamic principles such as zakat (obligatory alms) and the prohibition of interest are the basis of a just socialist economy.',
-    { christsoc: -0.2, libtheo: 0, islamic: 1, ethical: 0, christanarch: -0.2, gandhian: 0 });
-  L('rg5', 'Village self-sufficiency, hand production and simple living are the basis of a just economy.',
-    { christsoc: -0.2, libtheo: 0, islamic: -0.2, ethical: -0.2, christanarch: 0.6, gandhian: 1 });
-  L('rg6', 'Socialism is fundamentally a matter of fellowship and moral duty, which needs no religious grounding.',
-    { christsoc: -0.4, libtheo: -0.4, islamic: -0.8, ethical: 1, christanarch: -0.6, gandhian: 0.2 });
-  L('rg7', 'Socialists should work through existing churches, mosques and temples to spread their ideas.',
-    { christsoc: 1, libtheo: 0.8, islamic: 0.8, ethical: 0, christanarch: 0, gandhian: 0.2 });
-  L('rg8', 'Mass nonviolent civil disobedience is the most powerful way to transform society.',
-    { christsoc: 0.4, libtheo: 0, islamic: 0, ethical: 0.4, christanarch: 1, gandhian: 1 });
-  L('rg9', 'Believers may, in extreme cases, join armed struggles against tyranny.',
-    { christsoc: -0.2, libtheo: 0.6, islamic: 0.4, ethical: -0.3, christanarch: -1, gandhian: -1 });
-  L('rg10', 'Inequality is wrong mainly because it violates human dignity and fellowship, not because it results from exploitation.',
-    { christsoc: 0.6, libtheo: -0.2, islamic: 0.4, ethical: 1, christanarch: 0.4, gandhian: 0.6 });
+  /* ---------- Republican socialism ---------- */
+  F('repub');
+  L('rp1', 'In a colonized or partitioned nation, the struggle for national independence and the struggle for socialism are one and the same.',
+    { connolly: 1, laborrep: -0.2, commonwealth: -0.2 });
+  L('rp2', 'Workers should pool their savings into producer cooperatives that gradually replace private employers, alongside political action.',
+    { connolly: 0, laborrep: 1, commonwealth: 0.2 });
+  L('rp3', 'Industry should be organized like a national public service, with every citizen enrolled and paid on equal terms.',
+    { connolly: -0.4, laborrep: -0.6, commonwealth: 1 });
+  L('rp4', 'The struggle for a shorter working day is a struggle for citizenship: free time is the precondition of self-government.',
+    { connolly: 0.2, laborrep: 1, commonwealth: 0.4 });
+  L('rp5', 'Railroads, utilities, banks and other monopolies should be taken into public ownership and run for the whole nation.',
+    { connolly: 0.4, laborrep: 0.3, commonwealth: 1 });
+  L('rp6', 'A labor movement should unite all producers, including farmers and small proprietors, against monopoly and finance.',
+    { connolly: -0.2, laborrep: 1, commonwealth: 0.6 });
+  H('rp7', 'In 1916 the Irish Citizen Army joined the Easter Rising in Dublin, knowing it had little chance of military success.',
+    'An armed rising can be justified to keep a cause alive, even without the support of most of the people at the time.',
+    { connolly: 1, laborrep: -0.6, commonwealth: -0.8 });
+  L('rp8', 'Industrial unions should become the administrative structure of the future workers\' republic.',
+    { connolly: 0.8, laborrep: 0.2, commonwealth: -0.4 });
+  L('rp9', 'Socialism will come through the ballot box, as citizens vote public ownership into being one step at a time.',
+    { connolly: -0.4, laborrep: 0.2, commonwealth: 1 });
+  H('rp10', 'In 1886 the Knights of Labor had around 700,000 members, organizing skilled and unskilled, Black and white, men and women, around cooperatives and the eight-hour day.',
+    'The Knights of Labor\'s mix of cooperation, politics and broad producer unity was a better model than the craft unionism that replaced it.',
+    { connolly: 0.3, laborrep: 1, commonwealth: 0.6 });
+  L('rp11', 'Strikes are a last resort; arbitration and cooperation are the better way for labor to win its independence.',
+    { connolly: -1, laborrep: 0.6, commonwealth: 0.4 });
+  L('rp12', 'Socialists should claim their country\'s founding democratic declarations and revolutionary traditions as their own, rather than treat them as bourgeois relics.',
+    { connolly: 0.8, laborrep: 1, commonwealth: 0.9 });
 
   /* ---------- Ecological ---------- */
   F('eco');

@@ -1,6 +1,6 @@
 # Twelve Axes
 
-A socialist ideology test: 12 axes, 89 tendencies of the socialist left, adaptive
+A socialist ideology test: 12 axes, 67 tendencies of the socialist left, adaptive
 drill-down modules, and an optional 40-question Marxist theory module. Static HTML/CSS/JS with
 no build step and no server. Answers stay in the visitor's browser.
 
@@ -19,9 +19,9 @@ no build step and no server. Answers stay in the visitor's browser.
 ## How it works
 
 1. **Core (125 questions).** Eight per axis (fifteen for the two strategy axes,
-   Transition and Arena), plus short blocks on capitalism, religion, legality and
-   violence, social values, the national question, liberation politics,
-   autogestion beyond the workplace, and technology/AI. About a third are
+   Transition and Arena), plus short blocks on capitalism, legality and
+   violence, social values, the national question, Marxist feminism,
+   republican freedom, autogestion beyond the workplace, and technology/AI. About a third are
    scenario questions with three to five options, including in-between and
    hybrid positions; each option sits at a position on the scales it measures.
 2. **Drill-down.** The two families closest to the core answers get their own
@@ -51,7 +51,7 @@ well (best match under 70%), the results page says so.
     site/js/engine.js           scoring (shared with the validator)
     site/js/app.js              interface
     tools/validate.js           synthetic-respondent and persona validation
-    tools/personas.js           hand-written answer sheets for 15 real positions
+    tools/personas.js           hand-written answer sheets for 18 real positions
     tools/build-artifact.js     single-file bundle -> dist/
 
 ## Validation
@@ -62,14 +62,15 @@ archetype, and runs them through the same adaptive flow as the site.
 
 | noise | drift | top-1 | top-3 | right family drilled | theory top-1 |
 |-------|-------|-------|-------|----------------------|--------------|
-| 0.35  | 0.2   | 99.0% | 99.9% | 100%                 | 99.3%        |
-| 0.5   | 0.3   | 89.3% | 96.5% | 98.4%                | 92.7%        |
+| 0.35  | 0.2   | 99.0% | 99.9% | 100%                 | 99.4%        |
+| 0.5   | 0.3   | 89.4% | 97.0% | 99.0%                | 92.7%        |
 
 The simulation only shows that every tendency is reachable and separable. It
 can't check whether the profiles are right, because the simulated people answer
 from those profiles. `tools/personas.js` covers that gap partly: core answer
-sheets written by hand from 15 real positions (Lenin, Berlinguer, Poulantzas,
-Bernstein, Bordiga, Bookchin, Kropotkin, Lefebvre, Pannekoek, Palme,
-Wagenknecht, Deng, Cliff, Saito, and a left-Eurocommunist test taker). All 15
+sheets written by hand from 18 real positions (Connolly, Ira Steward, Bellamy,
+Lenin, Berlinguer, Poulantzas, Bernstein, Bordiga, Bookchin, Kropotkin,
+Lefebvre, Pannekoek, Palme, Wagenknecht, Deng, Cliff, Saito, and a
+left-Eurocommunist test taker). All 18
 land on the expected tendency. Real respondents who know their own tradition
 remain the real test.

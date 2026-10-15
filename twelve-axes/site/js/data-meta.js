@@ -38,8 +38,8 @@
       d: 'Whether national self-determination and the nationalism of oppressed peoples are progressive, or divide the working class.' },
     { id: 'nv', n: 'Means', neg: 'Armed Struggle', pos: 'Nonviolence',
       d: 'Whether armed struggle and sabotage are legitimate, or change has to come through nonviolent means.' },
-    { id: 'rel', n: 'Religion', neg: 'Secular', pos: 'Religious',
-      d: 'Whether your socialism is secular and materialist, or grounded in religious faith.' },
+    { id: 'repub', n: 'Republicanism', neg: 'Class Frame', pos: 'Republican Frame',
+      d: 'Whether you frame socialism mainly as ending exploitation and class rule, or as extending republican self-government and freedom from domination into the economy.' },
     { id: 'soc', n: 'Social Values', neg: 'Progressive', pos: 'Traditional',
       d: 'Whether you hold progressive or traditional positions on family, immigration and sexuality.' }
   ];
@@ -54,17 +54,13 @@
     { id: 'anarch', n: 'Anarchist', mod: true },
     { id: 'demsoc', n: 'Democratic & Reformist', mod: true },
     { id: 'econ', n: 'Market, Cooperative & Planning Models', mod: true },
-    { id: 'gsouth', n: 'National Liberation Socialism', mod: true },
-    { id: 'relig', n: 'Religious, Ethical & Nonviolent', mod: true },
-    { id: 'eco', n: 'Ecological', mod: true },
-    { id: 'bound', n: 'Non-socialist Left', mod: false }
+    { id: 'repub', n: 'Republican Socialism', mod: true },
+    { id: 'eco', n: 'Ecological', mod: true }
   ];
 
   // Tags. "items" tags come from tagged questions; the rest from scale scores.
   TA.tags = [
-    { id: 'fem', n: 'Marxist Feminist', src: 'items', d: 'You treat unpaid reproductive work and gender oppression as central to how capitalism works.' },
-    { id: 'race', n: 'Racial Capitalism', src: 'items', d: 'You see slavery, colonialism and racism as built into the foundations of capitalism.' },
-    { id: 'queer', n: 'Queer Liberation', src: 'items', d: 'You see sexual and family liberation as part of the socialist project.' },
+    { id: 'fem', n: 'Marxist Feminist', src: 'items', d: 'You take distinctly Marxist-feminist positions: on housework, the family, how gender oppression is rooted, and women organizing autonomously.' },
     { id: 'ind', n: 'Indigenous / Decolonial', src: 'items', d: 'You give Indigenous land rights and communal traditions a central place in socialism.' },
     { id: 'degrowth', n: 'Degrowth', src: 'items', d: 'You hold that material throughput in rich countries has to shrink.' },
     { id: 'accel', n: 'Accelerationist', src: 'items', d: 'You want AI, automation and technology pushed forward and socialized, not slowed.' },
@@ -73,7 +69,6 @@
     { id: 'commons', n: 'Digital Commons', src: 'items', d: 'You want software, data and platforms owned in common by their users and workers.' },
     { id: 'eco', n: 'Ecological', src: 'axis', d: 'Your answers put ecological limits close to the center of your socialism.' },
     { id: 'campist', n: 'Campist', src: 'axis', d: 'You lean toward backing states that oppose US power, even non-socialist ones.' },
-    { id: 'relig', n: 'Religious', src: 'axis', d: 'Your socialism draws on religious faith.' },
     { id: 'socon', n: 'Socially Conservative', src: 'axis', d: 'You combine socialist economics with traditional positions on family, immigration or sexuality.' },
     { id: 'pacifist', n: 'Nonviolent', src: 'axis', d: 'You reject armed struggle and sabotage as means of change.' },
     { id: 'natlib', n: 'National Liberationist', src: 'axis', d: 'You treat the self-determination of oppressed nations as a core socialist cause.' },

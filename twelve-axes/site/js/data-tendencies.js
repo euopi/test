@@ -1,4 +1,4 @@
-/* The 87 tendencies. p = position on each scale (-1..1), k = defining scales
+/* The tendencies. p = position on each scale (-1..1), k = defining scales
    (double weight). Scales left out of p are treated as undefined for that
    tendency and scored at low weight. */
 (function (G) {
@@ -8,7 +8,7 @@
 
   /* ---------- Marxist-Leninist ---------- */
   T('ml', 'ml', 'Marxism-Leninism',
-    { rupture: -1.0, arena: 0.5, org: -1, state: -1, form: -1, coord: -1, ctrl: -1, scope: -0.5, geo: -0.8, verdict: -1, tech: -0.9, opp: -0.6, nat: 0.5 },
+    { rupture: -1.0, arena: 0.5, org: -1, state: -1, form: -1, coord: -1, ctrl: -1, scope: -0.5, geo: -0.8, verdict: -1, tech: -0.9, opp: -0.6, nat: 0.5, repub: -0.5 },
     ['verdict', 'org', 'form', 'coord'],
     'The doctrine codified under Stalin: a vanguard party, a one-party dictatorship of the proletariat, central planning, and socialism built first in one country. Defends the Soviet record as the main achievement of the 20th-century working class.',
     'Lenin, Stalin, Dimitrov, the pre-1956 Comintern parties');
@@ -37,21 +37,11 @@
     ['nat'],
     'Marxism-Leninism fused with national liberation: a broad patriotic front under communist leadership, balancing Moscow and Beijing, and later market reform under the party (Đổi Mới).',
     'Ho Chi Minh, Võ Nguyên Giáp, the Communist Party of Vietnam');
-  T('juche', 'ml', 'Juche',
-    { rupture: -1.0, arena: 0.7, org: -1, state: -1, form: -1, coord: -1, ctrl: -1, scope: -1, geo: -0.4, verdict: -0.6, tech: -0.6, opp: -0.8, soc: 0.7, nat: 1 },
-    ['scope', 'nat', 'soc'],
-    'North Korea\'s state ideology: self-reliance in politics, economy and defense, the masses as masters of the revolution under the guidance of the leader, and the army first (Songun).',
-    'Kim Il Sung, Kim Jong Il');
   T('deng', 'ml', 'Dengism',
     { rupture: -0.5, arena: 0, org: -1, state: -1, form: -1, coord: 0.6, ctrl: -0.5, scope: -1, geo: -0.9, verdict: -0.9, tech: -1, opp: -0.7, soc: 0.2, nat: 0.6, cap: -0.5 },
     ['coord', 'scope', 'tech'],
     'Socialism with Chinese characteristics: the Communist Party keeps power while markets, private capital and foreign investment develop the productive forces through a long primary stage of socialism.',
     'Deng Xiaoping, Jiang Zemin, Xi Jinping');
-  T('reformcomm', 'ml', 'Reform Communism',
-    { rupture: 0.3, arena: -0.7, org: 0.2, state: -0.5, form: 0.6, coord: 0.3, ctrl: 0.2, scope: -0.3, geo: 0.2, verdict: 0.3, tech: -0.5, opp: -0.2, nat: 0.2, cap: -0.9 },
-    ['form', 'verdict'],
-    'Socialism with a human face: democratizing the Soviet-type system from inside the ruling party, with press freedom, economic reform and an end to the monopoly on power.',
-    'Alexander Dubček, Imre Nagy, Mikhail Gorbachev');
 
   /* ---------- Maoist ---------- */
   T('mzt', 'mao', 'Mao Zedong Thought',
@@ -85,7 +75,7 @@
     'Nepalese Maoism, which waged a people\'s war and then entered multiparty parliamentary politics, arguing that a communist party must compete for power in a pluralist democracy.',
     'Pushpa Kamal Dahal (Prachanda), Baburam Bhattarai');
   T('avakian', 'mao', 'New Synthesis (Avakianism)',
-    { rupture: -1.0, arena: 0.8, org: -1, state: -1, form: -0.4, coord: -0.8, ctrl: -0.6, scope: 0.7, geo: 0.4, verdict: -0.2, tech: -0.4, opp: 0.4, nat: -0.2, rel: -1, nv: -0.9 },
+    { rupture: -1.0, arena: 0.8, org: -1, state: -1, form: -0.4, coord: -0.8, ctrl: -0.6, scope: 0.7, geo: 0.4, verdict: -0.2, tech: -0.4, opp: 0.4, nat: -0.2, nv: -0.9 },
     ['form', 'scope'],
     'Revises Maoism to stress communism as a science, internationalism over nationalism, and wide room for dissent and intellectual ferment under socialism, while upholding the first wave of socialist states.',
     'Bob Avakian, the Revolutionary Communist Party, USA');
@@ -136,40 +126,25 @@
 
   /* ---------- Classical and pre-Leninist ---------- */
   T('kautsky', 'classic', 'Kautskyism (Orthodox Marxism)',
-    { rupture: 0.1, arena: -0.6, org: -0.3, state: -0.5, form: 0.7, coord: -0.8, ctrl: -0.6, scope: 0.3, geo: 0.3, verdict: 0.6, tech: -0.8, opp: -0.5, nat: 0, nv: 0.2 },
+    { rupture: 0.1, arena: -0.6, org: -0.3, state: -0.5, form: 0.7, coord: -0.8, ctrl: -0.6, scope: 0.3, geo: 0.3, verdict: 0.6, tech: -0.8, opp: -0.5, nat: 0, nv: 0.2, repub: 0.3 },
     ['theory', 'rupture', 'form'],
     'The Marxism of the Second International: a mass workers\' party that is revolutionary but not revolution-making, winning a democratic majority and a socialist republic as capitalism matures.',
     'Karl Kautsky, August Bebel, the pre-1914 SPD');
   T('bernstein', 'classic', 'Bernsteinian Revisionism',
-    { rupture: 1.0, arena: -1, org: 0.2, state: -0.5, form: 1, coord: 0.2, ctrl: -0.2, scope: -0.3, geo: 0.5, verdict: 0.8, tech: -0.5, opp: -0.4, nat: -0.1, nv: 0.4, cap: -0.6 },
+    { rupture: 1.0, arena: -1, org: 0.2, state: -0.5, form: 1, coord: 0.2, ctrl: -0.2, scope: -0.3, geo: 0.5, verdict: 0.8, tech: -0.5, opp: -0.4, nat: -0.1, nv: 0.4, cap: -0.6, repub: 0.2 },
     ['rupture'],
     'Evolutionary socialism: capitalism is not polarizing or collapsing, so socialism grows step by step through democracy, unions and cooperatives. The movement matters more than the final goal.',
     'Eduard Bernstein');
   T('austro', 'classic', 'Austromarxism',
-    { rupture: 0.4, arena: -0.4, org: -0.2, state: -0.4, form: 0.8, coord: -0.5, ctrl: 0.2, scope: 0, geo: 0.4, verdict: 0.5, tech: -0.5, opp: -0.3, nat: 0.6 },
+    { rupture: 0.4, arena: -0.4, org: -0.2, state: -0.4, form: 0.8, coord: -0.5, ctrl: 0.2, scope: 0, geo: 0.4, verdict: 0.5, tech: -0.5, opp: -0.3, nat: 0.6, repub: 0.3 },
     ['nat'],
     'A third way between reformism and Bolshevism from the Habsburg empire: democratic socialism with workers\' councils alongside parliament, and national-cultural autonomy for nationalities wherever they live.',
     'Otto Bauer, Max Adler, Karl Renner');
   T('lassalle', 'classic', 'Lassallean State Socialism',
-    { rupture: 0.7, arena: -0.8, org: -0.4, state: -1, form: 0.2, coord: -0.3, ctrl: -0.6, scope: -0.8, geo: -0.3, verdict: 0, tech: -0.6, opp: -0.6, soc: 0.4, nat: 0.6, cap: -0.8 },
+    { rupture: 0.7, arena: -0.8, org: -0.4, state: -1, form: 0.2, coord: -0.3, ctrl: -0.6, scope: -0.8, geo: -0.3, verdict: 0, tech: -0.6, opp: -0.6, soc: 0.4, nat: 0.6, cap: -0.8, repub: 0.4 },
     ['state', 'scope'],
     'Universal suffrage would let workers capture the national state, which would then fund producer cooperatives. Willing to bargain with conservative governments for social reform.',
     'Ferdinand Lassalle, the General German Workers\' Association');
-  T('blanqui', 'classic', 'Blanquism',
-    { rupture: -1.0, arena: 1, org: -1, state: -1, form: -1, coord: 0, ctrl: 0, scope: 0, geo: 0, verdict: 0, tech: 0, opp: -0.4, nv: -1 },
-    ['org', 'rupture'],
-    'Revolution by a small, disciplined conspiracy that seizes power and establishes a temporary dictatorship to educate the masses.',
-    'Louis Auguste Blanqui');
-  T('utopian', 'classic', 'Utopian Socialism',
-    { rupture: 0.8, arena: 0.4, org: 0.6, state: 0.3, form: 0.3, coord: -0.3, ctrl: 0.7, scope: 0.2, geo: 0.3, verdict: 0.3, tech: 0, opp: 0.2, nv: 0.8, rel: 0 },
-    ['rupture', 'nv'],
-    'Socialism through reason and example: model communities and cooperative colonies that would persuade all classes of a better way of living.',
-    'Robert Owen, Charles Fourier, Henri de Saint-Simon, Étienne Cabet');
-  T('narod', 'classic', 'Agrarian Socialism (Narodism)',
-    { rupture: -0.8, arena: 0.6, org: 0.2, state: 0.2, form: 0.5, coord: 0.2, ctrl: 0.8, scope: -0.4, geo: 0.3, verdict: 0.5, tech: 0.5, opp: -0.2, nat: 0.3, soc: 0.3, nv: -0.5 },
-    ['ctrl', 'tech'],
-    'The peasant commune as the seed of socialism, letting an agrarian country skip capitalism. Continued by the Socialist Revolutionaries and the Left SRs who shared power with the Bolsheviks in 1917-18.',
-    'Alexander Herzen, Nikolay Chernyshevsky, Viktor Chernov, Maria Spiridonova');
 
   /* ---------- Left communist and syndicalist ---------- */
   T('lux', 'leftcom', 'Luxemburgism',
@@ -183,25 +158,15 @@
     'Workers\' councils, not parties or unions, are the organs of revolution and of the new society. The Bolshevik revolution produced state capitalism.',
     'Anton Pannekoek, Otto Rühle, Herman Gorter, Paul Mattick');
   T('bordiga', 'leftcom', 'Bordigism (Italian Communist Left)',
-    { rupture: -1.0, arena: 0.8, org: -1, state: -1, form: -1, coord: -1, ctrl: -0.5, scope: 1, geo: 1, verdict: 0.8, tech: 0, opp: -0.8, nat: -0.6, nv: -0.8 },
+    { rupture: -1.0, arena: 0.8, org: -1, state: -1, form: -1, coord: -1, ctrl: -0.5, scope: 1, geo: 1, verdict: 0.8, tech: 0, opp: -0.8, nat: -0.6, nv: -0.8, repub: -0.8 },
     ['form', 'org', 'scope'],
     'An invariant communist program carried by a centralized party, contempt for democracy and parliament, hostility to workers\' self-management, and the USSR as capitalist from early on.',
     'Amadeo Bordiga, the International Communist Party');
   T('communization', 'leftcom', 'Communization',
-    { rupture: -1.0, arena: 1, org: 1, state: 1, form: 0, coord: -1, ctrl: 0.2, scope: 1, geo: 1, verdict: 1, tech: 0.2, opp: 0.5, nat: -1 },
+    { rupture: -1.0, arena: 1, org: 1, state: 1, form: 0, coord: -1, ctrl: 0.2, scope: 1, geo: 1, verdict: 1, tech: 0.2, opp: 0.5, nat: -1, repub: -0.8 },
     ['state', 'coord'],
     'No transitional period: revolution is the immediate abolition of value, wages, the state and class itself, not a workers\' takeover of the existing economy.',
     'Gilles Dauvé, Théorie Communiste, Endnotes, Tiqqun');
-  T('impossib', 'leftcom', 'Impossibilism (World Socialism)',
-    { rupture: 0.8, arena: -0.8, org: 0.3, state: 0.5, form: 1, coord: -1, ctrl: 0.3, scope: 1, geo: 1, verdict: 1, tech: -0.6, opp: -0.6, nat: -1, nv: 0.7 },
-    ['coord', 'nat'],
-    'Socialism comes only when a conscious majority votes for it, after which money, wages and the state are abolished at once. Rejects all reforms and every party that offers them.',
-    'The Socialist Party of Great Britain, the World Socialist Movement');
-  T('deleon', 'leftcom', 'DeLeonism',
-    { rupture: 0.3, arena: -0.2, org: -0.5, state: 0.3, form: 0.6, coord: -0.8, ctrl: 0.9, scope: 0.6, geo: 0.8, verdict: 0.7, tech: -0.7, opp: -0.6, nat: -0.5, nv: 0.3 },
-    ['ctrl'],
-    'A socialist party wins at the ballot box while socialist industrial unions take and hold the economy, then replace the state with an industrial union government.',
-    'Daniel De Leon, the Socialist Labor Party of America');
   T('revsynd', 'leftcom', 'Revolutionary Syndicalism',
     { rupture: -0.7, arena: 0.9, org: 0.7, state: 0.4, form: 0.4, coord: -0.6, ctrl: 1, scope: 0.9, geo: 0.8, verdict: 0.6, tech: -0.5, opp: -0.3, nat: -0.6 },
     ['ctrl', 'org'],
@@ -242,7 +207,7 @@
     'Henri Lefebvre, Daniel Guérin, the PSU and the 1970s CFDT, the LIP workers');
 
   /* ---------- Anarchist ---------- */
-  var AN = { state: 1, form: 0.8, ctrl: 1, geo: 0.9, verdict: 1, rel: -0.6 };
+  var AN = { state: 1, form: 0.8, ctrl: 1, geo: 0.9, verdict: 1 };
   function an(extra) { var o = {}, k; for (k in AN) o[k] = AN[k]; for (k in extra) o[k] = extra[k]; return o; }
   T('ancom', 'anarch', 'Anarcho-Communism',
     an({ rupture: -1.0, arena: 1, org: 0.7, coord: -1, scope: 0.9, tech: 0, opp: 0.6, nat: -0.5, nv: -0.4 }),
@@ -285,14 +250,14 @@
     'Ecological crisis comes from social hierarchy. Free municipalities run by citizens\' assemblies, confederated together, should own and direct the economy, rather than workers in each industry.',
     'Murray Bookchin, Janet Biehl');
   T('demconf', 'anarch', 'Democratic Confederalism',
-    { rupture: -0.4, arena: 0.6, org: -0.5, state: 0.6, form: 0.6, coord: -0.3, ctrl: 0.5, scope: 0.3, geo: 0.2, verdict: 0.6, tech: 0.5, opp: 1, nat: 0.4, nv: -0.6, rel: 0 },
+    { rupture: -0.4, arena: 0.6, org: -0.5, state: 0.6, form: 0.6, coord: -0.3, ctrl: 0.5, scope: 0.3, geo: 0.2, verdict: 0.6, tech: 0.5, opp: 1, nat: 0.4, nv: -0.6 },
     ['opp', 'state'],
     'Democracy without the state: confederated communes and councils, women\'s liberation as the foundation (jineology), ecology and cooperatives. Practiced in Rojava (Northeast Syria).',
     'Abdullah Öcalan, the PKK and PYD');
 
   /* ---------- Democratic and reformist ---------- */
   T('demsoc', 'demsoc', 'Democratic Socialism',
-    { rupture: 0.4, arena: -0.3, org: 0.3, state: -0.4, form: 1, coord: -0.3, ctrl: 0.2, scope: -0.1, geo: 0.5, verdict: 0.7, tech: -0.2, opp: 0.4, nat: 0.2, nv: 0.5 },
+    { rupture: 0.4, arena: -0.3, org: 0.3, state: -0.4, form: 1, coord: -0.3, ctrl: 0.2, scope: -0.1, geo: 0.5, verdict: 0.7, tech: -0.2, opp: 0.4, nat: 0.2, nv: 0.5, repub: 0.3 },
     ['form', 'rupture'],
     'Replace capitalism through democratic means, combining elections with mass movements and unions, while keeping political pluralism and civil liberties throughout.',
     'Michael Harrington, Tony Benn, Bernie Sanders, Jeremy Corbyn, the DSA');
@@ -307,22 +272,22 @@
     'Gradual socialism designed by experts and introduced through the permeation of existing institutions: municipal and state ownership, administered by a trained civil service.',
     'Sidney and Beatrice Webb, George Bernard Shaw, the Fabian Society');
   T('eurocomm', 'demsoc', 'Right Eurocommunism',
-    { rupture: 0.8, arena: -0.8, org: -0.3, state: -0.6, form: 0.9, coord: -0.3, ctrl: -0.3, scope: -0.5, geo: 0.5, verdict: 0.5, tech: -0.5, opp: 0.1 },
+    { rupture: 0.8, arena: -0.8, org: -0.3, state: -0.6, form: 0.9, coord: -0.3, ctrl: -0.3, scope: -0.5, geo: 0.5, verdict: 0.5, tech: -0.5, opp: 0.1, repub: 0.2 },
     ['form', 'rupture'],
     'The majority current of 1970s Western communism: independence from Moscow, a pluralist and gradual road to socialism, and broad alliances like the Italian historic compromise with Christian Democracy.',
     'Enrico Berlinguer, Santiago Carrillo, Giorgio Amendola');
   T('lefteuro', 'demsoc', 'Left Eurocommunism (Democratic Road)',
-    { rupture: -0.5, arena: 0.1, org: -0.3, state: -0.5, form: 0.5, coord: 0, ctrl: 0.6, scope: -0.4, geo: 0.5, verdict: 0.6, tech: 0.1, opp: 0.3, nat: 0.2, nv: -0.1 },
+    { rupture: -0.5, arena: 0.1, org: -0.3, state: -0.5, form: 0.5, coord: 0, ctrl: 0.6, scope: -0.4, geo: 0.5, verdict: 0.6, tech: 0.1, opp: 0.3, nat: 0.2, nv: -0.1, repub: 0.3 },
     ['rupture', 'arena', 'state', 'ctrl'],
     'A democratic road with a rupture at its end: win hegemony and elections, transform the state from inside while building self-management and popular power outside it, and be ready for a decisive, if necessary illegal, break with capital rather than endless reform.',
     'Nicos Poulantzas, Pietro Ingrao, Lucio Magri, Ralph Miliband, Leo Panitch');
   T('leftpop', 'demsoc', 'Left Populism',
-    { rupture: 0.7, arena: -0.5, org: -0.2, state: -0.5, form: 0.7, coord: 0.2, ctrl: -0.2, scope: -0.7, geo: 0, verdict: 0.4, tech: -0.2, opp: 0.4, soc: -0.2, nat: 0.3, cap: -0.5 },
+    { rupture: 0.7, arena: -0.5, org: -0.2, state: -0.5, form: 0.7, coord: 0.2, ctrl: -0.2, scope: -0.7, geo: 0, verdict: 0.4, tech: -0.2, opp: 0.4, soc: -0.2, nat: 0.3, cap: -0.5, repub: 0.3 },
     ['scope', 'arena'],
     'Builds a broad popular identity of "the people" against "the elite" around a leader, rather than organizing around class, and aims at radicalizing democracy.',
     'Ernesto Laclau, Chantal Mouffe, Podemos, Jean-Luc Mélenchon');
   T('leftcon', 'demsoc', 'Left-Conservative Socialism',
-    { rupture: 0.7, arena: -0.8, org: -0.2, state: -0.8, form: 0.6, coord: 0.1, ctrl: -0.6, scope: -0.9, geo: -0.6, verdict: 0.1, tech: -0.5, opp: -1, soc: 0.9, nat: 0.6, rel: 0.2, cap: -0.6 },
+    { rupture: 0.7, arena: -0.8, org: -0.2, state: -0.8, form: 0.6, coord: 0.1, ctrl: -0.6, scope: -0.9, geo: -0.6, verdict: 0.1, tech: -0.5, opp: -1, soc: 0.9, nat: 0.6, cap: -0.6 },
     ['soc', 'opp', 'scope'],
     'Economic redistribution and state intervention combined with social conservatism on immigration, family and national identity, and skepticism of Western foreign policy.',
     'Sahra Wagenknecht (BSW), the KPRF, Blue Labour');
@@ -334,17 +299,17 @@
     'Publicly owned firms compete in markets, with prices set by markets or simulated by a planning board, and profits distributed to society.',
     'Oskar Lange, Abba Lerner, John Roemer, Alec Nove');
   T('econdem', 'econ', 'Economic Democracy',
-    { rupture: 0.5, arena: -0.4, org: 0.3, state: -0.4, form: 1, coord: 0.9, ctrl: 0.9, scope: -0.2, geo: 0.6, verdict: 0.7, tech: -0.3, opp: 0.2, cap: -0.9 },
+    { rupture: 0.5, arena: -0.4, org: 0.3, state: -0.4, form: 1, coord: 0.9, ctrl: 0.9, scope: -0.2, geo: 0.6, verdict: 0.7, tech: -0.3, opp: 0.2, cap: -0.9, repub: 0.4 },
     ['coord', 'ctrl'],
     'Worker self-managed firms compete in markets for goods, while investment is socialized and allocated through democratically controlled public banks.',
     'David Schweickart, Richard Wolff');
   T('coop', 'econ', 'Cooperativism',
-    { rupture: 0.8, arena: 0.3, org: 0.7, state: 0.2, form: 1, coord: 0.7, ctrl: 1, scope: 0, geo: 0.5, verdict: 0.6, tech: 0, opp: 0.2, nv: 0.8, cap: -0.7 },
+    { rupture: 0.8, arena: 0.3, org: 0.7, state: 0.2, form: 1, coord: 0.7, ctrl: 1, scope: 0, geo: 0.5, verdict: 0.6, tech: 0, opp: 0.2, nv: 0.8, cap: -0.7, repub: 0.5 },
     ['ctrl', 'rupture'],
     'Socialism built from below by expanding worker and consumer cooperatives inside the existing economy until they displace capitalist firms.',
     'The Rochdale Pioneers, José María Arizmendiarrieta (Mondragon)');
   T('guild', 'econ', 'Guild Socialism',
-    { rupture: 0.6, arena: 0, org: 0.4, state: 0.2, form: 0.9, coord: -0.2, ctrl: 0.9, scope: 0, geo: 0.5, verdict: 0.6, tech: 0.4, opp: 0, rel: 0 },
+    { rupture: 0.6, arena: 0, org: 0.4, state: 0.2, form: 0.9, coord: -0.2, ctrl: 0.9, scope: 0, geo: 0.5, verdict: 0.6, tech: 0.4, opp: 0, repub: 0.4 },
     ['ctrl'],
     'Industries run by national guilds of workers, balanced by democratic bodies representing consumers and citizens, with a stress on craft and meaningful work.',
     'G. D. H. Cole, A. R. Orage, S. G. Hobson');
@@ -364,94 +329,29 @@
     'Fully automated luxury communism: socialize AI and automation, cut the working week, introduce a universal basic income, and build a post-work future rather than resist technology.',
     'Nick Srnicek, Alex Williams, Aaron Bastani, Laboria Cuboniks');
   T('platcoop', 'econ', 'Platform Cooperativism',
-    { rupture: 0.8, arena: 0.2, org: 0.7, state: 0.2, form: 1, coord: 0.6, ctrl: 1, scope: 0.2, geo: 0.5, verdict: 0.6, tech: -0.3, opp: 0.5, nv: 0.8, cap: -0.7 },
+    { rupture: 0.8, arena: 0.2, org: 0.7, state: 0.2, form: 1, coord: 0.6, ctrl: 1, scope: 0.2, geo: 0.5, verdict: 0.6, tech: -0.3, opp: 0.5, nv: 0.8, cap: -0.7, repub: 0.3 },
     ['ctrl', 'tech'],
     'Digital platforms, from ride-hailing to cloud services, rebuilt as cooperatives owned by their workers and users, alongside open software and data commons.',
     'Trebor Scholz, Nathan Schneider');
 
-  /* ---------- National liberation socialism ---------- */
-  T('nasser', 'gsouth', 'Arab Socialism (Nasserism)',
-    { rupture: -0.4, arena: -0.2, org: -0.8, state: -1, form: -0.8, coord: -0.5, ctrl: -0.8, scope: -0.6, geo: -0.4, verdict: -0.2, tech: -0.8, opp: -0.4, rel: 0.4, soc: 0.5, nat: 1, cap: -0.5 },
-    ['nat', 'rel'],
-    'Pan-Arab nationalism, land reform, nationalization of foreign assets and non-alignment, led by progressive army officers and compatible with Islam. Often suppressed local communists.',
-    'Gamal Abdel Nasser, Ahmed Ben Bella');
-  T('baath', 'gsouth', 'Ba\'athism',
-    { rupture: -0.6, arena: 0.2, org: -1, state: -1, form: -1, coord: -0.4, ctrl: -0.6, scope: -0.4, geo: -0.6, verdict: -0.3, tech: -0.7, opp: -0.6, rel: 0.3, soc: 0.6, nat: 1, cap: -0.5 },
-    ['nat', 'org'],
-    'Unity, freedom, socialism: the Arab nation reborn under a vanguard party, with national unity placed above class struggle.',
-    'Michel Aflaq, Salah al-Din al-Bitar');
-  T('ujamaa', 'gsouth', 'African Socialism (Ujamaa)',
-    { rupture: 0.3, arena: -0.6, org: -0.5, state: -0.8, form: -0.4, coord: -0.4, ctrl: 0.5, scope: -0.3, geo: 0.3, verdict: 0.2, tech: 0.4, opp: -0.2, rel: 0.3, soc: 0.4, nat: 0.8, nv: 0.5, cap: -0.8 },
-    ['ctrl'],
-    'Socialism rooted in precolonial African communal values rather than class struggle, built around cooperative villages and self-reliance under a one-party democracy.',
-    'Julius Nyerere, Kenneth Kaunda, Léopold Senghor');
-  T('nkrumah', 'gsouth', 'Nkrumahism',
-    { rupture: -0.3, arena: -0.4, org: -0.8, state: -1, form: -0.7, coord: -0.7, ctrl: -0.8, scope: 0.6, geo: -0.3, verdict: -0.4, tech: -0.9, opp: -0.3, nat: 0.9 },
-    ['scope', 'tech'],
-    'Pan-African socialism: continental union against neo-colonialism, rapid state-led industrialization, and a scientific socialism adapted to Africa (consciencism).',
-    'Kwame Nkrumah, Sékou Touré');
-  T('sankara', 'gsouth', 'Sankarism',
-    { rupture: -1.0, arena: 0.3, org: -0.7, state: -1, form: -0.6, coord: -0.6, ctrl: -0.5, scope: 0.3, geo: 0, verdict: -0.4, tech: 0.5, opp: 0.7, soc: -0.5, nat: 0.9, nv: -0.6 },
-    ['opp', 'tech'],
-    'Burkina Faso\'s revolution: food self-sufficiency, refusal of debt and aid dependence, reforestation, mass vaccination and women\'s emancipation under a revolutionary military government.',
-    'Thomas Sankara');
-  T('cabral', 'gsouth', 'Cabralism / Fanonism',
-    { rupture: -1.0, arena: 1, org: -0.5, state: -0.5, form: -0.3, coord: -0.5, ctrl: 0.2, scope: 0.5, geo: 0.3, verdict: 0, tech: 0.1, opp: 0.6, nat: 1, nv: -1 },
-    ['nat', 'arena'],
-    'Armed anticolonial liberation as a cultural and psychological as well as political act, with a warning that the national middle class will betray independence.',
-    'Amílcar Cabral, Frantz Fanon, Walter Rodney');
-  T('bolivar', 'gsouth', 'Bolivarian Socialism',
-    { rupture: 0.4, arena: -0.4, org: -0.3, state: -0.8, form: 0.2, coord: -0.3, ctrl: 0.3, scope: -0.3, geo: -1, verdict: -0.5, tech: -0.8, opp: 0.1, rel: 0.3, nat: 0.8 },
-    ['geo', 'rupture'],
-    'Socialism of the 21st century: an elected government, oil-funded social programs, communal councils and a regional anti-imperialist alliance.',
-    'Hugo Chávez, Nicolás Maduro, Rafael Correa');
-  T('mariategui', 'gsouth', 'Indo-American Socialism',
-    { rupture: -0.2, arena: 0.3, org: -0.2, state: -0.4, form: 0.3, coord: -0.3, ctrl: 0.7, scope: 0.2, geo: -0.2, verdict: 0.2, tech: 0.7, opp: 0.7, rel: 0.3, nat: 0.6 },
-    ['opp', 'tech', 'ctrl'],
-    'Socialism rooted in Indigenous Andean communal traditions such as the ayllu, later developed as communitarian socialism and buen vivir with rights for nature.',
-    'José Carlos Mariátegui, Álvaro García Linera, Evo Morales');
-  T('zapat', 'gsouth', 'Neozapatismo',
-    { rupture: -0.4, arena: 1, org: 0.9, state: 0.9, form: 0.7, coord: -0.4, ctrl: 1, scope: 0.6, geo: 0.8, verdict: 0.8, tech: 0.6, opp: 0.9, rel: 0.2, nat: 0.5, nv: -0.2 },
-    ['state', 'org'],
-    'Indigenous autonomous self-government in Chiapas since 1994: build power from below and change the world without taking state power.',
-    'The EZLN, Subcomandante Marcos, John Holloway');
-  T('connolly', 'gsouth', 'Republican Socialism',
-    { rupture: -1.0, arena: 0.7, org: -0.4, state: -0.7, form: 0.4, coord: -0.6, ctrl: 0.7, scope: 0, geo: 0.4, verdict: 0.3, tech: -0.4, opp: -0.1, rel: 0.3, nat: 1, nv: -0.8 },
-    ['nat'],
-    'National independence and socialism as one struggle in oppressed nations of the rich world, combined with syndicalist-influenced workers\' power.',
-    'James Connolly, the Irish Republican Socialist tradition, the Basque abertzale left');
 
-  /* ---------- Religious, ethical and nonviolent ---------- */
-  T('christsoc', 'relig', 'Christian Socialism',
-    { rupture: 0.9, arena: -0.7, org: 0.3, state: -0.4, form: 0.9, coord: 0.1, ctrl: 0.2, scope: 0, geo: 0.5, verdict: 0.8, tech: -0.1, opp: 0, rel: 1, soc: 0.4, nv: 0.7, cap: -0.6 },
-    ['rel'],
-    'Socialism as the practice of Christian love and justice, pursued through democratic reform, unions and cooperatives.',
-    'F. D. Maurice, Walter Rauschenbusch, Keir Hardie, R. H. Tawney');
-  T('libtheo', 'relig', 'Liberation Theology',
-    { rupture: -0.3, arena: 0.4, org: 0.4, state: -0.3, form: 0.4, coord: -0.4, ctrl: 0.4, scope: 0.4, geo: 0.2, verdict: 0.3, tech: 0.2, opp: 0.4, rel: 1, soc: 0.2, nat: 0.4, nv: 0 },
-    ['rel'],
-    'A preferential option for the poor, using Marxist social analysis inside Christian faith and organizing through base communities. Some adherents joined armed movements.',
-    'Gustavo Gutiérrez, Leonardo Boff, Óscar Romero, Camilo Torres');
-  T('islamic', 'relig', 'Islamic Socialism',
-    { rupture: 0.2, arena: -0.4, org: -0.2, state: -0.6, form: 0.2, coord: 0.2, ctrl: 0, scope: -0.2, geo: -0.3, verdict: 0.3, tech: -0.2, opp: -0.3, rel: 1, soc: 0.8, nat: 0.5, cap: -0.5 },
-    ['rel', 'soc'],
-    'Economic justice grounded in Islamic principles such as zakat and the prohibition of interest.',
-    'Ali Shariati, Mahmud Taleqani, Zulfikar Ali Bhutto, Muammar Gaddafi (Third Universal Theory)');
-  T('ethical', 'relig', 'Ethical Socialism',
-    { rupture: 1.0, arena: -0.8, org: 0.2, state: -0.5, form: 1, coord: 0.1, ctrl: 0, scope: -0.3, geo: 0.5, verdict: 0.8, tech: -0.2, opp: 0, rel: 0.3, soc: 0.3, nv: 0.6, cap: -0.7 },
-    ['theory', 'rupture'],
-    'Socialism justified by fellowship, equality and moral duty rather than by historical laws or class interest.',
-    'R. H. Tawney, George Orwell, William Morris');
-  T('christanarch', 'relig', 'Christian Anarchism',
-    { rupture: 0.2, arena: 0.8, org: 1, state: 1, form: 0.8, coord: -0.6, ctrl: 0.9, scope: 0.6, geo: 1, verdict: 1, tech: 0.7, opp: 0.2, rel: 1, soc: 0.4, nv: 1 },
-    ['nv', 'state', 'rel'],
-    'The Sermon on the Mount read as a rejection of the state and all coercion, practiced through voluntary poverty, hospitality and nonviolent noncooperation.',
-    'Leo Tolstoy, Dorothy Day, Ammon Hennacy, Jacques Ellul');
-  T('gandhian', 'relig', 'Gandhian Socialism',
-    { rupture: 0.0, arena: 0.7, org: 0.6, state: 0.6, form: 0.7, coord: -0.2, ctrl: 0.8, scope: -0.4, geo: 0.6, verdict: 0.7, tech: 0.9, opp: 0.4, rel: 0.6, soc: 0.3, nat: 0.7, nv: 1 },
-    ['nv', 'tech'],
-    'Decentralized village self-rule, trusteeship, hand production and simple living, pursued through nonviolent mass resistance. Developed in a secular socialist direction by Lohia and Narayan.',
-    'M. K. Gandhi, Vinoba Bhave, Ram Manohar Lohia, Jayaprakash Narayan');
+
+  /* ---------- Republican socialism ---------- */
+  T('connolly', 'repub', 'Irish Republican Socialism',
+    { rupture: -1.0, arena: 0.7, org: -0.4, state: -0.7, form: 0.4, coord: -0.6, ctrl: 0.7, scope: 0, geo: 0.4, verdict: 0.3, tech: -0.4, opp: -0.1, nat: 1, nv: -0.8, repub: 0.8 },
+    ['nat'],
+    'National independence and socialism as one struggle: a workers\' republic won by an oppressed nation, built on industrial unions and ready for armed rising when the moment comes.',
+    'James Connolly, the Irish Citizen Army, the Irish Republican Socialist tradition');
+  T('laborrep', 'repub', 'Labor Republicanism',
+    { rupture: 0.2, arena: 0.3, org: 0.2, state: -0.3, form: 0.9, coord: 0.5, ctrl: 0.9, scope: -0.5, geo: 0.4, verdict: 0.6, tech: -0.2, opp: -0.3, nat: 0.2, soc: 0.1, nv: 0.3, cap: -0.8, repub: 1 },
+    ['repub', 'ctrl'],
+    'Wage labor is a form of servitude incompatible with a free republic. Workers win independence through cooperative ownership, shorter hours that leave time for citizenship, and a broad union of all producers against monopoly.',
+    'Ira Steward, William Sylvis, the Knights of Labor, Alex Gourevitch');
+  T('commonwealth', 'repub', 'Cooperative Commonwealth',
+    { rupture: 0.6, arena: -0.4, org: 0, state: -0.8, form: 0.7, coord: -0.6, ctrl: -0.3, scope: -0.6, geo: 0.3, verdict: 0.5, tech: -0.6, opp: -0.3, nat: 0.3, soc: 0.2, nv: 0.6, cap: -0.9, repub: 0.9 },
+    ['repub', 'state', 'coord'],
+    'The American tradition of a cooperative commonwealth: monopolies taken into public hands and industry run as a national service for all citizens, won peacefully at the ballot box as the fulfillment of the republic.',
+    'Laurence Gronlund, Edward Bellamy, Henry Demarest Lloyd, Eugene Debs');
 
   /* ---------- Ecological ---------- */
   T('ecosoc', 'eco', 'Eco-Socialism',
@@ -470,15 +370,4 @@
     'The climate emergency calls for an ecological war communism: seizing the state, nationalizing fossil capital and forcibly shutting down emissions, with sabotage a legitimate tactic.',
     'Andreas Malm');
 
-  /* ---------- Non-socialist left (boundary results) ---------- */
-  T('soclib', 'bound', 'Social Liberalism',
-    { rupture: 1.0, arena: -1, org: 0.5, state: -0.3, form: 1, coord: 1, ctrl: -0.3, scope: -0.3, geo: 0.6, verdict: 1, tech: -0.6, opp: 0.6, rel: -0.1, soc: -0.6, nv: 0.7, cap: 0.8 },
-    ['cap', 'coord'],
-    'Market capitalism with civil liberties, a welfare state and anti-discrimination policy. You agree with socialists on some social questions but not on ownership.',
-    'John Rawls, Franklin Roosevelt, modern center-left parties');
-  T('progpop', 'bound', 'Progressive Populism',
-    { rupture: 1.0, arena: -0.8, org: 0.2, state: -0.7, form: 1, coord: 0.7, ctrl: -0.4, scope: -0.6, geo: 0.4, verdict: 0.9, tech: -0.4, opp: 0.2, soc: 0, nat: 0.3, cap: 0.4 },
-    ['cap'],
-    'Anti-monopoly, pro-worker reform within capitalism: break up big corporations, regulate finance and expand public programs without abolishing private ownership.',
-    'Elizabeth Warren, the Progressive Era reformers, William Jennings Bryan');
 })(typeof globalThis !== 'undefined' ? globalThis : window);

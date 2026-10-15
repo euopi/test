@@ -21,8 +21,8 @@
       P[d] = (v === undefined || v === null) ? { v: 0, w: NULL_W } : { v: v, w: key[d] ? KEY_W : SET_W };
     }
     var rup = t.p.rupture;
-    var defs = { rel: -0.5, nv: (rup != null && rup < 0) ? -0.5 : 0.3, soc: -0.3, nat: 0, cap: -1 };
-    var defW = { rel: 0.5, nv: 0.5, soc: 0.4, nat: 0.3, cap: 1 };
+    var defs = { repub: -0.2, nv: (rup != null && rup < 0) ? -0.5 : 0.3, soc: -0.3, nat: 0, cap: -1 };
+    var defW = { repub: 0.4, nv: 0.5, soc: 0.4, nat: 0.3, cap: 1 };
     for (i = 0; i < SUPP.length; i++) {
       d = SUPP[i]; v = t.p[d];
       P[d] = (v === undefined) ? { v: defs[d], w: defW[d] } : { v: v, w: key[d] ? KEY_W : SET_W };
@@ -300,8 +300,6 @@
     var tech = sv('tech');
     var rules = {
       fem: function () { return it('fem') >= 0.5; },
-      race: function () { return it('race') >= 0.5; },
-      queer: function () { return it('queer') >= 0.5; },
       ind: function () { return it('ind') >= 0.45; },
       degrowth: function () { return it('degrowth') >= 0.5; },
       accel: function () { return it('accel') >= 0.4 && tech !== null && tech <= -0.2; },
@@ -310,7 +308,6 @@
       commons: function () { return it('commons') >= 0.55; },
       eco: function () { return tech !== null && tech >= 0.35; },
       campist: function () { return sv('geo') !== null && sv('geo') <= -0.4; },
-      relig: function () { return sv('rel') !== null && sv('rel') >= 0.35; },
       socon: function () { return sv('soc') !== null && sv('soc') >= 0.3; },
       pacifist: function () { return sv('nv') !== null && sv('nv') >= 0.5; },
       natlib: function () { return sv('nat') !== null && sv('nat') >= 0.5; },
@@ -363,10 +360,10 @@
       while (bits >= 6) { bits -= 6; s += B64[(buf >> bits) & 63]; }
     }
     if (bits) s += B64[(buf << (6 - bits)) & 63];
-    return 'R2' + s;
+    return 'R3' + s;
   };
   E.decode = function (code) {
-    if (!code || code.indexOf('R2') !== 0) return null;
+    if (!code || code.indexOf('R3') !== 0) return null;
     var s = code.slice(2), bytes = [], bits = 0, buf = 0, i, v;
     for (i = 0; i < s.length; i++) {
       v = B64.indexOf(s[i]);

@@ -2,7 +2,7 @@
 (function () {
   var TA = window.TA, E = TA.engine;
   var app = document.getElementById('app');
-  var KEY = 'twelveAxes.v2';
+  var KEY = 'twelveAxes.v3';
   var LIKERT = ['Strongly disagree', 'Disagree', 'Somewhat disagree', 'Neutral', 'Somewhat agree', 'Agree', 'Strongly agree'];
   var CHOICE = ['Strongly A', 'Lean A', 'Neither', 'Lean B', 'Strongly B'];
   var SIZES7 = ['s3', 's2', 's1', 's0', 's1', 's2', 's3'];
@@ -108,7 +108,7 @@
       '</div>' +
       '<h2 class="sec">How it works</h2>' +
       '<ol class="steps">' +
-      '<li><span class="no">1</span><div><b>Core.</b> Everyone answers the same ' + CORE_N + ' questions on the twelve axes, plus shorter blocks on capitalism, religion, legality and violence, social values, the national question, liberation politics, self-management beyond the workplace, and technology and AI. Many questions are scenarios with several answers, including in-between positions.</div></li>' +
+      '<li><span class="no">1</span><div><b>Core.</b> Everyone answers the same ' + CORE_N + ' questions on the twelve axes, plus shorter blocks on capitalism, legality and violence, social values, the national question, Marxist feminism, republican freedom, self-management beyond the workplace, and technology and AI. Many questions are scenarios with several answers, including in-between positions.</div></li>' +
       '<li><span class="no">2</span><div><b>Drill-down.</b> The test picks the two families of tendencies closest to your answers (three when the race is close) and asks 10 to 16 targeted questions from each to separate the tendencies inside them.</div></li>' +
       '<li><span class="no">3</span><div><b>Theory (optional).</b> ' + THEORY_N + ' questions place you among ' + TA.schools.length + ' schools of Marxist theory, from dialectical materialism and Political Marxism to value-form and social reproduction theory.</div></li>' +
       '</ol>' +
@@ -118,7 +118,7 @@
       '<h2 class="sec">Families covered <small>tendencies per family</small></h2>' +
       '<div class="fams">' + fams + '</div>' +
       '<h2 class="sec">Have a results code?</h2>' +
-      '<form class="code-entry" id="codeForm"><input id="codeIn" aria-label="Results code" placeholder="Paste a code starting with R2" autocomplete="off" spellcheck="false"><button class="btn" type="submit">View results</button></form>' +
+      '<form class="code-entry" id="codeForm"><input id="codeIn" aria-label="Results code" placeholder="Paste a code starting with R3" autocomplete="off" spellcheck="false"><button class="btn" type="submit">View results</button></form>' +
       '<div class="err" id="codeErr" hidden>That code isn\'t valid. Check that you copied all of it.</div>' +
       '</main>' + foot());
     var form = document.getElementById('codeForm');
@@ -433,7 +433,7 @@
 
   /* ---------- boot ---------- */
   var hash = (location.hash || '').replace(/^#/, '');
-  var fromHash = hash.indexOf('R2') === 0 ? E.decode(hash) : null;
+  var fromHash = hash.indexOf('R3') === 0 ? E.decode(hash) : null;
   var saved = load();
   if (fromHash && Object.keys(fromHash).length) {
     if (saved && E.encode(saved.answers) === hash) { S = saved; S.phase = 'results'; }
