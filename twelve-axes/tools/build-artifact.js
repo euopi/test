@@ -14,7 +14,7 @@ const out = [
   '<meta name="claude:viewport-fit-sides" content="cover">',
   fonts,
   '<style>\n' + css + '\n</style>',
-  '<div id="app" class="wrap"></div>',
+  '<div id="app"></div>',
   '<script>\n' + scripts.join('\n') + '\n</script>',
 ].join('\n');
 fs.mkdirSync(path.join(__dirname, '..', 'dist'), { recursive: true });
