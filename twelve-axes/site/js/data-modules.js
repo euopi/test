@@ -7,15 +7,21 @@
   function F(f) { fam = f; }
   function L(id, q, x) { I.push({ id: id, part: 'mod', fam: fam, t: 'l', q: q, x: x }); }
   function H(id, ctx, q, x) { I.push({ id: id, part: 'mod', fam: fam, t: 'l', h: 1, ctx: ctx, q: q, x: x }); }
+  // Multiple choice: x gives each tendency's choice (index, or list with the best first).
+  function M(id, q, opts, x) { I.push({ id: id, part: 'mod', fam: fam, t: 'm', q: q, opts: opts.map(function (t) { return { t: t }; }), x: x }); }
 
   /* ---------- Marxist-Leninist ---------- */
   F('ml');
-  H('ml1', 'In 1956 Khrushchev\'s "Secret Speech" denounced Stalin\'s personality cult and the purges.',
-    'Khrushchev\'s denunciation of Stalin was a necessary correction.',
-    { ml: -1, poststalin: 0.8, hoxha: -1, tito: 0.5, castro: 0, hochiminh: 0, juche: -0.3, deng: 0.3, reformcomm: 1 });
-  H('ml2', 'In the 1960s China split from the Soviet Union, accusing it of abandoning revolutionary Marxism and seeking accommodation with the US.',
-    'In the Sino-Soviet split, China was more right than the Soviet Union.',
-    { ml: 0.3, poststalin: -1, hoxha: 0.3, tito: -0.3, castro: -0.5, hochiminh: 0, juche: 0, deng: 0, reformcomm: -0.7 });
+  M('ml1', 'Which assessment of Stalin comes closest to yours?', [
+    'A great revolutionary whose achievements far outweigh his errors.',
+    'A leader who built socialism but committed serious crimes that later leaders were right to denounce.',
+    'A dictator whose rule betrayed socialism.'
+  ], { ml: 0, hoxha: 0, juche: [0, 1], poststalin: 1, deng: 1, hochiminh: [1, 0], castro: [1, 0], tito: 2, reformcomm: 2 });
+  M('ml2', 'In the Sino-Soviet split of the 1960s, which side was closer to right?', [
+    'China, which accused the Soviet leadership of abandoning revolution.',
+    'The Soviet Union, which accused China of adventurism and splitting the movement.',
+    'Neither: both had valid points, and the split itself was the disaster.'
+  ], { ml: [0, 2], poststalin: 1, hoxha: 0, tito: 2, castro: [2, 1], hochiminh: 2, juche: 2, deng: [2, 0], reformcomm: [1, 2] });
   H('ml3', 'In 1978 Albania under Enver Hoxha broke with China, declaring Mao\'s theory and China\'s policies revisionist.',
     'Mao Zedong was not a genuine Marxist-Leninist.',
     { ml: -0.6, poststalin: 0.2, hoxha: 1, tito: -0.3, castro: -0.6, hochiminh: -1, juche: -0.4, deng: -1, reformcomm: -0.2 });
@@ -158,25 +164,35 @@
   /* ---------- Autonomist and libertarian Marxist ---------- */
   F('auto');
   L('au1', 'The working class drives capitalist development: capital restructures itself in response to workers\' struggles, not the other way around.',
-    { operaismo: 1, postop: 0.8, autonomism: 0.8, libmarx: 0.2 });
+    { operaismo: 1, postop: 0.8, autonomism: 0.8, libmarx: 0.2, autog: 0.2 });
   L('au2', 'Refusing work itself, not just demanding better conditions, is central to working-class struggle.',
-    { operaismo: 0.8, postop: 0.6, autonomism: 1, libmarx: 0 });
+    { operaismo: 0.8, postop: 0.6, autonomism: 1, libmarx: 0, autog: -0.2 });
   L('au3', 'Today\'s revolutionary subject is the "multitude", a diverse network of workers, precarious people, migrants and others, rather than the industrial working class.',
-    { operaismo: -0.6, postop: 1, autonomism: 0.5, libmarx: -0.2 });
+    { operaismo: -0.6, postop: 1, autonomism: 0.5, libmarx: -0.2, autog: 0 });
   L('au4', 'Immaterial and cognitive labor, such as knowledge, communication and care, has become the dominant form of production.',
-    { operaismo: -0.3, postop: 1, autonomism: 0.4, libmarx: -0.2 });
+    { operaismo: -0.3, postop: 1, autonomism: 0.4, libmarx: -0.2, autog: 0 });
   L('au5', 'Occupied social centers, squats and autonomous spaces are important bases for building a new society now.',
-    { operaismo: 0, postop: 0.4, autonomism: 1, libmarx: 0.3 });
+    { operaismo: 0, postop: 0.4, autonomism: 1, libmarx: 0.3, autog: 0.4 });
   L('au6', 'Detailed workers\' inquiry, studying how workers actually organize and resist on the job, should come before any political program.',
-    { operaismo: 1, postop: 0.3, autonomism: 0.6, libmarx: 0.4 });
+    { operaismo: 1, postop: 0.3, autonomism: 0.6, libmarx: 0.4, autog: 0.3 });
   L('au7', 'Marx\'s ideas, rightly read, are fundamentally libertarian and anti-authoritarian, and Leninist parties distorted them.',
-    { operaismo: 0.3, postop: 0.4, autonomism: 0.5, libmarx: 1 });
+    { operaismo: 0.3, postop: 0.4, autonomism: 0.5, libmarx: 1, autog: 0.6 });
   L('au8', 'Socialists should demand a guaranteed income for everyone, whether or not they work.',
-    { operaismo: 0.5, postop: 1, autonomism: 0.8, libmarx: 0 });
+    { operaismo: 0.5, postop: 1, autonomism: 0.8, libmarx: 0, autog: 0 });
   L('au9', 'The sovereignty of nation-states is giving way to a global network of power with no single center.',
-    { operaismo: -0.4, postop: 1, autonomism: 0.3, libmarx: -0.3 });
+    { operaismo: -0.4, postop: 1, autonomism: 0.3, libmarx: -0.3, autog: -0.3 });
   L('au10', 'The goal is a society of freely associated producers organized through councils, as Marx described in his writings on the Paris Commune.',
-    { operaismo: 0.3, postop: 0, autonomism: 0.4, libmarx: 1 });
+    { operaismo: 0.3, postop: 0, autonomism: 0.4, libmarx: 1, autog: 0.7 });
+
+  L('au11', 'The right to the city means residents collectively shaping urban space, not just having access to decent housing.',
+    { operaismo: 0, postop: 0.6, autonomism: 0.6, libmarx: 0.4, autog: 1 });
+  L('au12', 'Self-management should be pursued through existing unions, parties and municipalities, transforming them, not only through autonomous spaces outside them.',
+    { operaismo: -0.2, postop: -0.4, autonomism: -0.8, libmarx: 0, autog: 1 });
+  L('au13', 'Everyday life (housing, leisure, consumption, the use of time) is where alienation is felt most and where revolution has to begin.',
+    { operaismo: -0.4, postop: 0.2, autonomism: 0.6, libmarx: 0.2, autog: 1 });
+  H('au14', 'In 1973 workers at the LIP watch factory in France occupied it after a closure was announced, ran production themselves and sold watches to pay their own wages.',
+    'The LIP occupation points to the kind of socialism worth building.',
+    { operaismo: 0.2, postop: 0.2, autonomism: 0.6, libmarx: 0.7, autog: 1 });
 
   /* ---------- Anarchist ---------- */
   F('anarch');
@@ -212,28 +228,47 @@
 
   /* ---------- Democratic and reformist ---------- */
   F('demsoc');
-  L('d1', 'The goal is to replace capitalism entirely, not just to tame it.',
-    { demsoc: 1, socdem: -0.6, fabian: 0.3, eurocomm: 0.6, leftpop: -0.2, leftcon: -0.2 });
-  L('d2', 'Experts and civil servants, guided by research, should design and run the institutions of socialism.',
-    { demsoc: -0.4, socdem: 0.2, fabian: 1, eurocomm: 0, leftpop: -0.5, leftcon: 0 });
-  L('d3', 'Left parties should make a historic compromise with centrist and Christian democratic parties to defend democracy and win reforms.',
-    { demsoc: -0.2, socdem: 0.4, fabian: 0.2, eurocomm: 1, leftpop: -0.4, leftcon: 0 });
-  L('d4', 'Politics is fundamentally a struggle between "the people" and "the elite", and the left should build a broad popular identity around that divide rather than around class.',
-    { demsoc: -0.3, socdem: -0.4, fabian: -0.6, eurocomm: -0.2, leftpop: 1, leftcon: 0.5 });
-  L('d5', 'The left lost working-class voters by focusing on progressive cultural causes and should move toward conservative positions on immigration and family.',
-    { demsoc: -0.8, socdem: -0.3, fabian: -0.4, eurocomm: -0.6, leftpop: -0.2, leftcon: 1 });
-  L('d6', 'Socialism will come through a long "war of position": winning cultural and institutional influence before winning state power.',
-    { demsoc: 0.4, socdem: -0.2, fabian: 0.3, eurocomm: 1, leftpop: 0.6, leftcon: -0.2 });
-  L('d7', 'A market economy with private firms is compatible with the long-term aims of the labor movement, as long as there is a strong welfare state and powerful unions.',
-    { demsoc: -0.6, socdem: 1, fabian: -0.2, eurocomm: -0.2, leftpop: 0.3, leftcon: 0.3 });
-  L('d8', 'Socialist change should come gradually, through permeating existing parties and institutions rather than through mass mobilization.',
-    { demsoc: -0.4, socdem: 0.2, fabian: 1, eurocomm: 0, leftpop: -0.8, leftcon: -0.2 });
+  M('d1', 'What is the long-term goal?', [
+    'A market economy with a strong welfare state and powerful unions.',
+    'A mixed economy in which the commanding heights are public and capital answers to democratic control.',
+    'A society beyond capitalism, with production socialized and run democratically.',
+    'A self-managed socialism in which workers and communities run the economy and public life.'
+  ], { socdem: 0, leftpop: [1, 0], leftcon: [1, 0], fabian: 1, eurocomm: [1, 2], demsoc: [2, 1], lefteuro: [3, 2] });
+  M('d2', 'A left party wins office. Its relationship to the existing state should be to:', [
+    'Govern through it as it is, relying on the civil service\'s expertise.',
+    'Reform it gradually, appointing allies and passing new laws.',
+    'Transform it from within, while building new democratic institutions outside it that can pressure and eventually replace parts of it.',
+    'Bypass it with direct appeals to the people and new institutions loyal to the movement.'
+  ], { socdem: 0, fabian: 0, eurocomm: [1, 0], demsoc: [1, 2], leftcon: [1, 0], lefteuro: 2, leftpop: [3, 1] });
+  H('d3', 'In 1973, after the coup in Chile, the Italian Communist leader Enrico Berlinguer proposed a "historic compromise" with the Christian Democrats to protect democracy and win reforms.',
+    'The historic compromise was the right strategy.',
+    { demsoc: -0.2, socdem: 0.4, fabian: 0.2, eurocomm: 1, lefteuro: -0.8, leftpop: -0.4, leftcon: 0 });
+  L('d4', 'A left government will reach a decisive moment when it must break with the institutions of capital, even at the risk of illegality, rather than keep reforming them.',
+    { demsoc: 0.2, socdem: -1, fabian: -1, eurocomm: -0.6, lefteuro: 1, leftpop: 0.2, leftcon: -0.4 });
+  L('d5', 'Politics is fundamentally a struggle between "the people" and "the elite", and the left should build a broad popular identity around that divide rather than around class.',
+    { demsoc: -0.3, socdem: -0.4, fabian: -0.6, eurocomm: -0.2, lefteuro: -0.4, leftpop: 1, leftcon: 0.5 });
+  L('d6', 'The left lost working-class voters by focusing on progressive cultural causes and should move toward conservative positions on immigration and family.',
+    { demsoc: -0.8, socdem: -0.3, fabian: -0.4, eurocomm: -0.6, lefteuro: -0.8, leftpop: -0.2, leftcon: 1 });
+  M('d7', 'How does a long struggle for influence in culture, unions and civil society relate to winning power?', [
+    'It is the whole strategy: socialism advances as the left gains ground in institutions, with no decisive break.',
+    'It prepares the ground, but it has to end in a political rupture with capital.',
+    'It matters less than winning elections and governing well.',
+    'It matters less than building a popular movement around a leader who can win power quickly.'
+  ], { eurocomm: 0, fabian: [0, 2], lefteuro: 1, demsoc: [1, 0], socdem: 2, leftcon: [2, 3], leftpop: 3 });
+  L('d8', 'Socialist change should come gradually, by winning over existing parties and institutions from inside, rather than through mass mobilization.',
+    { demsoc: -0.4, socdem: 0.2, fabian: 1, eurocomm: 0.2, lefteuro: -0.8, leftpop: -0.8, leftcon: -0.2 });
   L('d9', 'Left movements need a charismatic leader who can personify the popular will.',
-    { demsoc: -0.6, socdem: -0.6, fabian: -0.6, eurocomm: -0.4, leftpop: 0.9, leftcon: 0.5 });
+    { demsoc: -0.6, socdem: -0.6, fabian: -0.6, eurocomm: -0.4, lefteuro: -0.6, leftpop: 0.9, leftcon: 0.5 });
   L('d10', 'Socialists should drop nationalization as a central goal and focus on redistribution and public services.',
-    { demsoc: -0.8, socdem: 0.8, fabian: -0.6, eurocomm: -0.2, leftpop: 0.2, leftcon: -0.4 });
-  L('d11', 'Mass movements outside parliament, such as strikes and protests, are essential to any socialist government\'s success.',
-    { demsoc: 1, socdem: -0.2, fabian: -0.6, eurocomm: 0.3, leftpop: 0.6, leftcon: 0 });
+    { demsoc: -0.8, socdem: 0.8, fabian: -0.6, eurocomm: -0.2, lefteuro: -0.8, leftpop: 0.2, leftcon: -0.4 });
+  L('d11', 'Mass movements outside parliament, such as strikes and occupations, are essential to any left government\'s success.',
+    { demsoc: 1, socdem: -0.2, fabian: -0.6, eurocomm: 0.3, lefteuro: 1, leftpop: 0.6, leftcon: 0 });
+  L('d12', 'Workers\' self-management and neighborhood councils are as important to socialism as public ownership.',
+    { demsoc: 0.4, socdem: -0.4, fabian: -0.8, eurocomm: 0, lefteuro: 0.9, leftpop: 0.2, leftcon: -0.4 });
+  L('d13', 'A socialist party should keep a clear political line and organized discipline, rather than becoming a loose electoral machine.',
+    { demsoc: -0.4, socdem: -0.6, fabian: 0, eurocomm: 0.3, lefteuro: 0.5, leftpop: -0.4, leftcon: 0 });
+  L('d14', 'Universal suffrage, multiparty elections and civil liberties must be kept throughout the transition, alongside new forms of direct democracy.',
+    { demsoc: 1, socdem: 0.8, fabian: 0.6, eurocomm: 1, lefteuro: 0.9, leftpop: 0.4, leftcon: 0.3 });
 
   /* ---------- Market, cooperative and planning models ---------- */
   F('econ');

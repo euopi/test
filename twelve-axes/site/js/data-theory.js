@@ -1,48 +1,111 @@
-/* Part 3 (optional): theory module. Scores theoretical schools only. */
+/* Part 3 (optional): theory module, 40 questions. Scores theoretical schools only.
+   L items load on theory dimensions (with optional overrides); X items give every
+   school a hand-set expectation, in this order:
+   diamat, hegelian, frankfurt, humanist, gramsci, althusser, poulantzas, analytical,
+   valueform, open, postmarx, political, regulation, worldsys, monthly, geography,
+   srt, autonomist */
 (function (G) {
   var TA = (G.TA = G.TA || {});
   var I = (TA.items = TA.items || []);
+  var ORDER = ['diamat', 'hegelian', 'frankfurt', 'humanist', 'gramsci', 'althusser', 'poulantzas', 'analytical',
+    'valueform', 'open', 'postmarx', 'political', 'regulation', 'worldsys', 'monthly', 'geography', 'srt', 'autonomist'];
   function L(id, q, l, x) { I.push({ id: id, part: 'theory', t: 'l', q: q, l: l, x: x || null }); }
+  function X(id, q, vals) {
+    var x = {};
+    ORDER.forEach(function (k, i) { x[k] = vals[i]; });
+    I.push({ id: id, part: 'theory', t: 'l', q: q, l: null, x: x });
+  }
+  function MX(id, q, opts, picks) {
+    var x = {};
+    ORDER.forEach(function (k, i) { x[k] = picks[i]; });
+    I.push({ id: id, part: 'theory', t: 'm', q: q, opts: opts.map(function (t) { return { t: t }; }), x: x });
+  }
 
+  /* ----- History, method and dialectics ----- */
   L('th1', 'History has no predetermined direction. Socialism is a possibility, not a necessity.', { det: 1 });
   L('th2', 'Hegel\'s dialectic is essential for understanding Marx.', { heg: 1 });
-  L('th3', 'Marxism should drop the dialectic and adopt the standard methods of analytic philosophy and social science.', { anal: 1, heg: -0.5 });
-  L('th4', 'Mass culture and the entertainment industry are among capitalism\'s most powerful tools of domination.', { cult: 1 });
-  L('th5', 'Marx\'s value theory is not mainly a theory of prices. It is a critique of how social relations take the form of things like money and commodities.', { val: 1 });
-  L('th6', 'The labor theory of value is false or unnecessary, and Marxism can do without it.', { val: -0.5, anal: 0.6 },
-    { analytical: 1, valueform: -1, diamat: -1, monthly: -0.3, political: 0 });
-  L('th7', 'Capitalism is best understood as a single world-system in which the core exploits the periphery.', { glob: 1 });
-  L('th8', 'Capitalism originated in changing property relations between English landlords and tenants, not in trade or colonial plunder.', { glob: -1 },
-    { political: 1, worldsys: -1, monthly: -0.5 });
-  L('th9', 'There is no necessary link between class position and political identity. Political identities are built through discourse.', { cont: 1 });
-  L('th10', 'The alienated human being, and human nature, should be at the center of Marxist theory.', { det: 0.5, heg: 0.4 },
-    { humanist: 1, althusser: -1, frankfurt: 0.5, diamat: -0.6, analytical: 0.2 });
-  L('th11', 'Ideology is not just false ideas. It is embedded in institutions like schools, churches and the family that shape who we are.', { cult: 0.8 },
-    { althusser: 1, gramsci: 1, frankfurt: 0.8 });
-  L('th12', 'Modern capitalism is dominated by giant monopolies whose main problem is absorbing the surplus they generate, not a falling rate of profit.', { glob: 0.3 },
-    { monthly: 1, diamat: -0.5, valueform: -0.5, analytical: -0.2, worldsys: 0.4, political: -0.2 });
-  L('th13', 'Class consciousness means grasping society as a totality, which the fragmented view of bourgeois thought cannot achieve.', { heg: 0.8, cult: 0.3 },
-    { hegelian: 1, frankfurt: 0.6, althusser: -0.6, analytical: -1, postmarx: -0.6 });
-  L('th14', 'Dialectics applies to nature itself, not only to society and thought.', { det: -1 },
-    { diamat: 1, hegelian: -1, frankfurt: -0.8, monthly: 0.6, althusser: -0.2, analytical: -1, valueform: -0.6, open: -0.8 });
-  // Discriminating items: every school has a hand-set expectation.
-  function X(id, q, x) { I.push({ id: id, part: 'theory', t: 'l', q: q, l: null, x: x }); }
-  X('th15', 'The working class in developed capitalism has been largely integrated into the system and may no longer be a revolutionary agent.',
-    { diamat: -1, hegelian: -0.6, frankfurt: 1, humanist: -0.6, gramsci: 0, althusser: -0.4, analytical: 0.2, valueform: 0.4, open: -0.6, postmarx: 0.6, political: -0.6, worldsys: 0.4, monthly: 0.4 });
-  X('th16', 'The proletariat is the subject of history, and its coming to self-consciousness is the revolution.',
-    { diamat: 0.4, hegelian: 1, frankfurt: -0.6, humanist: 0.4, gramsci: 0.2, althusser: -1, analytical: -1, valueform: -0.6, open: 0, postmarx: -1, political: -0.4, worldsys: -0.4, monthly: -0.2 });
-  X('th17', 'Marxism is above all a philosophy of human freedom, rooted in the self-activity of ordinary people, including those at the margins: workers, women, Black people, youth.',
-    { diamat: -0.6, hegelian: 0.2, frankfurt: -0.2, humanist: 1, gramsci: 0.3, althusser: -1, analytical: -0.4, valueform: -0.4, open: 0.6, postmarx: 0.2, political: -0.2, worldsys: -0.2, monthly: -0.2 });
-  X('th18', 'Unequal exchange between rich and poor countries is a main source of global inequality, alongside exploitation inside each country.',
-    { diamat: 0, hegelian: 0, frankfurt: 0, humanist: 0, gramsci: 0, althusser: 0, analytical: -0.4, valueform: -0.4, open: -0.2, postmarx: 0, political: -1, worldsys: 1, monthly: 0.5 });
-  X('th19', 'Capitalism\'s ecological crisis follows from its drive to accumulate and is already explained by Marx\'s concept of a metabolism between society and nature.',
-    { diamat: 0.2, hegelian: 0, frankfurt: 0.2, humanist: 0.2, gramsci: 0, althusser: 0, analytical: -0.4, valueform: 0.2, open: 0, postmarx: -0.4, political: -0.2, worldsys: 0.3, monthly: 1 });
-  X('th20', 'Abstract labor and value are impersonal forms of domination that rule everyone, capitalists included. The goal is to abolish them, not to liberate labor.',
-    { diamat: -1, hegelian: -0.2, frankfurt: 0.3, humanist: -0.4, gramsci: -0.4, althusser: -0.2, analytical: -0.8, valueform: 1, open: 0.4, postmarx: -0.4, political: -0.4, worldsys: -0.4, monthly: -0.6 });
-  X('th21', 'Marxist categories like value and the state are forms of ongoing struggle, not fixed structures that operate independently of human action.',
-    { diamat: -0.8, hegelian: 0.4, frankfurt: 0, humanist: 0.5, gramsci: 0.4, althusser: -1, analytical: -0.2, valueform: -0.4, open: 1, postmarx: 0.4, political: 0.2, worldsys: -0.4, monthly: -0.4 });
-  X('th22', 'Ruling-class power rests mainly on consent organized in civil society, and socialists need their own intellectuals rooted in the working class to contest it.',
-    { diamat: -0.4, hegelian: 0.2, frankfurt: -0.2, humanist: 0.2, gramsci: 1, althusser: 0.2, analytical: -0.4, valueform: -0.4, open: -0.2, postmarx: 0.4, political: -0.2, worldsys: -0.4, monthly: -0.4 });
-  X('th23', 'The administered society of late capitalism reduces reason to a tool for domination, so critique must defend the individual against the totality.',
-    { diamat: -1, hegelian: -0.4, frankfurt: 1, humanist: 0.3, gramsci: -0.2, althusser: -0.6, analytical: -0.6, valueform: 0.2, open: 0.2, postmarx: 0.2, political: -0.6, worldsys: -0.4, monthly: -0.4 });
+  L('th3', 'Marxism should adopt the standard methods of analytic philosophy and the social sciences, and drop the dialectic.', { anal: 1, heg: -0.5 });
+  X('th4', 'Dialectics applies to nature itself, not only to society and thought.',
+    [1, -1, -0.8, -0.4, -0.4, -0.2, -0.4, -1, -0.6, -0.8, -0.6, -0.6, -0.4, 0, 0.6, 0, -0.2, -0.6]);
+  X('th5', 'Historical materialism is a functional explanation: relations of production exist because they promote the development of the productive forces.',
+    [0.6, -0.6, -0.6, -0.6, -0.4, -0.4, -0.4, 1, -0.4, -1, -0.8, -0.8, -0.2, 0, 0.2, -0.2, -0.4, -0.8]);
+  X('th6', 'History is a process without a subject: neither the proletariat nor humanity is its author.',
+    [0.2, -1, 0, -1, -0.4, 1, 0.4, 0.2, 0.5, -0.8, 0.2, 0, 0.2, 0.2, 0, -0.2, -0.4, -0.6]);
+  X('th7', 'The proletariat is the subject of history, and its coming to self-consciousness is the revolution.',
+    [0.4, 1, -0.6, 0.4, 0.2, -1, -0.4, -1, -0.6, 0, -1, -0.4, -0.4, -0.4, -0.2, -0.2, 0, 0.4]);
+  X('th8', 'Marxism is above all a philosophy of human freedom, rooted in the self-activity of ordinary people, including those at the margins.',
+    [-0.6, 0.2, -0.2, 1, 0.3, -1, 0, -0.4, -0.4, 0.6, 0.2, -0.2, -0.4, -0.2, -0.2, 0.2, 0.4, 0.6]);
+  X('th9', 'Class consciousness means grasping society as a totality, something the fragmented outlook of bourgeois thought cannot do.',
+    [0.2, 1, 0.6, 0.4, 0.2, -0.6, -0.4, -1, 0.2, 0.2, -0.6, -0.4, -0.4, 0, 0, 0, 0, -0.2]);
+
+  /* ----- Value, crisis and the logic of capital ----- */
+  L('th10', 'Marx\'s value theory is a critique of how social relations take the form of things like money and commodities, not mainly a theory of prices.', { val: 1 });
+  X('th11', 'The labor theory of value is false or unnecessary, and Marxism can do without it.',
+    [-1, -0.4, 0, -0.4, 0, -0.2, 0, 1, -1, -0.8, 0.4, 0, 0, -0.2, -0.3, -0.4, -0.4, -0.4]);
+  X('th12', 'Abstract labor and value are impersonal forms of domination that rule everyone, capitalists included. The goal is to abolish them, not to liberate labor.',
+    [-1, -0.2, 0.3, -0.4, -0.4, -0.2, -0.2, -0.8, 1, 0.4, -0.4, -0.4, -0.4, -0.4, -0.6, 0, -0.2, -0.6]);
+  L('th13', 'Capitalism follows its own logic of accumulation, which works largely behind the backs of workers and capitalists alike.', { strug: -1 });
+  L('th14', 'Workers\' struggles are the motor of capitalist development; capital restructures itself in response to them.', { strug: 1 });
+  MX('th15', 'Which explanation of capitalist crises comes closest to yours?', [
+    'The rate of profit tends to fall as machinery replaces labor.',
+    'Monopolies generate more surplus than they can profitably absorb.',
+    'Competition locks firms into overcapacity that no one is willing to scrap.',
+    'Workers\' struggles squeeze profits and force capital to restructure.',
+    'Each regime of accumulation exhausts the institutions that stabilized it.'
+  ], [0, [0, 3], [1, 0], 3, [4, 0], 0, [4, 0], [2, 4], 0, 3, [4, 1], 2, 4, [1, 0], 1, [0, 1], [3, 0], 3]);
+  X('th16', 'Capitalism passes through distinct long phases, like Fordism and neoliberalism, each held together for a time by its own mix of institutions, wage norms and state policy.',
+    [-0.2, -0.2, 0.4, 0, 0.6, 0.2, 0.6, 0.4, -0.4, -0.2, 0.2, 0, 1, 0.4, 0.4, 0.6, 0.2, 0.2]);
+
+  /* ----- Political Marxism ----- */
+  X('th17', 'Capitalism originated in changes to property relations in English agriculture, where tenants had to compete on the market to keep their land.',
+    [-0.2, 0, 0, 0, 0, 0, 0, 0.4, 0.2, 0, 0, 1, 0, -1, -0.4, -0.2, 0, 0]);
+  X('th18', 'What makes capitalism unique is that people depend on the market to survive, not that markets or trade exist.',
+    [-0.2, 0.2, 0.2, 0.2, 0, 0.2, 0.2, 0.2, 0.6, 0.4, 0, 1, 0.2, -0.6, -0.2, 0.2, 0.2, 0.2]);
+  X('th19', 'Under capitalism, exploitation and political rule are split into separate spheres; in earlier societies the same lords and states did both.',
+    [-0.2, 0, 0.2, 0, 0.2, 0.4, 0.5, 0.2, 0.4, 0.4, 0, 1, 0.2, -0.4, -0.2, 0, 0, 0]);
+  X('th20', 'Renaissance Italy and the Dutch Republic, despite their trade and finance, were not capitalist societies.',
+    [-0.4, 0, 0, 0, 0, 0, 0, 0.2, 0.2, 0, 0, 1, -0.2, -1, -0.6, -0.4, 0, 0]);
+  X('th21', 'The idea that "bourgeois revolutions", like the French Revolution, brought capitalism to power is mistaken.',
+    [-1, -0.6, -0.2, -0.4, -0.6, -0.4, -0.2, -0.2, 0, 0.2, 0, 0.8, -0.2, -0.2, -0.4, -0.2, 0, 0]);
+  X('th22', 'Unequal exchange between rich and poor countries is a main source of global inequality, alongside exploitation within each country.',
+    [0, 0, 0, 0, 0, 0, 0, -0.4, -0.4, -0.2, 0, -1, 0, 1, 0.5, 0.4, 0, 0]);
+  L('th23', 'Capitalism is best understood as one world-system in which the core exploits the periphery.', { glob: 1 },
+    { political: -1, worldsys: 1 });
+
+  /* ----- State, ideology and hegemony ----- */
+  X('th24', 'The state is neither a tool of the capitalist class nor a neutral referee, but a condensation of the balance of class forces, which struggles inside it can shift.',
+    [-1, -0.2, 0, 0, 0.6, 0.2, 1, -0.2, -0.4, -0.2, 0.4, 0.2, 0.5, -0.4, -0.6, 0.2, 0, 0]);
+  X('th25', 'The form of the capitalist state follows from the commodity form, so the state cannot simply be captured and used for socialism.',
+    [-0.6, 0, 0.2, 0, -0.4, 0.2, -0.8, -0.2, 1, 0.8, -0.4, 0, -0.2, 0, -0.2, 0, 0, 0.4]);
+  X('th26', 'Ruling-class power in developed countries rests mainly on consent organized in civil society, and socialists need intellectuals rooted in the working class to contest it.',
+    [-0.4, 0.2, -0.2, 0.2, 1, 0.2, 0.6, -0.4, -0.4, -0.2, 0.4, -0.2, 0.2, -0.4, -0.4, 0.2, 0.2, -0.4]);
+  X('th27', 'In developed countries, revolution requires a long struggle for hegemony before any decisive confrontation with the state.',
+    [-0.3, 0, -0.2, 0, 1, 0, 0.6, -0.2, -0.4, -0.4, 0.6, 0, 0, -0.2, -0.2, 0, 0, -0.6]);
+  X('th28', 'Ideology is built into institutions like schools, churches, media and the family, which reproduce the social order.',
+    [-0.2, 0.2, 0.8, 0.2, 0.8, 1, 0.6, 0, 0, 0, 0.6, -0.2, 0.2, 0, 0, 0.2, 0.6, 0]);
+  X('th29', 'Mass culture and the entertainment industry are among capitalism\'s most powerful means of domination.',
+    [-0.4, 0.4, 1, 0.2, 0.6, 0.4, 0.2, -0.4, 0.2, 0, 0.4, -0.6, 0, -0.2, 0.2, 0, 0, -0.2]);
+  X('th30', 'The administered society of late capitalism turns reason into a tool of domination, so critique must defend the individual against the totality.',
+    [-1, -0.4, 1, 0.3, -0.2, -0.6, -0.2, -0.6, 0.2, 0.2, 0.2, -0.6, -0.4, -0.4, -0.4, 0, -0.2, -0.4]);
+  X('th31', 'The working class in developed capitalism has been largely integrated into the system and may no longer be a revolutionary agent.',
+    [-1, -0.6, 1, -0.6, 0, -0.4, 0, 0.2, 0.4, -0.6, 0.6, -0.6, 0.2, 0.4, 0.4, 0, -0.6, -1]);
+  L('th32', 'There is no necessary link between class position and political identity; political identities are built through discourse.', { cont: 1 });
+
+  /* ----- Space, reproduction, ecology ----- */
+  L('th33', 'The production of space, through urbanization, real estate and infrastructure, is as central to capitalism as production in factories.', { space: 1 });
+  X('th34', 'Capital escapes its crises by moving into new places and building new infrastructure, which only postpones the problem.',
+    [0, 0, 0, 0, 0.2, 0, 0.2, 0, 0, 0, 0, -0.2, 0.4, 0.6, 0.4, 1, 0.2, 0.2]);
+  L('th35', 'Capitalism depends on the unpaid work of producing and raising workers, and this reproduction is a site of class struggle as important as the workplace.', { repro: 1 });
+  X('th36', 'Gender oppression under capitalism is rooted in the social relations of reproducing labor-power, not in a separate system of patriarchy.',
+    [0.2, 0, 0, 0, 0, 0.2, 0, 0, 0.2, 0.2, -0.6, 0.2, 0, 0, 0, 0.2, 1, 0.2]);
+  X('th37', 'Capitalism\'s ecological crisis follows from its drive to accumulate and is already explained by Marx\'s idea of a metabolism between society and nature.',
+    [0.2, 0, 0.2, 0.2, 0, 0, 0, -0.4, 0.2, 0, -0.4, -0.2, 0, 0.3, 1, 0.4, 0.2, 0]);
+  X('th38', 'Modern capitalism is dominated by giant monopolies whose main problem is absorbing the surplus they generate, not a falling rate of profit.',
+    [-0.5, 0, 0.2, 0, 0, 0, 0, -0.2, -0.5, -0.2, 0, -0.2, 0.2, 0.4, 1, 0.2, 0, -0.2]);
+
+  /* ----- Subject and struggle ----- */
+  X('th39', 'Marxist categories like value and the state are forms of ongoing struggle, not fixed structures that work independently of human action.',
+    [-0.8, 0.4, 0, 0.5, 0.4, -1, 0.3, -0.2, -0.4, 1, 0.4, 0.2, -0.2, -0.4, -0.4, 0.2, 0.4, 0.8]);
+  X('th40', 'Analysis should start from the composition of the working class (how it is organized, divided and fights) rather than from capital\'s laws of motion.',
+    [-0.6, 0, -0.4, 0.4, 0.2, -0.4, 0.2, 0, -0.6, 0.6, 0, 0, -0.2, -0.4, -0.4, 0.2, 0.4, 1]);
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -2,7 +2,7 @@
 (function () {
   var TA = window.TA, E = TA.engine;
   var app = document.getElementById('app');
-  var KEY = 'twelveAxes.v1';
+  var KEY = 'twelveAxes.v2';
   var LIKERT = ['Strongly disagree', 'Disagree', 'Somewhat disagree', 'Neutral', 'Somewhat agree', 'Agree', 'Strongly agree'];
   var CHOICE = ['Strongly A', 'Lean A', 'Neither', 'Lean B', 'Strongly B'];
   var SIZES7 = ['s3', 's2', 's1', 's0', 's1', 's2', 's3'];
@@ -34,6 +34,7 @@
   function pct(v) { return Math.round(v); }
   function signed(v) { var n = Math.round(v * 100); return (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n); }
   function labelFor(item, e) {
+    if (item.t === 'm') { var t = item.opts[e].t; return String.fromCharCode(65 + e) + ': ' + (t.length > 90 ? t.slice(0, 88).replace(/\s+\S*$/, '') + '\u2026' : t); }
     return item.t === 'c' ? CHOICE[Math.max(0, Math.min(4, Math.round(e * 2) + 2))] : LIKERT[Math.max(0, Math.min(6, Math.round(e * 3) + 3))];
   }
   var MARK = '<svg viewBox="0 0 32 32" aria-hidden="true"><g stroke="currentColor" stroke-width="1.6" stroke-linecap="round">' +
@@ -59,7 +60,7 @@
   }
   function atEnd() {
     if (S.next === 'pickMods') {
-      S.mods = E.pickModules(S.answers, 2);
+      S.mods = E.pickModules(S.answers);
       addSegment(E.moduleOrder(S.mods), 'Part 2 · ' + S.mods.map(famName).join(' / '), 'theoryOffer');
       S.phase = 'interlude';
     } else if (S.next === 'theoryOffer') {
@@ -100,24 +101,24 @@
       '<div class="eyebrow">A socialist tendency test</div>' +
       '<h1 class="display" style="margin-top:0.5rem">Twelve Axes</h1>' +
       '<p class="lede">Find where you stand among ' + TA.tendencies.length + ' tendencies of the socialist left, from Marxism-Leninism and council communism to mutualism, liberation theology and degrowth communism.</p>' +
-      '<div class="facts"><span><b>' + CORE_N + '</b> core questions</span><span><b>~25</b> drill-down questions</span><span><b>' + THEORY_N + '</b> optional theory questions</span><span><b>25&ndash;35</b> minutes</span></div>' +
+      '<div class="facts"><span><b>' + CORE_N + '</b> core questions</span><span><b>25&ndash;40</b> drill-down questions</span><span><b>' + THEORY_N + '</b> optional theory questions</span><span><b>35&ndash;50</b> minutes</span></div>' +
       '<div class="row">' +
       (resumable ? '<button class="btn primary" data-act="resume">Resume where you left off</button><button class="btn" data-act="restart-confirm">Start over</button>'
         : '<button class="btn primary" data-act="start">Start the test</button>') +
       '</div>' +
       '<h2 class="sec">How it works</h2>' +
       '<ol class="steps">' +
-      '<li><span class="no">1</span><div><b>Core.</b> Everyone answers the same ' + CORE_N + ' questions on the twelve axes, plus shorter blocks on capitalism, religion, violence, social values, the national question, liberation politics, and technology and AI.</div></li>' +
-      '<li><span class="no">2</span><div><b>Drill-down.</b> The test picks the two families of tendencies closest to your answers and asks 10 to 16 targeted questions from each to separate the tendencies inside them.</div></li>' +
-      '<li><span class="no">3</span><div><b>Theory (optional).</b> ' + THEORY_N + ' questions place you among ' + TA.schools.length + ' schools of Marxist theory, from dialectical materialism to value-form theory.</div></li>' +
+      '<li><span class="no">1</span><div><b>Core.</b> Everyone answers the same ' + CORE_N + ' questions on the twelve axes, plus shorter blocks on capitalism, religion, legality and violence, social values, the national question, liberation politics, self-management beyond the workplace, and technology and AI. Many questions are scenarios with several answers, including in-between positions.</div></li>' +
+      '<li><span class="no">2</span><div><b>Drill-down.</b> The test picks the two families of tendencies closest to your answers (three when the race is close) and asks 10 to 16 targeted questions from each to separate the tendencies inside them.</div></li>' +
+      '<li><span class="no">3</span><div><b>Theory (optional).</b> ' + THEORY_N + ' questions place you among ' + TA.schools.length + ' schools of Marxist theory, from dialectical materialism and Political Marxism to value-form and social reproduction theory.</div></li>' +
       '</ol>' +
-      '<p class="muted small" style="margin-top:1rem">Answer what you actually think, not what your tradition is supposed to think. Use "Unsure" for questions you have no view on, and "Unfamiliar" for historical events you don\'t know. Skipped questions are left out of the scoring. Your progress is saved in this browser.</p>' +
+      '<p class="muted small" style="margin-top:1rem">Answer what you actually think, not what your tradition is supposed to think. Pick the option closest to your view even when none is exact. Use "Unsure" for questions you have no view on, and "Unfamiliar" for historical events you don\'t know. Skipped questions are left out of the scoring. Your progress is saved in this browser.</p>' +
       '<h2 class="sec">The twelve axes</h2>' +
       '<ul class="axes-list">' + axes + '</ul>' +
       '<h2 class="sec">Families covered <small>tendencies per family</small></h2>' +
       '<div class="fams">' + fams + '</div>' +
       '<h2 class="sec">Have a results code?</h2>' +
-      '<form class="code-entry" id="codeForm"><input id="codeIn" aria-label="Results code" placeholder="Paste a code starting with R1" autocomplete="off" spellcheck="false"><button class="btn" type="submit">View results</button></form>' +
+      '<form class="code-entry" id="codeForm"><input id="codeIn" aria-label="Results code" placeholder="Paste a code starting with R2" autocomplete="off" spellcheck="false"><button class="btn" type="submit">View results</button></form>' +
       '<div class="err" id="codeErr" hidden>That code isn\'t valid. Check that you copied all of it.</div>' +
       '</main>' + foot());
     var form = document.getElementById('codeForm');
@@ -141,26 +142,34 @@
     var id = S.queue[S.pos], it = E.itemById[id], seg = segOf(S.pos);
     var n = S.pos - seg.start + 1, code = S.answers[id] || 0;
     var size = E.scaleSize(it), labels = it.t === 'c' ? CHOICE : LIKERT, sizes = it.t === 'c' ? SIZES5 : SIZES7;
-    var dots = '';
-    for (var k = 0; k < size; k++) {
-      dots += '<button class="dot ' + sizes[k] + (code === k + 2 ? ' on' : '') + '" data-code="' + (k + 2) + '" aria-label="' + esc(labels[k]) + '" aria-pressed="' + (code === k + 2) + '" title="' + esc(labels[k]) + '"></button>';
+    var answerUi;
+    if (it.t === 'm') {
+      answerUi = '<div class="mc" role="group" aria-labelledby="qtext">' + it.opts.map(function (o, k) {
+        return '<button class="mopt' + (code === k + 2 ? ' on' : '') + '" data-code="' + (k + 2) + '" aria-pressed="' + (code === k + 2) + '"><b>' + String.fromCharCode(65 + k) + '</b><span>' + esc(o.t) + '</span></button>';
+      }).join('') + '</div>';
+    } else {
+      var dots = '';
+      for (var k = 0; k < size; k++) {
+        dots += '<button class="dot ' + sizes[k] + (code === k + 2 ? ' on' : '') + '" data-code="' + (k + 2) + '" aria-label="' + esc(labels[k]) + '" aria-pressed="' + (code === k + 2) + '" title="' + esc(labels[k]) + '"></button>';
+      }
+      answerUi = (it.t === 'c' ? '<div class="opts"><div class="opt"><b>A</b><span>' + esc(it.opts[0]) + '</span></div><div class="opt"><b>B</b><span>' + esc(it.opts[1]) + '</span></div></div>' : '') +
+        '<div class="scale" role="group" aria-labelledby="qtext">' + dots + '</div>' +
+        '<div class="scale-ends" aria-hidden="true"><span>' + (it.t === 'c' ? 'A' : 'Disagree') + '</span><span>' + (it.t === 'c' ? 'Neither' : 'Neutral') + '</span><span>' + (it.t === 'c' ? 'B' : 'Agree') + '</span></div>';
     }
     var html = mast(esc(seg.label)) +
       '<main>' +
       '<div class="qtop"><span>' + esc(seg.label) + '</span><span class="count">' + n + ' / ' + seg.len + '</span></div>' +
       '<div class="bar" aria-hidden="true"><span style="width:' + (100 * (n - 1) / seg.len).toFixed(1) + '%"></span></div>' +
       (it.h ? '<div class="ctx"><span class="eyebrow">Historical context</span>' + esc(it.ctx) + '</div>' : '') +
-      '<p class="qtext" id="qtext">' + esc(it.q) + '</p>' +
-      (it.t === 'c' ? '<div class="opts"><div class="opt"><b>A</b><span>' + esc(it.opts[0]) + '</span></div><div class="opt"><b>B</b><span>' + esc(it.opts[1]) + '</span></div></div>' : '') +
-      '<div class="scale" role="group" aria-labelledby="qtext">' + dots + '</div>' +
-      '<div class="scale-ends" aria-hidden="true"><span>' + (it.t === 'c' ? 'A' : 'Disagree') + '</span><span>' + (it.t === 'c' ? 'Neither' : 'Neutral') + '</span><span>' + (it.t === 'c' ? 'B' : 'Agree') + '</span></div>' +
-      '<div class="pick" id="pick" aria-live="polite">' + (code >= 2 ? esc(labels[code - 2]) : code === 1 ? (it.h ? 'Unfamiliar' : 'Unsure') : '') + '</div>' +
+      '<p class="qtext' + (it.t === 'm' ? ' short' : '') + '" id="qtext">' + esc(it.q) + '</p>' +
+      answerUi +
+      (it.t === 'm' ? '' : '<div class="pick" id="pick" aria-live="polite">' + (code >= 2 ? esc(labels[code - 2]) : code === 1 ? (it.h ? 'Unfamiliar' : 'Unsure') : '') + '</div>') +
       '<div class="qfoot">' +
       '<button class="btn ghost" data-act="back"' + (S.pos === 0 ? ' disabled' : '') + '>← Back</button>' +
-      '<button class="btn ghost unsure' + (code === 1 ? ' on' : '') + '" data-code="1">' + (it.h ? 'Unfamiliar with this' : 'Unsure / no view') + '</button>' +
+      '<button class="btn ghost unsure' + (code === 1 ? ' on' : '') + '" data-code="1">' + (it.h ? 'Unfamiliar with this' : it.t === 'm' ? 'None of these / unsure' : 'Unsure / no view') + '</button>' +
       (S.done ? '<button class="btn" data-act="results">Back to results</button>' : '') +
       '</div>' +
-      '<div class="keys">Keys: 1–' + size + ' to answer, 0 for ' + (it.h ? 'unfamiliar' : 'unsure') + ', Backspace to go back</div>' +
+      '<div class="keys">Keys: ' + (it.t === 'm' ? 'A–' + String.fromCharCode(64 + size) : '1–' + size) + ' to answer, 0 for ' + (it.h ? 'unfamiliar' : 'unsure') + ', Backspace to go back</div>' +
       '</main>';
     render(html);
     app.querySelectorAll('.dot').forEach(function (b) {
@@ -191,7 +200,7 @@
       '<div class="eyebrow">Part 1 complete</div>' +
       '<h2 style="font:800 2rem/1 var(--display);text-transform:uppercase;margin-top:0.5rem">Your closest families</h2>' +
       '<div class="fam-pick">' + list + '</div>' +
-      '<p>Part 2 has ' + seg.len + ' questions from the <b>' + S.mods.map(famName).map(esc).join('</b> and <b>') + '</b> modules. They are written to separate tendencies that look alike on the twelve axes.</p>' +
+      '<p>Part 2 has ' + seg.len + ' questions from the <b>' + S.mods.map(famName).map(esc).join('</b>, <b>') + '</b> modules' + (S.mods.length > 2 ? ', because your second and third families were nearly tied' : '') + '. They are written to separate tendencies that look alike on the twelve axes.</p>' +
       '<div class="row"><button class="btn primary" data-act="continue">Continue to Part 2</button><button class="btn ghost" data-act="skip-results">Skip to results (less precise)</button></div>' +
       '</div></main>');
   }
@@ -199,7 +208,7 @@
     render(mast('Part 2 complete') + '<main><div class="panel">' +
       '<div class="eyebrow">Part 2 complete</div>' +
       '<h2 style="font:800 2rem/1 var(--display);text-transform:uppercase;margin-top:0.5rem">One optional module left</h2>' +
-      '<p style="margin-top:0.8rem">The theory module has ' + THEORY_N + ' questions on dialectics, value theory, ideology and the world-system. It places you among ' + TA.schools.length + ' schools of Marxist theory and does not change your tendency result.</p>' +
+      '<p style="margin-top:0.8rem">The theory module has ' + THEORY_N + ' questions on dialectics, value theory, crisis, the state, the origins of capitalism, space and social reproduction. It places you among ' + TA.schools.length + ' schools of Marxist theory and does not change your tendency result.</p>' +
       '<div class="row"><button class="btn primary" data-act="theory">Take the theory module</button><button class="btn" data-act="results">See my results</button></div>' +
       '</div></main>');
   }
@@ -247,11 +256,12 @@
     var core = E.answered(answers, 'core'), coreL = core.filter(function (a) { return a.it.t === 'l'; });
     var notes = [];
     if (core.length < CORE_N / 2) notes.push('You answered fewer than half of the core questions, so these results rest on thin evidence.');
-    var dec = 0; core.forEach(function (a) { dec += Math.abs(a.r); }); dec = core.length ? dec / core.length : 0;
-    if (core.length && dec < 0.28) notes.push('Most of your answers were neutral or mild, so every match is weak and the ranking is unstable.');
+    var dec = 0; coreL.forEach(function (a) { dec += Math.abs(a.r); }); dec = coreL.length ? dec / coreL.length : 0;
+    if (coreL.length && dec < 0.28) notes.push('Most of your answers were neutral or mild, so every match is weak and the ranking is unstable.');
     var acq = 0; coreL.forEach(function (a) { acq += a.r; }); acq = coreL.length ? acq / coreL.length : 0;
     if (acq > 0.4) notes.push('You agreed with most statements, including ones that point in opposite directions. Balanced question wording cancels some of this, but treat close calls with caution.');
     if (acq < -0.4) notes.push('You disagreed with most statements, including ones that point in opposite directions. Treat close calls with caution.');
+    if (top.fit < 70) notes.push('Your answers don\'t sit close to any single tendency (best match ' + pct(top.fit) + '%). The ranking still shows which traditions you are nearest to, but read the top result as approximate.');
     var drilled = {}; E.answered(answers, 'mod').forEach(function (a) { drilled[a.it.fam] = 1; });
     if (E.famById[top.t.fam].mod && !drilled[top.t.fam]) {
       notes.push('Your top match comes from the ' + famName(top.t.fam) + ' family, which you haven\'t taken the drill-down for. Taking it below will sharpen the result.');
@@ -344,13 +354,17 @@
     var it = E.itemById[S.queue[S.pos]], size = E.scaleSize(it);
     var n = parseInt(ev.key, 10);
     if (n >= 1 && n <= size) { ev.preventDefault(); return choose(n + 1); }
+    if (it.t === 'm' && /^[a-e]$/i.test(ev.key)) {
+      var li = ev.key.toLowerCase().charCodeAt(0) - 97;
+      if (li < size) { ev.preventDefault(); return choose(li + 2); }
+    }
     if (ev.key === '0' || ev.key === 'u' || ev.key === 'U') { ev.preventDefault(); return choose(1); }
     if (ev.key === 'Backspace' || ev.key === 'ArrowLeft') { ev.preventDefault(); return back(); }
   });
 
   /* ---------- boot ---------- */
   var hash = (location.hash || '').replace(/^#/, '');
-  var fromHash = hash.indexOf('R1') === 0 ? E.decode(hash) : null;
+  var fromHash = hash.indexOf('R2') === 0 ? E.decode(hash) : null;
   var saved = load();
   if (fromHash && Object.keys(fromHash).length) {
     if (saved && E.encode(saved.answers) === hash) { S = saved; S.phase = 'results'; }

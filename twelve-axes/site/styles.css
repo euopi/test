@@ -121,6 +121,18 @@ p { margin: 0 0 0.9rem; }
 .opt { background: var(--sheet); border: 1px solid var(--rule); padding: 0.9rem 1rem; border-radius: 2px; display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); gap: 0.4rem; font-size: 0.98rem; }
 .opt b { font: 800 1.3rem/1 var(--display); color: var(--red-ink); }
 
+.qtext.short { min-height: 0; margin-bottom: 1.4rem; }
+.mc { display: grid; gap: 0.55rem; }
+.mopt {
+  display: grid; grid-template-columns: 1.8rem minmax(0, 1fr); gap: 0.5rem; align-items: baseline;
+  text-align: left; width: 100%; padding: 0.85rem 1rem; cursor: pointer;
+  background: var(--sheet); border: 1px solid var(--rule); border-radius: 2px;
+  font: 400 1rem/1.45 var(--sans); color: var(--ink);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.mopt b { font: 800 1.25rem/1 var(--display); color: var(--red-ink); }
+@media (hover: hover) { .mopt:hover { border-color: var(--red); } }
+.mopt.on { border-color: var(--red); background: var(--red-wash); box-shadow: inset 4px 0 0 var(--red); }
 .scale { display: flex; justify-content: space-between; align-items: center; gap: 0.25rem; max-width: 32rem; margin: 0 auto; }
 .dot {
   --s: 2.6rem;
@@ -128,7 +140,7 @@ p { margin: 0 0 0.9rem; }
   border: 2px solid var(--ink-2); background: var(--sheet); cursor: pointer; padding: 0;
   transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
 }
-.dot:hover { border-color: var(--red); transform: scale(1.06); }
+@media (hover: hover) { .dot:hover { border-color: var(--red); transform: scale(1.06); } }
 .dot.on { background: var(--red); border-color: var(--red); }
 .dot.s3 { --s: 3.1rem; } .dot.s2 { --s: 2.6rem; } .dot.s1 { --s: 2.2rem; } .dot.s0 { --s: 1.8rem; }
 .scale-ends { display: flex; justify-content: space-between; max-width: 32rem; margin: 0.6rem auto 0; font: 500 0.75rem/1.2 var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); }
