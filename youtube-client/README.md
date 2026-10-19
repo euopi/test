@@ -6,8 +6,10 @@ own API key and play videos through YouTube's embedded player.
 
 ## What it does
 
-- Subscription feed built from channels you follow inside this app (or import
-  your real ones from Google Takeout's `subscriptions.csv`)
+- A "For you" home feed that learns from what you watch (see below), plus a
+  plain newest-first Subscriptions tab
+- Subscriptions you follow inside this app, or imported from Google Takeout's
+  `subscriptions.csv`, or your real ones if you sign in
 - Trending for any region, search with type and sort filters
 - Watch page with description, clickable timestamps, comments and replies
 - Resumes videos where you left off, and shows watch progress on thumbnails
@@ -56,6 +58,30 @@ static file server works the same way (`npx serve`, GitHub Pages, etc.).
 The free quota is 10,000 units a day. Most calls cost 1 unit; a search costs
 100. The subscription feed costs roughly one unit per subscribed channel and is
 cached for 15 minutes.
+
+## How "For you" works
+
+The app keeps a taste profile in your browser: weights for channels,
+categories and topics (title words and tags). Opening a video nudges them up,
+finishing it nudges them more, bailing in the first 15% nudges them down,
+likes and dislikes count heavily, and "Not interested" (the × on a home card)
+pushes that video's channel and topics down. Everything halves in weight every
+45 days, so old phases fade.
+
+Candidates come from your subscriptions' uploads, channels you watch but
+don't follow, trending in your top categories, channels featured on your
+favorite channels' pages, and three topic searches a day. They're scored
+against the profile, with a freshness boost, a cap on how often one channel
+appears, and every fifth slot reserved for something outside your
+subscriptions. Library shows what it learned and lets you remove any of it.
+
+To start with your real taste instead of a blank slate, import your YouTube
+watch history: in Google Takeout, Deselect all, pick "YouTube and YouTube
+Music", limit it to history (JSON or HTML), and load `watch-history.json` in
+Library -> Recommendations. Importing rebuilds the profile from that file.
+
+Quota: a home load costs roughly 30-50 units when its caches are stale (the
+topic searches, 300 units, run once a day), and nothing when they're fresh.
 
 ## Signing in (optional)
 

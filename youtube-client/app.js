@@ -375,11 +375,15 @@ function toVideo(item) {
     comments: st.commentCount,
     live: sn.liveBroadcastContent,
     description: sn.description,
+    categoryId: sn.categoryId,
+    tags: sn.tags,
   };
 }
 
 // Strip the fields we don't want copied into localStorage for every video.
-const slim = ({ description, likes, comments, ...v }) => v;
+const slim = ({ description, likes, comments, tags, src, ...v }) => v;
+// Recommendation candidates keep a few tags for matching.
+const recoSlim = v => ({ ...slim(v), tags: (v.tags || []).slice(0, 15) });
 
 // Fetch full video objects for a list of IDs, preserving order and
 // dropping anything private or deleted.
@@ -457,6 +461,344 @@ function saveProgress(id, seconds, duration) {
   store.set('history', history);
 }
 
+/* ---------- recommendations ---------- */
+
+// A taste profile learned in the browser: weights per channel, category and
+// topic (title words and tags). Watching, finishing, liking and "Not
+// interested" adjust them; everything halves in weight every 45 days so
+// old phases fade out. The home feed scores candidate videos against it.
+
+const HOUR = 3600e3;
+const DAY = 24 * HOUR;
+
+const STOPWORDS = new Set(`the and for with you your that this from are was were what when where which who why how not
+  but all any can has have had its into out our their them they then there these those than too very just about after
+  before more most some such only own same other over under again also been being both each few off once here did does
+  doing down during until while above below between through against because could would should might will shall may must
+  ever every new official video videos full episode part live feat feat. ft vs hd 4k music lyrics lyric audio trailer
+  clip clips shorts short best top make made watch today day days year years one two three first last get got let lets
+  ill youre dont cant wont isnt im ive del los las por para con una uno que les des est pour dans sur aux pas plus elle`
+  .split(/\s+/));
+
+function tokenize(text) {
+  return String(text || '').toLowerCase().normalize('NFKC').split(/[^\p{L}\p{N}']+/u)
+    .map(t => t.replace(/'/g, ''))
+    .filter(t => t.length >= 3 && !/^\d+$/.test(t) && !STOPWORDS.has(t));
+}
+
+function termsFor(v) {
+  const out = new Set(tokenize(v.title));
+  for (const tag of (v.tags || []).slice(0, 15)) {
+    const t = String(tag).toLowerCase().trim();
+    if (t.length >= 3 && t.length <= 30 && !STOPWORDS.has(t)) out.add(t);
+  }
+  return [...out].slice(0, 30);
+}
+
+const emptyProfile = () => ({ channels: {}, names: {}, categories: {}, terms: {}, watches: 0, at: Date.now() });
+
+function loadProfile() {
+  const p = { ...emptyProfile(), ...store.get('profile', {}) };
+  const f = 0.5 ** ((Date.now() - p.at) / (45 * DAY));
+  if (f < 0.999) {
+    for (const k of ['channels', 'categories', 'terms']) for (const id in p[k]) p[k][id] *= f;
+    p.at = Date.now();
+  }
+  return p;
+}
+
+const hasProfile = p => Object.keys(p.channels).length > 0;
+const topEntries = (map, n) => Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, n);
+
+function prune(map, n) {
+  return Object.fromEntries(Object.entries(map)
+    .filter(([, w]) => Math.abs(w) >= 0.01)
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    .slice(0, n));
+}
+
+function saveProfile(p) {
+  p.channels = prune(p.channels, 400);
+  p.categories = prune(p.categories, 40);
+  p.terms = prune(p.terms, 1500);
+  p.names = Object.fromEntries(Object.keys(p.channels).filter(id => p.names[id]).map(id => [id, p.names[id]]));
+  store.set('profile', p);
+}
+
+const bump = (map, key, by) => { if (key) map[key] = (map[key] || 0) + by; };
+
+function applySignal(p, v, amount) {
+  bump(p.channels, v.channelId, amount);
+  if (v.channelId && v.channelTitle) p.names[v.channelId] = v.channelTitle;
+  bump(p.categories, v.categoryId, amount * 0.6);
+  const terms = termsFor(v);
+  const each = amount * 0.8 / Math.sqrt(terms.length || 1);
+  for (const t of terms) bump(p.terms, t, each);
+}
+
+function learn(v, amount, isWatch = false) {
+  if (!v || !amount || settings().pauseHistory) return;
+  const p = loadProfile();
+  applySignal(p, v, amount);
+  if (isWatch) p.watches++;
+  saveProfile(p);
+}
+
+// Watching counts a little on its own; finishing or bailing early adds or
+// takes away more when you leave the page.
+let watching = null;
+function endWatch() {
+  const v = watching;
+  watching = null;
+  if (!v) return;
+  const h = getHistory().find(x => x.id === v.id);
+  if (!h?.duration) return;
+  const frac = h.progress / h.duration;
+  if (frac >= 0.6) learn(v, 1);
+  else if (frac < 0.15 && h.duration > 90) learn(v, -0.7);
+}
+
+const comp = w => (w ? Math.sign(w) * Math.log1p(Math.abs(w)) : 0);
+
+function hashUnit(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return (h >>> 0) / 4294967296;
+}
+
+function scoreVideo(v, p, subIds, day) {
+  const terms = termsFor(v);
+  const termScore = terms.reduce((sum, t) => sum + comp(p.terms[t] || 0), 0) / Math.sqrt(terms.length || 1);
+  const ageDays = Math.max(0, (Date.now() - Date.parse(v.publishedAt)) / DAY) || 0;
+  return comp(p.channels[v.channelId] || 0)
+    + 0.5 * comp(p.categories[v.categoryId] || 0)
+    + 0.9 * termScore
+    + (subIds.has(v.channelId) ? 0.8 : 0)
+    + 1.2 * Math.exp(-ageDays / 5)
+    + 0.08 * Math.log10(1 + (+v.views || 0))
+    + 0.3 * (hashUnit(v.id + day) - 0.5); // a little daily shuffle
+}
+
+// Highest scores first, but no channel hogs the feed, and every fifth slot
+// goes to something from outside your subscriptions.
+function rankFeed(candidates, p, subIds) {
+  const hidden = new Set(store.get('reco:hidden', []));
+  const watched = new Map(getHistory().map(h => [h.id, h]));
+  const day = new Date().toDateString();
+  const byId = new Map();
+  for (const v of candidates) {
+    if (!v?.id || byId.has(v.id) || hidden.has(v.id) || v.live === 'upcoming') continue;
+    const h = watched.get(v.id);
+    if (h && (!h.duration || h.progress / h.duration > 0.5)) continue;
+    if ((p.channels[v.channelId] || 0) < -3.5) continue; // "Not interested" twice, roughly
+    byId.set(v.id, { v, score: scoreVideo(v, p, subIds, day), discover: !subIds.has(v.channelId) });
+  }
+  const items = [...byId.values()];
+  const perChannel = new Map();
+  const out = [];
+  const pick = discoverOnly => {
+    let best = -1, bestScore = -Infinity;
+    items.forEach((it, i) => {
+      if (discoverOnly && !it.discover) return;
+      const adj = it.score - 0.7 * (perChannel.get(it.v.channelId) || 0);
+      if (adj > bestScore) { bestScore = adj; best = i; }
+    });
+    return best;
+  };
+  while (out.length < 96 && items.length) {
+    let i = out.length % 5 === 4 ? pick(true) : -1;
+    if (i < 0) i = pick(false);
+    const [it] = items.splice(i, 1);
+    perChannel.set(it.v.channelId, (perChannel.get(it.v.channelId) || 0) + 1);
+    out.push(it.v);
+  }
+  return out;
+}
+
+async function cachedSource(name, ttl, fetcher) {
+  const cached = store.get('reco:' + name);
+  if (cached && Date.now() - cached.at < ttl) return cached.videos;
+  try {
+    const videos = (await fetcher()).map(v => ({ ...recoSlim(v), src: name }));
+    store.set('reco:' + name, { at: Date.now(), videos });
+    return videos;
+  } catch (err) {
+    if (cached) return cached.videos;
+    throw err;
+  }
+}
+
+function clearRecoCache({ all = false } = {}) {
+  for (const k of ['channels', 'categories', 'trending']) store.del('reco:' + k);
+  if (all) for (const k of ['neighbors', 'topics', 'searched', 'hidden']) store.del('reco:' + k);
+  store.del('feed');
+}
+
+async function latestUploads(channelIds, per) {
+  const ids = [];
+  await pool(channelIds, 6, async id => {
+    try {
+      const d = await yt('playlistItems', { part: 'contentDetails', playlistId: 'UU' + id.slice(2), maxResults: per });
+      ids.push(...(d.items || []).map(i => i.contentDetails.videoId));
+    } catch (err) {
+      if (err.status !== 404) throw err;
+    }
+  });
+  return hydrate(ids);
+}
+
+async function categoryTrending(p) {
+  const out = [];
+  for (const [id] of topEntries(p.categories, 3).filter(([, w]) => w > 0)) {
+    try {
+      const d = await yt('videos', {
+        part: 'snippet,statistics,contentDetails', chart: 'mostPopular', videoCategoryId: id,
+        regionCode: settings().region, maxResults: 20,
+      });
+      out.push(...(d.items || []).map(toVideo));
+    } catch { /* some categories have no chart */ }
+  }
+  return out;
+}
+
+// Channels featured on the pages of channels you like, minus ones you know.
+async function neighborUploads(seeds, known) {
+  const found = new Set();
+  await pool(seeds.slice(0, 5), 5, async id => {
+    try {
+      const d = await yt('channelSections', { part: 'contentDetails', channelId: id });
+      for (const s of d.items || []) for (const c of s.contentDetails?.channels || []) if (!known.has(c)) found.add(c);
+    } catch {}
+  });
+  const picks = [...found].sort(() => Math.random() - 0.5).slice(0, 10);
+  return picks.length ? latestUploads(picks, 3) : [];
+}
+
+// Searches cost 100 units each, so: three a day, rotating through your top
+// topics so the same one isn't searched again for three days.
+async function topicSearches(p) {
+  const searched = store.get('reco:searched', {});
+  const now = Date.now();
+  const terms = topEntries(p.terms, 80)
+    .filter(([t, w]) => w > 0 && t.length >= 4 && now - (searched[t] || 0) > 3 * DAY)
+    .slice(0, 3)
+    .map(([t]) => t);
+  const ids = [];
+  for (const q of terms) {
+    const d = await yt('search', { part: 'snippet', q, type: 'video', maxResults: 12, regionCode: settings().region });
+    ids.push(...(d.items || []).map(i => i.id.videoId));
+    searched[q] = now;
+  }
+  store.set('reco:searched', Object.fromEntries(Object.entries(searched).filter(([, at]) => now - at < 14 * DAY)));
+  return hydrate(ids);
+}
+
+async function recommendations(subs, p) {
+  const subIds = new Set(subs.map(s => s.id));
+  const topChannels = topEntries(p.channels, 30).filter(([, w]) => w > 0).map(([id]) => id);
+  const known = new Set([...subIds, ...topChannels]);
+  const results = await Promise.allSettled([
+    subs.length ? subscriptionFeed(subs) : [],
+    cachedSource('channels', 3 * HOUR, () => {
+      const ids = topChannels.filter(id => !subIds.has(id)).slice(0, 8);
+      return ids.length ? latestUploads(ids, 5) : [];
+    }),
+    cachedSource('categories', 6 * HOUR, () => categoryTrending(p)),
+    cachedSource('trending', 6 * HOUR, async () => ((await yt('videos', {
+      part: 'snippet,statistics,contentDetails', chart: 'mostPopular', regionCode: settings().region, maxResults: 30,
+    })).items || []).map(toVideo)),
+    cachedSource('neighbors', DAY, () => neighborUploads(topChannels.length ? topChannels : [...subIds], known)),
+    hasProfile(p) ? cachedSource('topics', DAY, () => topicSearches(p)) : [],
+  ]);
+  const ok = results.filter(r => r.status === 'fulfilled');
+  if (!ok.length) throw results[0].reason;
+  return rankFeed(ok.flatMap(r => r.value), p, subIds);
+}
+
+// Google Takeout's watch-history.json (or .html). Rebuilds the profile from
+// it, weighting recent watches more, and fills in categories and tags for the
+// latest 1,000 videos (20 quota units).
+async function importWatchHistory(file, status) {
+  status.textContent = 'Reading your history…';
+  const text = await file.text();
+  const entries = [];
+  const watchId = url => /[?&]v=([\w-]{11})/.exec(url || '')?.[1];
+  const channelId = url => /channel\/(UC[\w-]{22})/.exec(url || '')?.[1] || '';
+  if (/^\s*\[/.test(text)) {
+    for (const e of JSON.parse(text)) {
+      const id = watchId(e.titleUrl);
+      if (!id || e.details?.some(d => /ads/i.test(d.name))) continue;
+      entries.push({
+        id, title: String(e.title || '').replace(/^Watched\s+/, ''),
+        channelId: channelId(e.subtitles?.[0]?.url), channelTitle: e.subtitles?.[0]?.name || '',
+        time: Date.parse(e.time) || 0,
+      });
+    }
+  } else {
+    const doc = new DOMParser().parseFromString(text, 'text/html');
+    for (const cell of doc.querySelectorAll('.content-cell')) {
+      const links = cell.querySelectorAll('a');
+      const id = watchId(links[0]?.getAttribute('href'));
+      if (!id || /From Google Ads/i.test((cell.closest('.outer-cell') || cell.parentElement)?.textContent)) continue;
+      const lastText = [...cell.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent.trim()).filter(Boolean).pop();
+      entries.push({
+        id, title: links[0].textContent, channelId: channelId(links[1]?.getAttribute('href')),
+        channelTitle: links[1]?.textContent || '', time: Date.parse(lastText) || 0,
+      });
+    }
+  }
+  if (!entries.length) {
+    status.textContent = 'No watched videos found. Pick watch-history.json or watch-history.html from the Takeout "history" folder.';
+    return;
+  }
+
+  const now = Date.now();
+  // Takeout lists newest first; without a parseable date, use the position.
+  const weight = (e, i) => Math.max(0.03, 0.5 ** ((e.time ? (now - e.time) / DAY : i / 20) / 120));
+  const p = emptyProfile();
+  entries.forEach((e, i) => {
+    const w = weight(e, i);
+    bump(p.channels, e.channelId, w);
+    if (e.channelId && e.channelTitle) p.names[e.channelId] = e.channelTitle;
+    const terms = tokenize(e.title);
+    for (const t of terms) bump(p.terms, t, w * 0.5 / Math.sqrt(terms.length || 1));
+  });
+
+  const recent = [];
+  const seen = new Set();
+  entries.forEach((e, i) => {
+    if (recent.length < 1000 && !seen.has(e.id)) { seen.add(e.id); recent.push([e, i]); }
+  });
+  let detailed = 0;
+  if (hasAccess()) {
+    status.textContent = `Found ${entries.length.toLocaleString()} watches. Fetching details for the latest ${recent.length}…`;
+    try {
+      const videos = new Map((await hydrate(recent.map(([e]) => e.id))).map(v => [v.id, v]));
+      const history = new Map(getHistory().map(h => [h.id, h]));
+      for (const [e, i] of recent) {
+        const v = videos.get(e.id);
+        if (!v) continue;
+        detailed++;
+        const w = weight(e, i);
+        bump(p.categories, v.categoryId, w * 0.6);
+        const tags = termsFor({ title: '', tags: v.tags });
+        for (const t of tags) bump(p.terms, t, w * 0.4 / Math.sqrt(tags.length || 1));
+        if (history.size < 300 && !history.has(v.id)) {
+          history.set(v.id, { ...slim(v), watchedAt: e.time || now - i * 60e3, progress: v.duration });
+        }
+      }
+      store.set('history', [...history.values()].sort((a, b) => b.watchedAt - a.watchedAt).slice(0, 300));
+    } catch { /* channel and title signals are still useful on their own */ }
+  }
+  p.watches = entries.length;
+  p.importedAt = now;
+  p.imported = entries.length;
+  saveProfile(p);
+  clearRecoCache({ all: true });
+  status.textContent = `Imported ${entries.length.toLocaleString()} watches across ${Object.keys(p.channels).length} channels`
+    + (detailed ? `, with full details for ${detailed}.` : '.');
+}
+
 let progressCache = null;
 function progressFor(id) {
   progressCache ||= new Map(getHistory().map(h => [h.id, h]));
@@ -498,7 +840,7 @@ function errorBox(err) {
     ${hints[err.reason] ? `<p class="muted">${esc(hints[err.reason])}</p>` : ''}`);
 }
 
-function videoCard(v, { list } = {}) {
+function videoCard(v, { list, dismiss } = {}) {
   const href = `#/watch?v=${encodeURIComponent(v.id)}${list ? '&list=' + encodeURIComponent(list) : ''}`;
   const badge = v.live === 'live' ? '<span class="badge live">LIVE</span>'
     : v.live === 'upcoming' ? '<span class="badge">UPCOMING</span>'
@@ -516,6 +858,7 @@ function videoCard(v, { list } = {}) {
       <a class="byline" href="#/channel/${encodeURIComponent(v.channelId)}">${esc(v.channelTitle)}</a>
       <div class="sub">${sub}</div>
     </div>
+    ${dismiss ? `<button class="dismiss" data-dismiss="${esc(v.id)}" title="Not interested" aria-label="Not interested">×</button>` : ''}
   </article>`;
 }
 
@@ -728,28 +1071,45 @@ function mountBarePlayer(id, start, onEnd) {
 function teardownPlayer() {
   clearInterval(playerTimer);
   playerTimer = null;
-  if (!player) return;
-  try { player._tubeTick?.(); player.destroy(); } catch {}
-  player = null;
+  if (player) {
+    try { player._tubeTick?.(); player.destroy(); } catch {}
+    player = null;
+  }
+  endWatch();
 }
 
 /* ---------- views ---------- */
 
+let feedIndex = new Map();
+
 async function viewHome(ctx) {
-  $app.innerHTML = `<div class="head"><h1>Subscriptions</h1></div>${spinner()}`;
+  const tab = ctx.params.get('tab') === 'subs' ? 'subs' : 'foryou';
+  $app.innerHTML = spinner();
   const subs = isSignedIn() ? await accountSubs() : getSubs();
   if (!ctx.alive()) return;
-  if (!subs.length) return viewTrending(ctx, true);
-  const videos = await subscriptionFeed(subs);
+  const profile = loadProfile();
+  const learned = hasProfile(profile);
+  if (!subs.length && !learned) return viewTrending(ctx, true);
+
+  const showSubs = tab === 'subs' && subs.length;
+  const videos = showSubs ? await subscriptionFeed(subs) : await recommendations(subs, profile);
   if (!ctx.alive()) return;
+  feedIndex = new Map(videos.map(v => [v.id, v]));
+  const note = showSubs ? 'Newest uploads from your subscriptions.'
+    : learned ? `Tuned to ${profile.watches.toLocaleString()} videos you've watched. <a href="#/library">See what it learned</a>.`
+    : 'Watch a few videos, or import your YouTube history in <a href="#/library">Library</a>, and this gets personal.';
   $app.innerHTML = `<div class="head">
-      <h1>Subscriptions</h1>
+      <nav class="tabs inline">
+        <a href="#/" class="${showSubs ? '' : 'active'}">For you</a>
+        ${subs.length ? `<a href="#/?tab=subs" class="${showSubs ? 'active' : ''}">Subscriptions</a>` : ''}
+      </nav>
       <button class="btn" id="refresh">Refresh</button>
     </div>
-    ${videos.length ? `<div class="grid">${videos.map(v => videoCard(v)).join('')}</div>`
-      : '<p class="muted empty">No recent uploads from your subscriptions.</p>'}`;
+    <p class="muted small lede">${note}</p>
+    ${videos.length ? `<div class="grid">${videos.map(v => videoCard(v, { dismiss: !showSubs })).join('')}</div>`
+      : '<p class="muted empty">Nothing new right now.</p>'}`;
   document.getElementById('refresh').onclick = () => {
-    store.del('feed');
+    clearRecoCache();
     const c = store.get('acctSubs');
     if (c && validToken()) store.set('acctSubs', { ...c, at: 0 });
     route();
@@ -777,7 +1137,7 @@ async function subscriptionFeed(subs) {
   recent.sort((a, b) => b.at.localeCompare(a.at));
   const videos = (await hydrate(recent.slice(0, 150).map(r => r.id)))
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
-    .map(slim);
+    .map(v => ({ ...recoSlim(v), src: 'subs' }));
   store.set('feed', { key, at: Date.now(), videos });
   return videos;
 }
@@ -893,6 +1253,8 @@ async function viewWatch(ctx) {
   }
   const v = toVideo(item);
   recordHistory(v);
+  learn(v, 1, true);
+  watching = v;
   document.title = `${v.title} · Tube`;
 
   const stats = [fmtCount(v.views) + ' views', new Date(v.publishedAt).toLocaleDateString(undefined, { dateStyle: 'medium' })];
@@ -986,6 +1348,8 @@ function mountRating(v) {
   const rate = target => async () => {
     const next = rating === target ? 'none' : target;
     await yt('videos/rate', { id: v.id, rating: next }, { method: 'POST', auth: true });
+    const weight = { like: 2, dislike: -3, none: 0 };
+    learn(v, weight[next] - weight[rating]);
     rating = next;
     paint();
   };
@@ -1281,7 +1645,39 @@ async function viewLibrary(ctx) {
         <p class="muted small" id="import-status"></p>
       </section>`;
 
+  const profile = loadProfile();
+  const chip = (label, attr, key) => `<span class="chip"><span class="chip-label">${esc(label)}</span>
+    <button class="link" ${attr}="${esc(key)}" aria-label="Forget ${esc(label)}">×</button></span>`;
+  const topChannels = topEntries(profile.channels, 15).filter(([, w]) => w > 0.05);
+  const topTerms = topEntries(profile.terms, 24).filter(([, w]) => w > 0.05);
+  const topCats = topEntries(profile.categories, 6).filter(([, w]) => w > 0.05);
+  const tasteSection = `<section class="lib-section">
+      <div class="head">
+        <h2>Recommendations</h2>
+        <div class="filters">
+          <label class="btn">Import YouTube watch history<input type="file" id="watch-history" accept=".json,.html,application/json,text/html" hidden></label>
+          <button class="btn" id="reset-reco"${hasProfile(profile) ? '' : ' disabled'}>Reset</button>
+        </div>
+      </div>
+      <p class="muted small" id="wh-status">${profile.importedAt
+        ? `Built from ${profile.imported.toLocaleString()} imported watches (${new Date(profile.importedAt).toLocaleDateString()}) plus what you've watched here since.`
+        : `To import: in <a href="https://takeout.google.com" target="_blank" rel="noopener">Google Takeout</a>, click Deselect all, tick
+           "YouTube and YouTube Music", click "All YouTube data included" and keep only history. Under "Multiple formats" you can switch
+           history to JSON (HTML works too). Then pick <code>watch-history.json</code> from the download's history folder.`}</p>
+      ${hasProfile(profile) ? `<div class="tastes">
+        <h3>Channels it favors</h3>
+        <div class="chips">${topChannels.map(([id]) => chip(profile.names[id] || id, 'data-forget-channel', id)).join('')}</div>
+        <h3>Topics</h3>
+        <div class="chips">${topTerms.map(([t]) => chip(t, 'data-forget-term', t)).join('')}</div>
+        ${topCats.length ? `<h3>Categories</h3>
+        <div class="chips" id="cat-chips">${topCats.map(([id]) => chip(store.get('catNames', {})[id] || 'Category ' + id, 'data-forget-cat', id)).join('')}</div>` : ''}
+        <p class="muted small">Hit × to make it forget something. "Not interested" on a home video teaches it what to show less of.</p>
+      </div>` : '<p class="muted small">Nothing learned yet. Watch some videos or import your history.</p>'}
+    </section>`;
+
   $app.innerHTML = `${subsSection}
+
+    ${tasteSection}
 
     <section class="lib-section">
       <div class="head"><h2>Watch later <span class="muted">${later.length}</span></h2></div>
@@ -1301,7 +1697,7 @@ async function viewLibrary(ctx) {
 
     <section class="lib-section">
       <div class="head"><h2>Backup</h2></div>
-      <p class="muted small">Watch later, history and local subscriptions live only in this browser. Export them to move them somewhere else
+      <p class="muted small">Watch later, history, local subscriptions and what the recommendations learned live only in this browser. Export them to move them somewhere else
         (your API key and sign-in are left out).</p>
       <div class="filters">
         <button class="btn" id="export">Export</button>
@@ -1320,7 +1716,7 @@ async function viewLibrary(ctx) {
   const takeout = document.getElementById('takeout');
   if (takeout) takeout.onchange = e => importTakeout(e.target.files[0]);
   document.getElementById('export').onclick = () => {
-    const blob = new Blob([JSON.stringify({ subs: getSubs(), later: getLater(), history: getHistory() }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ subs: getSubs(), later: getLater(), history: getHistory(), profile: store.get('profile', null) }, null, 2)], { type: 'application/json' });
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'tube-backup.json' });
     a.click();
     URL.revokeObjectURL(a.href);
@@ -1329,11 +1725,49 @@ async function viewLibrary(ctx) {
     try {
       const data = JSON.parse(await e.target.files[0].text());
       for (const key of ['subs', 'later', 'history']) if (Array.isArray(data[key])) store.set(key, data[key]);
+      if (data.profile?.channels) store.set('profile', data.profile);
       route();
     } catch {
       alert('That file isn\'t a Tube backup.');
     }
   };
+
+  document.getElementById('watch-history').onchange = async e => {
+    const status = document.getElementById('wh-status');
+    try {
+      await importWatchHistory(e.target.files[0], status);
+      if (ctx.alive()) setTimeout(route, 1500);
+    } catch (err) {
+      status.textContent = 'Couldn\'t read that file: ' + err.message;
+    }
+  };
+  document.getElementById('reset-reco').onclick = () => {
+    if (!confirm('Forget everything the recommendations have learned?')) return;
+    store.del('profile');
+    clearRecoCache({ all: true });
+    route();
+  };
+  const forget = (attr, key) => $app.querySelectorAll(`[${attr}]`).forEach(b => b.onclick = () => {
+    const p = loadProfile();
+    delete p[key][b.getAttribute(attr)];
+    saveProfile(p);
+    clearRecoCache();
+    b.closest('.chip').remove();
+  });
+  forget('data-forget-channel', 'channels');
+  forget('data-forget-term', 'terms');
+  forget('data-forget-cat', 'categories');
+  if (topCats.some(([id]) => !store.get('catNames', {})[id]) && hasAccess()) {
+    yt('videoCategories', { part: 'snippet', regionCode: s.region }).then(d => {
+      const names = Object.fromEntries((d.items || []).map(c => [c.id, c.snippet.title]));
+      store.set('catNames', names);
+      if (!ctx.alive()) return;
+      $app.querySelectorAll('[data-forget-cat]').forEach(b => {
+        const label = b.parentElement.querySelector('.chip-label');
+        if (names[b.dataset.forgetCat]) label.textContent = names[b.dataset.forgetCat];
+      });
+    }).catch(() => {});
+  }
 
   if (!auth) return;
   document.getElementById('signout').onclick = () => { signOut(); route(); };
@@ -1497,7 +1931,8 @@ function viewSettings() {
   document.getElementById('wipe').onclick = () => {
     if (!confirm('Erase your API key, sign-in, subscriptions, watch later list and history from this browser?')) return;
     signOut();
-    for (const k of ['settings', 'subs', 'later', 'history', 'feed']) store.del(k);
+    for (const k of ['settings', 'subs', 'later', 'history', 'feed', 'profile', 'catNames']) store.del(k);
+    clearRecoCache({ all: true });
     renderAccount();
     route();
   };
@@ -1552,6 +1987,16 @@ document.getElementById('search').addEventListener('submit', e => {
   if (!q) return;
   $q.blur();
   location.hash = parseYouTubeUrl(q) || '#/search?q=' + encodeURIComponent(q);
+});
+
+$app.addEventListener('click', e => {
+  const btn = e.target.closest('[data-dismiss]');
+  if (!btn) return;
+  const id = btn.dataset.dismiss;
+  learn(feedIndex.get(id), -2);
+  store.set('reco:hidden', [id, ...store.get('reco:hidden', [])].slice(0, 500));
+  btn.closest('.card').remove();
+  toast('Got it. You\'ll see less like that.');
 });
 
 // Timestamps in descriptions and comments seek the current player.
