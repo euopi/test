@@ -22,7 +22,12 @@ Everything you save lives in this browser's localStorage. Nothing is sent
 anywhere except `googleapis.com` (metadata) and `youtube-nocookie.com` (the
 player).
 
-## Running it
+## Hosted copy
+
+https://euopi.github.io/test/youtube-client/ (served by GitHub Pages from this
+branch). Add `https://euopi.github.io/test/*` to your key's allowed websites.
+
+## Running it locally
 
 It has to be served over http, not opened as a file. YouTube's player refuses
 to play without a referrer, and `file://` pages don't send one (you'd see

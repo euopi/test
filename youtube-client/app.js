@@ -973,7 +973,7 @@ function viewSettings() {
       <li>Go to the <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud console</a> and create a project (any name).</li>
       <li>Open <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener">YouTube Data API v3</a> and click Enable.</li>
       <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Credentials</a>, then Create credentials → API key.</li>
-      <li>Recommended: edit the key, set "Application restrictions" to Websites and add <code>${esc(location.origin)}/*</code>,
+      <li>Recommended: edit the key, set "Application restrictions" to Websites and add <code>${esc(location.origin + location.pathname.replace(/[^/]*$/, ''))}*</code>,
         then under "API restrictions" allow only the YouTube Data API v3. That way the key is useless to anyone who finds it.</li>
       <li>Paste it above. It stays in this browser's localStorage and is only ever sent to googleapis.com.</li>
     </ol>
