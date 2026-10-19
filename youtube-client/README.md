@@ -18,6 +18,9 @@ own API key and play videos through YouTube's embedded player.
 - Watch later and history, with export/import of everything as JSON
 - Paste any YouTube link (video, short, channel, @handle, playlist) into the
   search box to jump straight to it
+- Shorts hidden everywhere by default (toggle in Settings). The API has no
+  Shorts flag, so the app asks for each video's embed size, which follows the
+  video's real shape: vertical and 3 minutes or less counts as a Short.
 - Keyboard: `/` focuses search
 
 - Optional Google sign-in: your real subscriptions feed the home page, and

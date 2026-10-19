@@ -27,7 +27,7 @@ const store = {
   },
 };
 
-const DEFAULT_SETTINGS = { apiKey: '', clientId: '', region: 'US', autoplay: true, pauseHistory: false };
+const DEFAULT_SETTINGS = { apiKey: '', clientId: '', region: 'US', autoplay: true, pauseHistory: false, hideShorts: true };
 const settings = () => ({ ...DEFAULT_SETTINGS, ...store.get('settings', {}) });
 
 const getSubs = () => store.get('subs', []);
@@ -360,8 +360,15 @@ function bestThumb(t = {}) {
   return (t.medium || t.high || t.standard || t.default || t.maxres || {}).url || '';
 }
 
+// Asking for the embed size makes the API report the video's real shape,
+// which is the only reliable way to spot a Short: vertical and 3 min or less.
+const LIST_PARTS = { part: 'snippet,statistics,contentDetails,player', maxWidth: 1000 };
+
 function toVideo(item) {
-  const sn = item.snippet || {}, st = item.statistics || {}, cd = item.contentDetails || {};
+  const sn = item.snippet || {}, st = item.statistics || {}, cd = item.contentDetails || {}, pl = item.player || {};
+  const duration = parseDuration(cd.duration);
+  const vertical = pl.embedWidth && pl.embedHeight ? +pl.embedHeight > +pl.embedWidth : null;
+  const hashtag = /#shorts?\b/i.test(`${sn.title} ${sn.description}`);
   return {
     id: item.id,
     title: sn.title,
@@ -369,7 +376,8 @@ function toVideo(item) {
     channelTitle: sn.channelTitle,
     publishedAt: sn.publishedAt,
     thumb: bestThumb(sn.thumbnails),
-    duration: parseDuration(cd.duration),
+    duration,
+    short: duration > 0 && duration <= 180 && ((vertical ?? duration <= 60) || hashtag),
     views: st.viewCount,
     likes: st.likeCount,
     comments: st.commentCount,
@@ -392,7 +400,7 @@ async function hydrate(ids) {
   const found = new Map();
   for (let i = 0; i < ids.length; i += 50) {
     const data = await yt('videos', {
-      part: 'snippet,statistics,contentDetails',
+      ...LIST_PARTS,
       id: ids.slice(i, i + 50).join(','),
       maxResults: 50,
     });
@@ -416,6 +424,10 @@ async function getChannel(id) {
   }
   return channelCache.get(id);
 }
+
+// Older cached videos predate the "short" flag; guess from length.
+const isShort = v => v.short ?? (v.duration > 0 && v.duration <= 60);
+const noShorts = videos => (settings().hideShorts ? videos.filter(v => !isShort(v)) : videos);
 
 /* ---------- library state ---------- */
 
@@ -588,6 +600,7 @@ function rankFeed(candidates, p, subIds) {
   const byId = new Map();
   for (const v of candidates) {
     if (!v?.id || byId.has(v.id) || hidden.has(v.id) || v.live === 'upcoming') continue;
+    if (settings().hideShorts && isShort(v)) continue;
     const h = watched.get(v.id);
     if (h && (!h.duration || h.progress / h.duration > 0.5)) continue;
     if ((p.channels[v.channelId] || 0) < -3.5) continue; // "Not interested" twice, roughly
@@ -652,7 +665,7 @@ async function categoryTrending(p) {
   for (const [id] of topEntries(p.categories, 3).filter(([, w]) => w > 0)) {
     try {
       const d = await yt('videos', {
-        part: 'snippet,statistics,contentDetails', chart: 'mostPopular', videoCategoryId: id,
+        ...LIST_PARTS, chart: 'mostPopular', videoCategoryId: id,
         regionCode: settings().region, maxResults: 20,
       });
       out.push(...(d.items || []).map(toVideo));
@@ -705,7 +718,7 @@ async function recommendations(subs, p) {
     }),
     cachedSource('categories', 6 * HOUR, () => categoryTrending(p)),
     cachedSource('trending', 6 * HOUR, async () => ((await yt('videos', {
-      part: 'snippet,statistics,contentDetails', chart: 'mostPopular', regionCode: settings().region, maxResults: 30,
+      ...LIST_PARTS, chart: 'mostPopular', regionCode: settings().region, maxResults: 30,
     })).items || []).map(toVideo)),
     cachedSource('neighbors', DAY, () => neighborUploads(topChannels.length ? topChannels : [...subIds], known)),
     hasProfile(p) ? cachedSource('topics', DAY, () => topicSearches(p)) : [],
@@ -901,7 +914,7 @@ function mountPager(ctx, grid, more, loadPage, emptyText = 'Nothing here yet.') 
       grid.insertAdjacentHTML('beforeend', html);
       token = next;
       more.hidden = !next;
-      if (!grid.children.length) grid.insertAdjacentHTML('afterend', `<p class="muted empty">${esc(emptyText)}</p>`);
+      if (!grid.children.length && !next) grid.insertAdjacentHTML('afterend', `<p class="muted empty">${esc(emptyText)}</p>`);
     } catch (err) {
       if (!ctx.alive()) return;
       more.hidden = true;
@@ -1092,7 +1105,7 @@ async function viewHome(ctx) {
   if (!subs.length && !learned) return viewTrending(ctx, true);
 
   const showSubs = tab === 'subs' && subs.length;
-  const videos = showSubs ? await subscriptionFeed(subs) : await recommendations(subs, profile);
+  const videos = showSubs ? noShorts(await subscriptionFeed(subs)) : await recommendations(subs, profile);
   if (!ctx.alive()) return;
   feedIndex = new Map(videos.map(v => [v.id, v]));
   const note = showSubs ? 'Newest uploads from your subscriptions.'
@@ -1126,7 +1139,7 @@ async function subscriptionFeed(subs) {
   const recent = [];
   await pool(subs, 6, async sub => {
     try {
-      const data = await yt('playlistItems', { part: 'contentDetails', playlistId: 'UU' + sub.id.slice(2), maxResults: 6 });
+      const data = await yt('playlistItems', { part: 'contentDetails', playlistId: 'UU' + sub.id.slice(2), maxResults: 10 });
       for (const it of data.items || []) {
         recent.push({ id: it.contentDetails.videoId, at: it.contentDetails.videoPublishedAt || '' });
       }
@@ -1150,13 +1163,13 @@ async function viewTrending(ctx, isHome = false) {
     <button class="btn more" id="more" hidden>Load more</button>`;
   await mountPager(ctx, document.getElementById('grid'), document.getElementById('more'), async token => {
     const data = await yt('videos', {
-      part: 'snippet,statistics,contentDetails',
+      ...LIST_PARTS,
       chart: 'mostPopular',
       regionCode: region,
       maxResults: 24,
       pageToken: token,
     });
-    return { html: (data.items || []).map(toVideo).map(v => videoCard(v)).join(''), next: data.nextPageToken };
+    return { html: noShorts((data.items || []).map(toVideo)).map(v => videoCard(v)).join(''), next: data.nextPageToken };
   });
 }
 
@@ -1191,7 +1204,7 @@ async function viewSearch(ctx) {
       part: 'snippet', q, type, order, maxResults: 20, pageToken: token, regionCode: settings().region,
     });
     const items = data.items || [];
-    const videos = new Map((await hydrate(items.filter(i => i.id.videoId).map(i => i.id.videoId))).map(v => [v.id, v]));
+    const videos = new Map(noShorts(await hydrate(items.filter(i => i.id.videoId).map(i => i.id.videoId))).map(v => [v.id, v]));
     const html = items.map(item => {
       const sn = item.snippet;
       if (item.id.videoId) return videos.has(item.id.videoId) ? videoCard(videos.get(item.id.videoId)) : '';
@@ -1244,7 +1257,7 @@ async function viewWatch(ctx) {
     });
   }
 
-  const data = await yt('videos', { part: 'snippet,statistics,contentDetails', id });
+  const data = await yt('videos', { ...LIST_PARTS, id });
   if (!ctx.alive()) return;
   const item = data.items?.[0];
   if (!item) {
@@ -1555,8 +1568,8 @@ async function viewChannel(ctx, ref) {
     await mountPager(ctx, grid, more, async token => {
       const d = await yt('playlistItems', { part: 'contentDetails', playlistId: uploads, maxResults: 24, pageToken: token });
       const videos = await hydrate((d.items || []).map(i => i.contentDetails.videoId));
-      return { html: videos.map(v => videoCard(v)).join(''), next: d.nextPageToken };
-    }, 'This channel has no videos.');
+      return { html: noShorts(videos).map(v => videoCard(v)).join(''), next: d.nextPageToken };
+    }, settings().hideShorts ? 'No videos here (Shorts are hidden in Settings).' : 'This channel has no videos.');
   }
 }
 
@@ -1852,6 +1865,7 @@ function viewSettings() {
       </label>
       <label class="check"><input type="checkbox" id="autoplay"${s.autoplay ? ' checked' : ''}> Autoplay videos, and the next one in a playlist</label>
       <label class="check"><input type="checkbox" id="pause"${s.pauseHistory ? ' checked' : ''}> Pause watch history</label>
+      <label class="check"><input type="checkbox" id="hide-shorts"${s.hideShorts ? ' checked' : ''}> Hide Shorts everywhere (home, subscriptions, trending, search, channels)</label>
       <button class="btn primary" type="submit">Save</button>
       <span class="muted small" id="saved"></span>
     </form>
@@ -1903,6 +1917,7 @@ function viewSettings() {
       region: document.getElementById('region').value.trim().toUpperCase() || 'US',
       autoplay: document.getElementById('autoplay').checked,
       pauseHistory: document.getElementById('pause').checked,
+      hideShorts: document.getElementById('hide-shorts').checked,
     });
     store.del('feed');
     if (settings().clientId) loadGis().catch(() => {});
@@ -2028,5 +2043,12 @@ document.addEventListener('click', e => {
 window.addEventListener('hashchange', route);
 window.addEventListener('pagehide', () => player?._tubeTick?.());
 if (settings().clientId) loadGis().catch(() => {});
+// Cached feeds from before Shorts detection can't be filtered properly.
+if (store.get('cacheVersion') !== 2) {
+  clearRecoCache();
+  store.del('reco:neighbors');
+  store.del('reco:topics');
+  store.set('cacheVersion', 2);
+}
 renderAccount();
 route();
