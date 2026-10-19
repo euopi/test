@@ -593,7 +593,10 @@ function loadPlayerApi() {
     s.onerror = () => { ytApiPromise = null; reject(new Error('Could not load the YouTube player.')); };
     document.head.append(s);
   });
-  return ytApiPromise;
+  // iframe_api pulls in a second script; if that one is blocked, the ready
+  // callback never fires, so give up after a few seconds.
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000));
+  return Promise.race([ytApiPromise, timeout]);
 }
 
 const PLAYER_ERRORS = {
@@ -614,8 +617,9 @@ async function mountPlayer(ctx, id, { start = 0, onEnd } = {}) {
   let YT;
   try {
     YT = await loadPlayerApi();
-  } catch (err) {
-    if (ctx.alive()) el.outerHTML = `<div class="player-error">${esc(err.message)}</div>`;
+  } catch {
+    // Blockers often stop youtube.com/iframe_api but let the embed through.
+    if (ctx.alive()) mountBarePlayer(id, start, onEnd);
     return;
   }
   if (!ctx.alive()) return;
@@ -648,6 +652,75 @@ async function mountPlayer(ctx, id, { start = 0, onEnd } = {}) {
     const t = player?.getCurrentTime?.();
     if (t) saveProgress(id, t, player.getDuration?.());
   };
+  playerTimer = setInterval(tick, 5000);
+  player._tubeTick = tick;
+}
+
+// The embed without YouTube's helper script. It speaks the same postMessage
+// protocol the script uses, so seeking, resume tracking and autoplay-next
+// keep working; if the messages go unanswered, the video still plays.
+const EMBED_ORIGIN = 'https://www.youtube-nocookie.com';
+
+function mountBarePlayer(id, start, onEnd) {
+  const src = `${EMBED_ORIGIN}/embed/${encodeURIComponent(id)}?` + new URLSearchParams({
+    autoplay: settings().autoplay ? 1 : 0, start: Math.floor(start), rel: 0, playsinline: 1,
+    enablejsapi: 1, origin: location.origin,
+  });
+  const frame = Object.assign(document.createElement('iframe'), {
+    id: 'player', src, allowFullscreen: true, referrerPolicy: 'strict-origin-when-cross-origin',
+  });
+  frame.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+  document.getElementById('player').replaceWith(frame);
+
+  let currentTime = 0, duration = 0;
+  const send = msg => frame.contentWindow?.postMessage(JSON.stringify({ id: 1, channel: 'widget', ...msg }), EMBED_ORIGIN);
+  const onMessage = e => {
+    if (e.origin !== EMBED_ORIGIN || e.source !== frame.contentWindow) return;
+    let data;
+    try { data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch { return; }
+    const info = data?.info;
+    if (data?.event === 'onError') {
+      player?.onBareError?.(info);
+      return;
+    }
+    if (!info || typeof info !== 'object') {
+      if (data?.event === 'onStateChange' && info === 0) ended();
+      return;
+    }
+    if (typeof info.currentTime === 'number') currentTime = info.currentTime;
+    if (typeof info.duration === 'number' && info.duration) duration = info.duration;
+    if (info.playerState === 0) ended();
+  };
+  let didEnd = false;
+  const ended = () => {
+    if (didEnd) return;
+    didEnd = true;
+    saveProgress(id, Infinity, duration);
+    onEnd?.();
+  };
+  window.addEventListener('message', onMessage);
+  frame.addEventListener('load', () => {
+    // Keep knocking until the player inside the frame is ready to listen.
+    let tries = 0;
+    const knock = setInterval(() => {
+      send({ event: 'listening' });
+      if (++tries > 10 || duration) clearInterval(knock);
+    }, 500);
+  });
+
+  player = {
+    seekTo: t => { didEnd = false; send({ event: 'command', func: 'seekTo', args: [t, true] }); },
+    playVideo: () => send({ event: 'command', func: 'playVideo', args: [] }),
+    getCurrentTime: () => currentTime,
+    getDuration: () => duration,
+    destroy: () => window.removeEventListener('message', onMessage),
+    onBareError: code => {
+      const msg = PLAYER_ERRORS[code] || `Player error ${code}.`;
+      document.querySelector('.player-wrap')?.insertAdjacentHTML('beforeend', `<div class="player-error overlay">${esc(msg)}
+        <a href="https://www.youtube.com/watch?v=${encodeURIComponent(id)}" target="_blank" rel="noopener">Watch on YouTube</a></div>`);
+    },
+  };
+  const tick = () => { if (currentTime) saveProgress(id, currentTime, duration); };
   playerTimer = setInterval(tick, 5000);
   player._tubeTick = tick;
 }
