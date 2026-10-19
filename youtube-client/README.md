@@ -18,9 +18,15 @@ own API key and play videos through YouTube's embedded player.
   search box to jump straight to it
 - Keyboard: `/` focuses search
 
-Everything you save lives in this browser's localStorage. Nothing is sent
-anywhere except `googleapis.com` (metadata) and `youtube-nocookie.com` (the
-player).
+- Optional Google sign-in: your real subscriptions feed the home page, and
+  Subscribe, like/dislike, comments and Save to playlist act on your actual
+  account. Your playlists and Liked videos show up in Library.
+
+Watch later and history always stay in this browser's localStorage, signed in
+or not, because the API doesn't expose the real ones. Everything else you save
+without signing in lives there too. Nothing is sent
+anywhere except `googleapis.com` (metadata), `youtube-nocookie.com` (the
+player) and `accounts.google.com` (sign-in, if you use it).
 
 ## Hosted copy
 
@@ -51,6 +57,21 @@ The free quota is 10,000 units a day. Most calls cost 1 unit; a search costs
 100. The subscription feed costs roughly one unit per subscribed channel and is
 cached for 15 minutes.
 
+## Signing in (optional)
+
+In the same Cloud project:
+
+1. Google Auth Platform -> Get started. Audience: External, left in Testing,
+   with your own Gmail added as a test user.
+2. Clients -> Create client -> Web application. Authorized JavaScript origins:
+   `https://euopi.github.io` and/or `http://localhost:8000`.
+3. Paste the client ID into Settings and click Sign in.
+
+Google shows an "app isn't verified" warning, which is expected for a personal
+app in testing mode. Browser-only sign-ins last an hour; after that the app
+asks again with a quick popup. While signed in, requests use your sign-in
+instead of the API key, so the key is optional.
+
 ## Limits
 
 - Some uploaders disable embedding, and those videos won't play here. The
@@ -58,5 +79,5 @@ cached for 15 minutes.
 - Ads in the embedded player are YouTube's call, not this app's.
 - The Data API no longer offers "related videos", so there is no
   recommendations sidebar outside of playlists.
-- Subscriptions, watch later and history are local to this app and never touch your
-  Google account.
+- Watch later, history and YouTube's own recommendations can't be read by any
+  third-party app, so those stay local or absent even when signed in.

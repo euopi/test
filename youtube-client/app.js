@@ -1,8 +1,10 @@
 'use strict';
 
 // A YouTube client that runs entirely in the browser. Metadata comes from the
-// YouTube Data API v3 (your own key), playback from the embedded player, and
-// subscriptions/history/watch later live in localStorage.
+// YouTube Data API v3 (your own key, or a Google sign-in), playback from the
+// embedded player. Signed in, subscriptions, ratings, comments and playlists
+// act on your real account; watch later and history always live in
+// localStorage, since the API exposes neither.
 
 const API = 'https://www.googleapis.com/youtube/v3/';
 const $app = document.getElementById('app');
@@ -25,7 +27,7 @@ const store = {
   },
 };
 
-const DEFAULT_SETTINGS = { apiKey: '', region: 'US', autoplay: true, pauseHistory: false };
+const DEFAULT_SETTINGS = { apiKey: '', clientId: '', region: 'US', autoplay: true, pauseHistory: false };
 const settings = () => ({ ...DEFAULT_SETTINGS, ...store.get('settings', {}) });
 
 const getSubs = () => store.get('subs', []);
@@ -123,26 +125,235 @@ class ApiError extends Error {
   }
 }
 
-async function yt(endpoint, params) {
+function accessError() {
+  return isSignedIn()
+    ? new ApiError('Your Google sign-in expired (they last an hour).', 'authExpired', 401)
+    : new ApiError('No API key set.', 'noKey', 0);
+}
+
+// Reads use the sign-in token while it's valid and the API key otherwise.
+// auth: true means the call only makes sense for the signed-in account.
+async function yt(endpoint, params = {}, { method = 'GET', body, auth = false, keyOnly = false } = {}) {
+  const token = keyOnly ? null : validToken();
   const { apiKey } = settings();
-  if (!apiKey) throw new ApiError('No API key set.', 'noKey', 0);
+  if (auth && !token) throw isSignedIn() ? accessError() : new ApiError('Sign in to do that.', 'signedOut', 401);
+  if (!token && !apiKey) throw keyOnly ? new ApiError('No API key set.', 'noKey', 0) : accessError();
   const url = new URL(API + endpoint);
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
   }
-  url.searchParams.set('key', apiKey);
+  const headers = {};
+  if (token) headers.Authorization = 'Bearer ' + token;
+  else url.searchParams.set('key', apiKey);
+  if (body) headers['Content-Type'] = 'application/json';
   let res;
   try {
-    res = await fetch(url);
+    res = await fetch(url, { method, headers, body: body && JSON.stringify(body) });
   } catch {
     throw new ApiError('Network error reaching the YouTube API.', 'network', 0);
   }
+  if (res.status === 204) return {};
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401 && token) {
+      store.set('auth', { ...getAuth(), exp: 0 });
+      throw accessError();
+    }
     const e = data.error || {};
     throw new ApiError(e.message || res.statusText, e.errors?.[0]?.reason || '', res.status);
   }
   return data;
+}
+
+/* ---------- Google sign-in ---------- */
+
+// force-ssl covers reading the account plus subscribing, rating, commenting
+// and editing playlists.
+const SCOPE = 'https://www.googleapis.com/auth/youtube.force-ssl';
+let gisPromise = null;
+let tokenClient = null;
+let pendingAuth = null;
+
+const getAuth = () => store.get('auth', null);
+const isSignedIn = () => !!getAuth();
+const canSignIn = () => !!settings().clientId;
+const hasAccess = () => !!(settings().apiKey || validToken());
+
+function validToken() {
+  const a = getAuth();
+  return a?.token && a.exp - 60e3 > Date.now() ? a.token : null;
+}
+
+function loadGis() {
+  if (window.google?.accounts?.oauth2) return Promise.resolve();
+  gisPromise ||= new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.onload = resolve;
+    s.onerror = () => { gisPromise = null; reject(new Error('Could not load Google sign-in.')); };
+    document.head.append(s);
+  });
+  return gisPromise;
+}
+
+function settleAuth(fn) {
+  const p = pendingAuth;
+  pendingAuth = null;
+  if (p) fn(p);
+}
+
+function getTokenClient() {
+  const { clientId } = settings();
+  if (!clientId) throw new ApiError('Add an OAuth client ID in Settings to sign in.', 'noClientId', 0);
+  if (!window.google?.accounts?.oauth2) {
+    loadGis().catch(() => {});
+    throw new ApiError('Google sign-in is still loading. Try again in a second.', 'gisLoading', 0);
+  }
+  if (tokenClient?.clientId !== clientId) {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: SCOPE,
+      callback: resp => settleAuth(p => resp.error
+        ? p.reject(new ApiError(resp.error_description || resp.error, 'authFailed', 0))
+        : p.resolve(resp)),
+      error_callback: err => settleAuth(p => p.reject(new ApiError(
+        err.type === 'popup_closed' ? 'The sign-in window was closed.'
+          : err.type === 'popup_failed_to_open' ? 'Your browser blocked the sign-in popup.'
+          : err.message || 'Sign-in failed.', 'authFailed', 0))),
+    });
+    tokenClient = { clientId, client };
+  }
+  return tokenClient.client;
+}
+
+// Must start straight from a click (or submit) handler, before any await,
+// or the browser blocks Google's popup.
+async function signIn() {
+  const client = getTokenClient();
+  const prev = getAuth();
+  const resp = await new Promise((resolve, reject) => {
+    pendingAuth?.reject(new ApiError('Sign-in was restarted.', 'authFailed', 0));
+    pendingAuth = { resolve, reject };
+    client.requestAccessToken({ prompt: prev ? '' : 'consent' });
+  });
+  if (!google.accounts.oauth2.hasGrantedAllScopes(resp, SCOPE)) {
+    throw new ApiError('YouTube access wasn\'t granted. Tick the YouTube box on Google\'s consent screen.', 'authFailed', 0);
+  }
+  store.set('auth', { ...prev, token: resp.access_token, exp: Date.now() + resp.expires_in * 1000 });
+  let user = { id: '', name: 'Your account', thumb: '' };
+  try {
+    const c = (await yt('channels', { part: 'snippet', mine: true }, { auth: true })).items?.[0];
+    if (c) user = { id: c.id, name: c.snippet.title, thumb: bestThumb(c.snippet.thumbnails) };
+  } catch {}
+  if (prev?.user && prev.user.id !== user.id) store.del('feed');
+  store.set('auth', { ...getAuth(), user });
+  renderAccount();
+}
+
+function signOut() {
+  const token = getAuth()?.token;
+  if (token && window.google?.accounts?.oauth2) google.accounts.oauth2.revoke(token, () => {});
+  for (const k of ['auth', 'acctSubs', 'feed']) store.del(k);
+  renderAccount();
+}
+
+async function withAuth(fn) {
+  if (!validToken()) await signIn();
+  return fn();
+}
+
+// Click handler for an account action: signs in first if needed, and
+// reports failures instead of leaving the button stuck.
+const action = (btn, fn) => () => {
+  btn.disabled = true;
+  withAuth(fn).catch(err => toast(err.message)).finally(() => { btn.disabled = false; });
+};
+
+function renderAccount() {
+  const el = document.getElementById('account');
+  const user = getAuth()?.user;
+  if (user) {
+    el.innerHTML = `<a href="#/library" class="acct" title="${esc(user.name)}">${user.thumb
+      ? `<img class="avatar sm" src="${esc(user.thumb)}" alt="${esc(user.name)}">` : esc(user.name)}</a>`;
+  } else if (canSignIn()) {
+    el.innerHTML = '<button class="btn primary" data-signin>Sign in</button>';
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+function toast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = Object.assign(document.createElement('div'), { id: 'toast', className: 'toast', role: 'status' });
+    document.body.append(t);
+  }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// The signed-in account's subscriptions, cached for 6 hours. With an expired
+// token the cached copy is still good enough to build the feed.
+async function accountSubs() {
+  const user = getAuth()?.user?.id || '';
+  const cached = store.get('acctSubs');
+  if (cached?.user === user && (!validToken() || Date.now() - cached.at < 6 * 3600e3)) return cached.subs;
+  const subs = [];
+  let pageToken;
+  do {
+    const d = await yt('subscriptions', { part: 'snippet', mine: true, maxResults: 50, order: 'alphabetical', pageToken }, { auth: true });
+    for (const s of d.items || []) {
+      subs.push({ id: s.snippet.resourceId.channelId, title: s.snippet.title, thumb: bestThumb(s.snippet.thumbnails), subId: s.id });
+    }
+    pageToken = d.nextPageToken;
+  } while (pageToken);
+  store.set('acctSubs', { user, at: Date.now(), subs });
+  return subs;
+}
+
+function updateAccountSubs(fn) {
+  const c = store.get('acctSubs');
+  if (c) store.set('acctSubs', { ...c, subs: fn(c.subs) });
+  store.del('feed');
+}
+
+// Wires a Subscribe button. Signed in it acts on the real account, otherwise
+// on the local list. ch.thumb may be filled in after the call.
+function mountSubButton(btn, ch) {
+  const paint = on => {
+    btn.textContent = on ? 'Subscribed' : 'Subscribe';
+    btn.classList.toggle('primary', !on);
+  };
+  if (!isSignedIn()) {
+    paint(isSubbed(ch.id));
+    btn.onclick = () => paint(toggleSub(ch));
+    return;
+  }
+  let subId = store.get('acctSubs')?.subs.find(s => s.id === ch.id)?.subId || null;
+  paint(!!subId);
+  if (validToken()) {
+    yt('subscriptions', { part: 'id', mine: true, forChannelId: ch.id }, { auth: true })
+      .then(d => { subId = d.items?.[0]?.id || null; paint(!!subId); })
+      .catch(() => {});
+  }
+  btn.onclick = action(btn, async () => {
+    if (subId) {
+      await yt('subscriptions', { id: subId }, { method: 'DELETE', auth: true });
+      subId = null;
+      updateAccountSubs(subs => subs.filter(s => s.id !== ch.id));
+    } else {
+      const d = await yt('subscriptions', { part: 'snippet' }, {
+        method: 'POST', auth: true,
+        body: { snippet: { resourceId: { kind: 'youtube#channel', channelId: ch.id } } },
+      });
+      subId = d.id;
+      updateAccountSubs(subs => [...subs.filter(s => s.id !== ch.id), { id: ch.id, title: ch.title, thumb: ch.thumb, subId }]
+        .sort((a, b) => a.title.localeCompare(b.title)));
+    }
+    paint(!!subId);
+  });
 }
 
 function bestThumb(t = {}) {
@@ -269,7 +480,12 @@ function errorBox(err) {
     return notice(`<h2>Add an API key to get started</h2>
       <p>This client reads YouTube through the official Data API, which needs a free key from Google.
       It takes about two minutes to set up.</p>
-      <p><a class="btn primary" href="#/settings">Open settings</a></p>`);
+      <p><a class="btn primary" href="#/settings">Open settings</a>
+      ${canSignIn() ? ' <button class="btn" data-signin>Or sign in with Google</button>' : ''}</p>`);
+  }
+  if (err.reason === 'authExpired' || err.reason === 'signedOut') {
+    return notice(`<h2>${err.reason === 'authExpired' ? 'Sign in again' : 'Sign in'}</h2><p>${esc(err.message)}</p>
+      <p><button class="btn primary" data-signin>Sign in with Google</button></p>`);
   }
   const hints = {
     quotaExceeded: 'Your key has used its daily quota (10,000 units). It resets at midnight Pacific time. Searches cost 100 units each, so they burn through it fastest.',
@@ -342,7 +558,7 @@ function mountPager(ctx, grid, more, loadPage, emptyText = 'Nothing here yet.') 
       grid.insertAdjacentHTML('beforeend', html);
       token = next;
       more.hidden = !next;
-      if (!grid.children.length) grid.outerHTML = `<p class="muted empty">${esc(emptyText)}</p>`;
+      if (!grid.children.length) grid.insertAdjacentHTML('afterend', `<p class="muted empty">${esc(emptyText)}</p>`);
     } catch (err) {
       if (!ctx.alive()) return;
       more.hidden = true;
@@ -447,9 +663,11 @@ function teardownPlayer() {
 /* ---------- views ---------- */
 
 async function viewHome(ctx) {
-  if (!getSubs().length) return viewTrending(ctx, true);
   $app.innerHTML = `<div class="head"><h1>Subscriptions</h1></div>${spinner()}`;
-  const videos = await subscriptionFeed();
+  const subs = isSignedIn() ? await accountSubs() : getSubs();
+  if (!ctx.alive()) return;
+  if (!subs.length) return viewTrending(ctx, true);
+  const videos = await subscriptionFeed(subs);
   if (!ctx.alive()) return;
   $app.innerHTML = `<div class="head">
       <h1>Subscriptions</h1>
@@ -459,14 +677,15 @@ async function viewHome(ctx) {
       : '<p class="muted empty">No recent uploads from your subscriptions.</p>'}`;
   document.getElementById('refresh').onclick = () => {
     store.del('feed');
+    const c = store.get('acctSubs');
+    if (c && validToken()) store.set('acctSubs', { ...c, at: 0 });
     route();
   };
 }
 
 // Newest uploads across all subscriptions. Each channel's "uploads" playlist
 // is UU + the channel ID minus its UC prefix, and costs 1 quota unit to read.
-async function subscriptionFeed() {
-  const subs = getSubs();
+async function subscriptionFeed(subs) {
   const key = subs.map(s => s.id).sort().join(',');
   const cached = store.get('feed');
   if (cached && cached.key === key && Date.now() - cached.at < 15 * 60e3) return cached.videos;
@@ -580,8 +799,8 @@ async function viewWatch(ctx) {
   });
 
   const info = document.getElementById('info');
-  if (!settings().apiKey) {
-    info.innerHTML = errorBox(new ApiError('', 'noKey'));
+  if (!hasAccess()) {
+    info.innerHTML = errorBox(accessError());
     return;
   }
 
@@ -604,7 +823,8 @@ async function viewWatch(ctx) {
   document.title = `${v.title} · Tube`;
 
   const stats = [fmtCount(v.views) + ' views', new Date(v.publishedAt).toLocaleDateString(undefined, { dateStyle: 'medium' })];
-  if (v.likes != null) stats.push(fmtCount(v.likes) + ' likes');
+  const account = isSignedIn() || canSignIn();
+  if (v.likes != null && !account) stats.push(fmtCount(v.likes) + ' likes');
 
   info.innerHTML = `
     <h1 class="video-title">${esc(v.title)}</h1>
@@ -613,8 +833,16 @@ async function viewWatch(ctx) {
         <img class="avatar" id="ch-avatar" alt="">
         <span><strong>${esc(v.channelTitle)}</strong><span class="muted small" id="ch-subs"></span></span>
       </a>
-      <button class="btn ${isSubbed(v.channelId) ? '' : 'primary'}" id="sub">${isSubbed(v.channelId) ? 'Subscribed' : 'Subscribe'}</button>
+      <button class="btn" id="sub">Subscribe</button>
       <span class="spacer"></span>
+      ${account ? `<span class="rate">
+        <button class="btn" id="like" aria-label="Like">▲ <span id="like-count">${v.likes != null ? fmtCount(v.likes) : ''}</span></button>
+        <button class="btn" id="dislike" aria-label="Dislike">▼</button>
+      </span>
+      <span class="pop-wrap">
+        <button class="btn" id="save">Save</button>
+        <div class="popover" id="save-pop" hidden></div>
+      </span>` : ''}
       <button class="btn" id="later">${isLater(v.id) ? 'Saved' : 'Watch later'}</button>
       <button class="btn" id="share">Copy link</button>
       <a class="btn" href="https://www.youtube.com/watch?v=${encodeURIComponent(v.id)}" target="_blank" rel="noopener">YouTube ↗</a>
@@ -635,22 +863,21 @@ async function viewWatch(ctx) {
     toggle.textContent = desc.classList.toggle('collapsed') ? 'Show more' : 'Show less';
   };
 
-  let channelThumb = '';
+  const chInfo = { id: v.channelId, title: v.channelTitle, thumb: '' };
   getChannel(v.channelId).then(ch => {
     if (!ch || !ctx.alive()) return;
-    channelThumb = bestThumb(ch.snippet.thumbnails);
-    document.getElementById('ch-avatar').src = channelThumb;
+    chInfo.thumb = bestThumb(ch.snippet.thumbnails);
+    document.getElementById('ch-avatar').src = chInfo.thumb;
     if (!ch.statistics.hiddenSubscriberCount) {
       document.getElementById('ch-subs').textContent = fmtCount(ch.statistics.subscriberCount) + ' subscribers';
     }
   }).catch(() => {});
 
-  const subBtn = document.getElementById('sub');
-  subBtn.onclick = () => {
-    const on = toggleSub({ id: v.channelId, title: v.channelTitle, thumb: channelThumb });
-    subBtn.textContent = on ? 'Subscribed' : 'Subscribe';
-    subBtn.classList.toggle('primary', !on);
-  };
+  mountSubButton(document.getElementById('sub'), chInfo);
+  if (account) {
+    mountRating(v);
+    mountSaveMenu(v);
+  }
   const laterBtn = document.getElementById('later');
   laterBtn.onclick = () => { laterBtn.textContent = toggleLater(v) ? 'Saved' : 'Watch later'; };
   document.getElementById('share').onclick = async e => {
@@ -661,6 +888,75 @@ async function viewWatch(ctx) {
   };
 
   loadComments(ctx, v);
+}
+
+function mountRating(v) {
+  const likeBtn = document.getElementById('like');
+  const dislikeBtn = document.getElementById('dislike');
+  const baseLikes = +v.likes || 0;
+  let initial = 'none';
+  let rating = 'none';
+  const paint = () => {
+    likeBtn.classList.toggle('on', rating === 'like');
+    dislikeBtn.classList.toggle('on', rating === 'dislike');
+    if (v.likes != null) {
+      const n = baseLikes - (initial === 'like' ? 1 : 0) + (rating === 'like' ? 1 : 0);
+      document.getElementById('like-count').textContent = fmtCount(n);
+    }
+  };
+  if (validToken()) {
+    yt('videos/getRating', { id: v.id }, { auth: true }).then(d => {
+      initial = rating = d.items?.[0]?.rating || 'none';
+      paint();
+    }).catch(() => {});
+  }
+  const rate = target => async () => {
+    const next = rating === target ? 'none' : target;
+    await yt('videos/rate', { id: v.id, rating: next }, { method: 'POST', auth: true });
+    rating = next;
+    paint();
+  };
+  likeBtn.onclick = action(likeBtn, rate('like'));
+  dislikeBtn.onclick = action(dislikeBtn, rate('dislike'));
+}
+
+function mountSaveMenu(v) {
+  const btn = document.getElementById('save');
+  const pop = document.getElementById('save-pop');
+  const add = async (playlistId, el) => {
+    await yt('playlistItems', { part: 'snippet' }, {
+      method: 'POST', auth: true,
+      body: { snippet: { playlistId, resourceId: { kind: 'youtube#video', videoId: v.id } } },
+    });
+    el.classList.add('done');
+    toast('Saved to ' + el.dataset.title);
+  };
+  btn.onclick = action(btn, async () => {
+    if (!pop.hidden) { pop.hidden = true; return; }
+    pop.hidden = false;
+    pop.innerHTML = spinner();
+    const d = await yt('playlists', { part: 'snippet', mine: true, maxResults: 50 }, { auth: true });
+    pop.innerHTML = `<div class="pop-title">Save to playlist</div>
+      ${(d.items || []).map(p => `<button class="pop-item" data-pl="${esc(p.id)}" data-title="${esc(p.snippet.title)}">${esc(p.snippet.title)}</button>`).join('')}
+      <form class="pop-new"><input placeholder="New private playlist" required maxlength="150"><button class="btn">Create</button></form>`;
+    pop.querySelectorAll('[data-pl]').forEach(el => { el.onclick = action(el, () => add(el.dataset.pl, el)); });
+    const form = pop.querySelector('form');
+    form.onsubmit = e => {
+      e.preventDefault();
+      const title = form.querySelector('input').value.trim();
+      action(form.querySelector('button'), async () => {
+        const p = await yt('playlists', { part: 'snippet,status' }, {
+          method: 'POST', auth: true,
+          body: { snippet: { title }, status: { privacyStatus: 'private' } },
+        });
+        form.insertAdjacentHTML('beforebegin', `<button class="pop-item" data-pl="${esc(p.id)}" data-title="${esc(title)}">${esc(title)}</button>`);
+        const el = form.previousElementSibling;
+        el.onclick = action(el, () => add(p.id, el));
+        form.reset();
+        await add(p.id, el);
+      })();
+    };
+  });
 }
 
 // Sidebar for watching inside a playlist. Resolves to the next video's route.
@@ -677,7 +973,7 @@ async function renderQueue(ctx, list, currentId) {
     .map(it => ({ id: it.snippet.resourceId.videoId, title: it.snippet.title, thumb: bestThumb(it.snippet.thumbnails),
       channel: it.snippet.videoOwnerChannelTitle || '' }));
   const idx = entries.findIndex(e => e.id === currentId);
-  const title = meta.items?.[0]?.snippet.title || 'Playlist';
+  const title = meta.items?.[0]?.snippet.title || (list === 'LL' ? 'Liked videos' : 'Playlist');
   box.innerHTML = `<div class="queue-head">
       <a href="#/playlist/${encodeURIComponent(list)}"><strong>${esc(title)}</strong></a>
       <span class="muted small">${idx >= 0 ? idx + 1 : '–'} / ${entries.length}</span>
@@ -711,10 +1007,32 @@ function loadComments(ctx, v, order = 'relevance') {
       <h2>${v.comments != null ? fmtCount(v.comments) + ' ' : ''}Comments</h2>
       <select id="c-order"><option value="relevance">Top</option><option value="time"${order === 'time' ? ' selected' : ''}>Newest</option></select>
     </div>
+    ${isSignedIn() || canSignIn() ? `<form class="comment-form" id="c-form">
+      <textarea id="c-text" rows="2" placeholder="Add a comment…" required maxlength="10000"></textarea>
+      <button class="btn primary">Comment</button>
+    </form>` : ''}
     <div id="c-list"></div>
     <button class="btn more" id="c-more" hidden>Load more</button>`;
   document.getElementById('c-order').onchange = e => loadComments(ctx, v, e.target.value);
   const listEl = document.getElementById('c-list');
+
+  const form = document.getElementById('c-form');
+  if (form) {
+    form.onsubmit = e => {
+      e.preventDefault();
+      const text = document.getElementById('c-text').value.trim();
+      if (!text) return;
+      action(form.querySelector('button'), async () => {
+        const d = await yt('commentThreads', { part: 'snippet' }, {
+          method: 'POST', auth: true,
+          body: { snippet: { videoId: v.id, topLevelComment: { snippet: { textOriginal: text } } } },
+        });
+        box.querySelector('.empty')?.remove();
+        listEl.insertAdjacentHTML('afterbegin', commentHtml(d.snippet.topLevelComment));
+        form.reset();
+      })();
+    };
+  }
 
   listEl.addEventListener('toggle', async e => {
     const d = e.target;
@@ -772,7 +1090,7 @@ async function viewChannel(ctx, ref) {
         <div class="muted small">${facts.map(esc).join(' · ')}</div>
         ${sn.description ? `<p class="channel-desc small">${richText(sn.description)}</p>` : ''}
       </div>
-      <button class="btn ${isSubbed(ch.id) ? '' : 'primary'}" id="sub">${isSubbed(ch.id) ? 'Subscribed' : 'Subscribe'}</button>
+      <button class="btn" id="sub">Subscribe</button>
     </div>
     <nav class="tabs">
       <a href="${base}" class="${tab === 'videos' ? 'active' : ''}">Videos</a>
@@ -781,12 +1099,7 @@ async function viewChannel(ctx, ref) {
     <div class="grid" id="grid"></div>
     <button class="btn more" id="more" hidden>Load more</button>`;
 
-  const subBtn = document.getElementById('sub');
-  subBtn.onclick = () => {
-    const on = toggleSub({ id: ch.id, title: sn.title, thumb });
-    subBtn.textContent = on ? 'Subscribed' : 'Subscribe';
-    subBtn.classList.toggle('primary', !on);
-  };
+  mountSubButton(document.getElementById('sub'), { id: ch.id, title: sn.title, thumb });
 
   const grid = document.getElementById('grid'), more = document.getElementById('more');
   if (tab === 'playlists') {
@@ -814,7 +1127,12 @@ async function viewPlaylist(ctx, id) {
   $app.innerHTML = spinner();
   const data = await yt('playlists', { part: 'snippet,contentDetails', id });
   if (!ctx.alive()) return;
-  const p = data.items?.[0];
+  const user = getAuth()?.user;
+  // The liked-videos playlist can be read but has no playlist record of its own.
+  const p = data.items?.[0] || (id === 'LL' && user ? {
+    snippet: { title: 'Liked videos', channelId: user.id, channelTitle: user.name },
+    contentDetails: { itemCount: '' },
+  } : null);
   if (!p) {
     $app.innerHTML = notice('<p>Playlist not found, or it\'s private.</p>');
     return;
@@ -824,7 +1142,7 @@ async function viewPlaylist(ctx, id) {
       <div>
         <h1>${esc(p.snippet.title)}</h1>
         <div class="muted small"><a href="#/channel/${encodeURIComponent(p.snippet.channelId)}">${esc(p.snippet.channelTitle)}</a>
-          · ${esc(p.contentDetails.itemCount)} videos</div>
+          ${p.contentDetails.itemCount !== '' ? `· ${esc(p.contentDetails.itemCount)} videos` : ''}</div>
       </div>
       <a class="btn primary" id="play-all" hidden>Play all</a>
     </div>
@@ -843,26 +1161,54 @@ async function viewPlaylist(ctx, id) {
   }, 'This playlist is empty.');
 }
 
-function viewLibrary() {
-  const subs = getSubs(), later = getLater(), history = getHistory(), s = settings();
+const subChips = (subs, attr) => `<div class="chips">${subs.map(c => `<span class="chip">
+    <a href="#/channel/${encodeURIComponent(c.id)}">${c.thumb ? `<img class="avatar sm" src="${esc(c.thumb)}" alt="">` : ''}${esc(c.title)}</a>
+    <button class="link" ${attr}="${esc(c.subId || c.id)}" data-channel="${esc(c.id)}" aria-label="Unsubscribe from ${esc(c.title)}">×</button>
+  </span>`).join('')}</div>`;
+
+async function viewLibrary(ctx) {
+  const later = getLater(), history = getHistory(), s = settings();
+  const auth = getAuth();
   document.title = 'Library · Tube';
-  $app.innerHTML = `
-    <section class="lib-section">
-      <div class="head">
-        <h1>Subscriptions <span class="muted">${subs.length}</span></h1>
-        <div class="filters">
-          <label class="btn">Import from Google Takeout<input type="file" id="takeout" accept=".csv,text/csv" hidden></label>
+
+  const localSubs = getSubs();
+  const subsSection = auth
+    ? `<section class="lib-section">
+        <div class="account-head">
+          ${auth.user?.thumb ? `<img class="avatar-xl" src="${esc(auth.user.thumb)}" alt="">` : ''}
+          <div><h1>${esc(auth.user?.name || 'Your account')}</h1>
+            <div class="muted small">Signed in with Google${validToken() ? '' : ' (session expired)'}</div></div>
+          <span class="spacer"></span>
+          ${validToken() ? '' : '<button class="btn primary" data-signin>Sign in again</button>'}
+          <button class="btn" id="signout">Sign out</button>
         </div>
-      </div>
-      ${subs.length ? `<div class="chips">${subs.map(c => `<span class="chip">
-          <a href="#/channel/${encodeURIComponent(c.id)}">${c.thumb ? `<img class="avatar sm" src="${esc(c.thumb)}" alt="">` : ''}${esc(c.title)}</a>
-          <button class="link" data-unsub="${esc(c.id)}" aria-label="Unsubscribe from ${esc(c.title)}">×</button>
-        </span>`).join('')}</div>`
-        : `<p class="muted">No subscriptions yet. Hit Subscribe on any channel, or import your real ones:
-           export "YouTube and YouTube Music → subscriptions" from <a href="https://takeout.google.com" target="_blank" rel="noopener">Google Takeout</a>
-           and pick the <code>subscriptions.csv</code> file.</p>`}
-      <p class="muted small" id="import-status"></p>
-    </section>
+      </section>
+      <section class="lib-section">
+        <div class="head"><h2>Subscriptions <span class="muted" id="sub-count"></span></h2></div>
+        <div id="acct-subs">${spinner()}</div>
+      </section>
+      <section class="lib-section">
+        <div class="head"><h2>Your playlists</h2></div>
+        <div class="grid" id="my-lists">${playlistCard({ id: 'LL', title: 'Liked videos', thumb: '', channelId: auth.user?.id || '', channelTitle: auth.user?.name || '' })}</div>
+        <button class="btn more" id="my-lists-more" hidden>Load more</button>
+      </section>`
+    : `<section class="lib-section">
+        <div class="head">
+          <h1>Subscriptions <span class="muted">${localSubs.length}</span></h1>
+          <div class="filters">
+            ${canSignIn() ? '<button class="btn primary" data-signin>Sign in with Google</button>' : ''}
+            <label class="btn">Import from Google Takeout<input type="file" id="takeout" accept=".csv,text/csv" hidden></label>
+          </div>
+        </div>
+        ${localSubs.length ? subChips(localSubs, 'data-unsub')
+          : `<p class="muted">No subscriptions yet. Hit Subscribe on any channel, sign in to use your real ones,
+             or import them: export "YouTube and YouTube Music → subscriptions" from
+             <a href="https://takeout.google.com" target="_blank" rel="noopener">Google Takeout</a>
+             and pick the <code>subscriptions.csv</code> file.</p>`}
+        <p class="muted small" id="import-status"></p>
+      </section>`;
+
+  $app.innerHTML = `${subsSection}
 
     <section class="lib-section">
       <div class="head"><h2>Watch later <span class="muted">${later.length}</span></h2></div>
@@ -882,7 +1228,8 @@ function viewLibrary() {
 
     <section class="lib-section">
       <div class="head"><h2>Backup</h2></div>
-      <p class="muted small">Everything here lives only in this browser. Export it to move it somewhere else (your API key is left out).</p>
+      <p class="muted small">Watch later, history and local subscriptions live only in this browser. Export them to move them somewhere else
+        (your API key and sign-in are left out).</p>
       <div class="filters">
         <button class="btn" id="export">Export</button>
         <label class="btn">Import<input type="file" id="import" accept=".json,application/json" hidden></label>
@@ -897,7 +1244,8 @@ function viewLibrary() {
   document.getElementById('clear-history').onclick = () => {
     if (confirm('Clear your whole watch history?')) { store.set('history', []); route(); }
   };
-  document.getElementById('takeout').onchange = e => importTakeout(e.target.files[0]);
+  const takeout = document.getElementById('takeout');
+  if (takeout) takeout.onchange = e => importTakeout(e.target.files[0]);
   document.getElementById('export').onclick = () => {
     const blob = new Blob([JSON.stringify({ subs: getSubs(), later: getLater(), history: getHistory() }, null, 2)], { type: 'application/json' });
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'tube-backup.json' });
@@ -913,6 +1261,36 @@ function viewLibrary() {
       alert('That file isn\'t a Tube backup.');
     }
   };
+
+  if (!auth) return;
+  document.getElementById('signout').onclick = () => { signOut(); route(); };
+
+  const subsBox = document.getElementById('acct-subs');
+  accountSubs().then(subs => {
+    if (!ctx.alive()) return;
+    document.getElementById('sub-count').textContent = subs.length;
+    subsBox.innerHTML = subs.length ? subChips(subs, 'data-unsub-api') : '<p class="muted">You aren\'t subscribed to anything yet.</p>';
+    subsBox.querySelectorAll('[data-unsub-api]').forEach(b => {
+      b.onclick = action(b, async () => {
+        await yt('subscriptions', { id: b.dataset.unsubApi }, { method: 'DELETE', auth: true });
+        updateAccountSubs(list => list.filter(c => c.id !== b.dataset.channel));
+        b.closest('.chip').remove();
+      });
+    });
+  }).catch(err => { if (ctx.alive()) subsBox.innerHTML = errorBox(err); });
+
+  if (validToken()) {
+    mountPager(ctx, document.getElementById('my-lists'), document.getElementById('my-lists-more'), async token => {
+      const d = await yt('playlists', { part: 'snippet,contentDetails', mine: true, maxResults: 24, pageToken: token }, { auth: true });
+      return {
+        html: (d.items || []).map(p => playlistCard({
+          id: p.id, title: p.snippet.title, thumb: bestThumb(p.snippet.thumbnails),
+          channelId: p.snippet.channelId, channelTitle: p.snippet.channelTitle, count: p.contentDetails.itemCount,
+        })).join(''),
+        next: d.nextPageToken,
+      };
+    });
+  }
 }
 
 async function importTakeout(file) {
@@ -959,6 +1337,9 @@ function viewSettings() {
         </span>
       </label>
       <p class="small" id="key-status"></p>
+      <label>Google OAuth client ID (optional, for signing in)
+        <input id="client-id" value="${esc(s.clientId)}" placeholder="1234…apps.googleusercontent.com" autocomplete="off" spellcheck="false">
+      </label>
       <label>Region for Trending (two-letter country code)
         <input id="region" value="${esc(s.region)}" maxlength="2" pattern="[A-Za-z]{2}" required>
       </label>
@@ -978,7 +1359,24 @@ function viewSettings() {
       <li>Paste it above. It stays in this browser's localStorage and is only ever sent to googleapis.com.</li>
     </ol>
     <p class="muted small">The free quota is 10,000 units a day. Most things cost 1 unit; a search costs 100, so roughly 100 searches a day
-      plus plenty of browsing. Nothing here signs in to your Google account, so your real YouTube subscriptions and history are untouched.</p>
+      plus plenty of browsing. Subscribing, rating, commenting and saving to a playlist cost 50 each.</p>
+
+    <h2>Signing in with Google</h2>
+    <p class="small">Optional. Signed in, your home feed comes from your real subscriptions, and Subscribe, like/dislike, comments and
+      Save act on your actual YouTube account. Watch later and history stay local: Google doesn't let any app read the real ones.</p>
+    <ol class="steps">
+      <li>In the same Cloud project, open <a href="https://console.cloud.google.com/auth/overview" target="_blank" rel="noopener">Google Auth Platform</a>
+        and click Get started. Any app name works; pick <strong>External</strong> as the audience.</li>
+      <li>Under <a href="https://console.cloud.google.com/auth/audience" target="_blank" rel="noopener">Audience</a>, leave it in
+        <strong>Testing</strong> and add your own Gmail address as a test user.</li>
+      <li>Under <a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener">Clients</a>, create a client of type
+        <strong>Web application</strong>. Add <code>${esc(location.origin)}</code> under "Authorized JavaScript origins"
+        (plus <code>http://localhost:8000</code> if you also run it locally). No redirect URIs needed.</li>
+      <li>Paste the client ID above, save, and hit Sign in at the top.</li>
+    </ol>
+    <p class="muted small">Google will warn that the app isn't verified. That's expected for a personal app in testing mode; click
+      Continue. Sign-ins last an hour, after which the app asks again with a quick popup.</p>
+    ${isSignedIn() ? '<p><button class="btn" id="signout">Sign out</button></p>' : ''}
 
     <h2>Data</h2>
     <button class="btn danger" id="wipe">Erase everything stored by this app</button>
@@ -994,17 +1392,21 @@ function viewSettings() {
     store.set('settings', {
       ...settings(),
       apiKey: keyInput.value.trim(),
+      clientId: document.getElementById('client-id').value.trim(),
       region: document.getElementById('region').value.trim().toUpperCase() || 'US',
       autoplay: document.getElementById('autoplay').checked,
       pauseHistory: document.getElementById('pause').checked,
     });
     store.del('feed');
+    if (settings().clientId) loadGis().catch(() => {});
+    renderAccount();
   };
+  document.getElementById('signout')?.addEventListener('click', () => { signOut(); route(); });
   document.getElementById('test-key').onclick = async () => {
     save();
     keyStatus.textContent = 'Testing…';
     try {
-      await yt('videos', { part: 'id', chart: 'mostPopular', maxResults: 1, regionCode: settings().region });
+      await yt('videos', { part: 'id', chart: 'mostPopular', maxResults: 1, regionCode: settings().region }, { keyOnly: true });
       keyStatus.textContent = 'The key works.';
       keyStatus.className = 'small ok';
     } catch (err) {
@@ -1020,8 +1422,10 @@ function viewSettings() {
     setTimeout(() => { saved.textContent = ''; }, 2000);
   };
   document.getElementById('wipe').onclick = () => {
-    if (!confirm('Erase your API key, subscriptions, watch later list and history from this browser?')) return;
+    if (!confirm('Erase your API key, sign-in, subscriptions, watch later list and history from this browser?')) return;
+    signOut();
     for (const k of ['settings', 'subs', 'later', 'history', 'feed']) store.del(k);
+    renderAccount();
     route();
   };
 }
@@ -1097,6 +1501,14 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// Any "Sign in" button anywhere. signIn() must run inside the click itself.
+document.addEventListener('click', e => {
+  if (!e.target.closest('[data-signin]')) return;
+  signIn().then(route).catch(err => toast(err.message));
+});
+
 window.addEventListener('hashchange', route);
 window.addEventListener('pagehide', () => player?._tubeTick?.());
+if (settings().clientId) loadGis().catch(() => {});
+renderAccount();
 route();
