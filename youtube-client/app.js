@@ -2269,13 +2269,26 @@ function viewSettings() {
       keyStatus.className = 'small bad';
     }
   };
-  document.getElementById('settings-form').onsubmit = e => {
+  const form = document.getElementById('settings-form');
+  const saved = () => {
+    const el = document.getElementById('saved');
+    el.textContent = 'Saved.';
+    clearTimeout(saved.timer);
+    saved.timer = setTimeout(() => { el.textContent = ''; }, 2000);
+  };
+  form.onsubmit = e => {
     e.preventDefault();
     save();
-    const saved = document.getElementById('saved');
-    saved.textContent = 'Saved.';
-    setTimeout(() => { saved.textContent = ''; }, 2000);
+    saved();
   };
+  // Toggles and the slider take effect immediately; text fields save with
+  // the button (or Enter).
+  form.addEventListener('change', e => {
+    if (!e.target.matches('input[type=checkbox], input[type=range]')) return;
+    save();
+    saved();
+    toast('Saved.');
+  });
   document.getElementById('wipe').onclick = () => {
     if (!confirm('Erase your API key, sign-in, subscriptions, watch later list and history from this browser?')) return;
     signOut();
