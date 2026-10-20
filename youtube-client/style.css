@@ -304,6 +304,7 @@ select, .settings input:not([type=checkbox]) {
 @media (hover: none) { .dismiss { opacity: .75; } }
 
 .head .tabs.inline { margin: 0; border: 0; }
+.center { text-align: center; }
 .meta .why { color: var(--muted); font-size: .8rem; font-style: italic; }
 .range-row { display: flex; align-items: center; gap: 10px; max-width: 360px; }
 .range-row input { flex: 1; accent-color: var(--accent); }

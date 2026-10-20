@@ -27,7 +27,7 @@ const store = {
   },
 };
 
-const DEFAULT_SETTINGS = { apiKey: '', clientId: '', region: 'US', autoplay: true, pauseHistory: false, hideShorts: true, explore: 50 };
+const DEFAULT_SETTINGS = { apiKey: '', clientId: '', region: 'US', autoplay: true, pauseHistory: false, hideShorts: true, explore: 50, smartMatch: true };
 const settings = () => ({ ...DEFAULT_SETTINGS, ...store.get('settings', {}) });
 
 const getSubs = () => store.get('subs', []);
@@ -595,9 +595,10 @@ const isFamiliar = (v, p, subIds) => subIds.has(v.channelId) || (p.channels[v.ch
 
 // Topic match counts for more than channel loyalty, so a strong match from a
 // new channel can beat a so-so upload from one you watch.
-function scoreVideo(v, p, subIds, day, match) {
+function scoreVideo(v, p, subIds, day, match, meaning) {
   const ageDays = Math.max(0, (Date.now() - Date.parse(v.publishedAt)) / DAY) || 0;
-  return 0.6 * comp(p.channels[v.channelId] || 0)
+  return (meaning == null ? 0 : 5 * (meaning - 0.2))
+    + 0.6 * comp(p.channels[v.channelId] || 0)
     + 0.4 * comp(p.categories[v.categoryId] || 0)
     + 1.2 * match.score
     + (subIds.has(v.channelId) ? 0.4 : 0)
@@ -606,9 +607,10 @@ function scoreVideo(v, p, subIds, day, match) {
     + 0.25 * (hashUnit(v.id + day) - 0.5); // a little daily shuffle
 }
 
-function whyFor(v, familiar, subIds) {
+function whyFor(v, familiar, subIds, byMeaning) {
   if (subIds.has(v.channelId)) return '';
   if (familiar) return 'From a channel you watch';
+  if (byMeaning) return 'Similar to videos you\'ve watched';
   return v.why || '';
 }
 
@@ -625,7 +627,7 @@ function recordImpressions(videos, day) {
 
 // Best scores first, with no channel hogging the feed and a share of slots
 // (the "familiar vs. new" setting) kept for channels you don't already watch.
-function rankFeed(candidates, p, subIds) {
+function rankFeed(candidates, p, subIds, meaning = null) {
   const hidden = new Set(store.get('reco:hidden', []));
   const watched = new Map(getHistory().map(h => [h.id, h]));
   const seen = store.get('reco:seen', {});
@@ -641,10 +643,15 @@ function rankFeed(candidates, p, subIds) {
     if ((seen[v.id]?.days || 0) >= 4) continue;
     const familiar = isFamiliar(v, p, subIds);
     const match = topicMatch(v, p);
-    // A channel you don't know has to be clearly on-topic to get in. This is
-    // what keeps random chart videos out.
-    if (learned && !familiar && match.matched < 2 && !(match.matched === 1 && (p.categories[v.categoryId] || 0) > 1)) continue;
-    byId.set(v.id, { v, familiar, score: scoreVideo(v, p, subIds, day, match) });
+    const sem = meaning?.get(v.id) ?? null;
+    // A channel you don't know has to be clearly on-topic to get in, by
+    // shared topics or by meaning. This is what keeps random chart videos
+    // out. With smart matching on, a keyword hit that means something else
+    // ("build" a PC vs. "build" in Minecraft) is turned away too.
+    const byWords = match.matched >= 2 || (match.matched === 1 && (p.categories[v.categoryId] || 0) > 1);
+    const byMeaning = sem != null && sem >= 0.27;
+    if (learned && !familiar && !(byWords && (sem == null || sem >= 0.13)) && !byMeaning) continue;
+    byId.set(v.id, { v, familiar, byMeaning: byMeaning && !byWords, score: scoreVideo(v, p, subIds, day, match, sem) });
   }
   const items = [...byId.values()];
   const perChannel = new Map();
@@ -665,7 +672,7 @@ function rankFeed(candidates, p, subIds) {
     if (i < 0) i = pick(() => true);
     const [it] = items.splice(i, 1);
     perChannel.set(it.v.channelId, (perChannel.get(it.v.channelId) || 0) + 1);
-    out.push({ ...it.v, why: whyFor(it.v, it.familiar, subIds) });
+    out.push({ ...it.v, why: whyFor(it.v, it.familiar, subIds, it.byMeaning) });
   }
   recordImpressions(out.slice(0, 24), day);
   return out;
@@ -686,7 +693,7 @@ async function cachedSource(name, ttl, fetcher) {
 
 function clearRecoCache({ all = false } = {}) {
   for (const k of ['channels', 'categories', 'trending']) store.del('reco:' + k);
-  if (all) for (const k of ['neighbors', 'topics', 'searched', 'hidden', 'seen']) store.del('reco:' + k);
+  if (all) for (const k of ['neighbors', 'topics', 'searched', 'hidden', 'seen', 'dismissed']) store.del('reco:' + k);
   store.del('feed');
 }
 
@@ -789,7 +796,7 @@ async function topicSearches(p) {
   return (await hydrate([...reason.keys()])).map(v => ({ ...v, why: `Related to "${reason.get(v.id)}"` }));
 }
 
-async function recommendations(subs, p) {
+async function recommendations(subs, p, onStatus) {
   const subIds = new Set(subs.map(s => s.id));
   const learned = hasProfile(p);
   const topChannels = topEntries(p.channels, 30).filter(([, w]) => w > 0).map(([id]) => id);
@@ -811,7 +818,148 @@ async function recommendations(subs, p) {
   ]);
   const ok = results.filter(r => r.status === 'fulfilled');
   if (!ok.length) throw results[0].reason;
-  return rankFeed(ok.flatMap(r => r.value), p, subIds);
+  const candidates = ok.flatMap(r => r.value);
+  const meaning = await semanticScores(candidates, onStatus);
+  return rankFeed(candidates, p, subIds, meaning);
+}
+
+/* ---------- smart matching ---------- */
+
+// A small language model (all-MiniLM-L6-v2, ~23 MB, cached by the browser
+// after the first download) turns each title into a "meaning" vector, so a
+// video can match your history even when it shares no words with it. Vectors
+// are kept in IndexedDB so each video is only processed once.
+
+const TRANSFORMERS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
+const EMBED_MODEL = 'Xenova/all-MiniLM-L6-v2';
+let embedderPromise = null;
+
+function loadEmbedder(onProgress) {
+  embedderPromise ||= (async () => {
+    const { pipeline, env } = await import(TRANSFORMERS_URL);
+    env.allowLocalModels = false;
+    const files = new Map();
+    return pipeline('feature-extraction', EMBED_MODEL, {
+      dtype: 'q8',
+      progress_callback: e => {
+        if (e.status !== 'progress' || !e.total) return;
+        files.set(e.file, [e.loaded, e.total]);
+        const [loaded, total] = [...files.values()].reduce((a, [l, t]) => [a[0] + l, a[1] + t], [0, 0]);
+        onProgress?.(loaded / total);
+      },
+    });
+  })();
+  embedderPromise.catch(() => { embedderPromise = null; });
+  return embedderPromise;
+}
+
+const vectorStore = (() => {
+  let dbPromise = null;
+  const memory = new Map(); // fallback when IndexedDB is unavailable
+  const open = () => dbPromise ||= new Promise((resolve, reject) => {
+    const req = indexedDB.open('tube', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('vectors');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  const run = async (mode, fn) => {
+    const db = await open();
+    return new Promise(resolve => {
+      const tx = db.transaction('vectors', mode);
+      const result = fn(tx.objectStore('vectors'));
+      tx.oncomplete = () => resolve(result);
+      tx.onerror = tx.onabort = () => resolve(result);
+    });
+  };
+  return {
+    async getMany(keys) {
+      try {
+        return await run('readonly', st => {
+          const out = new Map();
+          for (const k of keys) {
+            const req = st.get(k);
+            req.onsuccess = () => { if (req.result) out.set(k, req.result); };
+          }
+          return out;
+        });
+      } catch {
+        return new Map(keys.filter(k => memory.has(k)).map(k => [k, memory.get(k)]));
+      }
+    },
+    async putMany(entries) {
+      for (const [k, v] of entries) memory.set(k, v);
+      try { await run('readwrite', st => { for (const [k, v] of entries) st.put(v, k); }); } catch {}
+    },
+    async clear() {
+      memory.clear();
+      try { await run('readwrite', st => st.clear()); } catch {}
+    },
+  };
+})();
+
+const embedText = v => [v.title, ...(v.tags || []).slice(0, 5)].filter(Boolean).join(' | ');
+
+// Vectors for every video, keyed by video ID, computing only the missing ones.
+async function embedAll(videos, onStatus) {
+  const unique = [...new Map(videos.filter(v => v?.id && v.title).map(v => [v.id, v])).values()];
+  const vecs = await vectorStore.getMany(unique.map(v => v.id));
+  const missing = unique.filter(v => !vecs.has(v.id));
+  if (!missing.length) return vecs;
+  const extractor = await loadEmbedder(f => onStatus?.(`Downloading the matching model (first time only)… ${Math.round(f * 100)}%`));
+  for (let i = 0; i < missing.length; i += 32) {
+    onStatus?.(`Matching videos to your taste… ${Math.min(100, Math.round(i / missing.length * 100))}%`);
+    const batch = missing.slice(i, i + 32);
+    const out = await extractor(batch.map(embedText), { pooling: 'mean', normalize: true });
+    const dim = out.dims[1];
+    const fresh = batch.map((v, j) => [v.id, out.data.slice(j * dim, (j + 1) * dim)]);
+    fresh.forEach(([id, vec]) => vecs.set(id, vec));
+    await vectorStore.putMany(fresh);
+  }
+  return vecs;
+}
+
+function dot(a, b) {
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) sum += a[i] * b[i];
+  return sum;
+}
+
+// For each candidate: how close it is in meaning to the most similar things
+// you've watched (mostly the single closest, so one strong interest isn't
+// diluted by your others; recent and finished ones count a bit more), minus
+// a penalty if it resembles something you marked "Not interested". Measured
+// on real titles: unrelated videos land around 0.1-0.15, related ones
+// 0.3-0.5. null when smart matching is off, there's too little history, or
+// the model can't load.
+async function semanticScores(candidates, onStatus) {
+  const history = getHistory().slice(0, 300);
+  if (!settings().smartMatch || history.length < 3) return null;
+  const dismissed = store.get('reco:dismissed', []);
+  try {
+    const vecs = await embedAll([...history, ...dismissed, ...candidates], onStatus);
+    const now = Date.now();
+    const refs = history.filter(h => vecs.has(h.id)).map(h => ({
+      vec: vecs.get(h.id),
+      w: 0.8 + 0.1 * (h.duration && h.progress / h.duration >= 0.6 ? 1 : 0) + 0.1 * 0.5 ** ((now - (h.watchedAt || now)) / (45 * DAY)),
+    }));
+    const negs = dismissed.map(d => vecs.get(d.id)).filter(Boolean);
+    const scores = new Map();
+    for (const c of candidates) {
+      const vec = vecs.get(c.id);
+      if (!vec) continue;
+      const [first = 0, second = first] = refs.map(r => dot(vec, r.vec) * r.w).sort((a, b) => b - a);
+      let score = 0.7 * first + 0.3 * second;
+      const worst = negs.reduce((m, n) => Math.max(m, dot(vec, n)), 0);
+      if (worst > 0.4) score -= (worst - 0.4) * 1.5;
+      scores.set(c.id, score);
+    }
+    return scores;
+  } catch (err) {
+    console.warn('Smart matching unavailable:', err);
+    return null;
+  } finally {
+    onStatus?.('');
+  }
 }
 
 // Google Takeout's watch-history.json (or .html). Rebuilds the profile from
@@ -1184,7 +1332,11 @@ let feedIndex = new Map();
 
 async function viewHome(ctx) {
   const tab = ctx.params.get('tab') === 'subs' ? 'subs' : 'foryou';
-  $app.innerHTML = spinner();
+  $app.innerHTML = `${spinner()}<p class="muted small center" id="reco-status"></p>`;
+  const onStatus = text => {
+    const el = document.getElementById('reco-status');
+    if (el && ctx.alive()) el.textContent = text;
+  };
   const subs = isSignedIn() ? await accountSubs() : getSubs();
   if (!ctx.alive()) return;
   const profile = loadProfile();
@@ -1192,7 +1344,7 @@ async function viewHome(ctx) {
   if (!subs.length && !learned) return viewTrending(ctx, true);
 
   const showSubs = tab === 'subs' && subs.length;
-  const videos = showSubs ? noShorts(await subscriptionFeed(subs)) : await recommendations(subs, profile);
+  const videos = showSubs ? noShorts(await subscriptionFeed(subs)) : await recommendations(subs, profile, onStatus);
   if (!ctx.alive()) return;
   feedIndex = new Map(videos.map(v => [v.id, v]));
   const note = showSubs ? 'Newest uploads from your subscriptions.'
@@ -1957,6 +2109,8 @@ function viewSettings() {
           <input type="range" id="explore" min="0" max="90" step="10" value="${esc(s.explore)}">
           <span class="muted small">New</span></span>
       </label>
+      <label class="check"><input type="checkbox" id="smart-match"${s.smartMatch ? ' checked' : ''}> Smart matching: an AI model that runs in
+        your browser and matches videos by meaning, not just shared words (23 MB one-time download)</label>
       <label class="check"><input type="checkbox" id="hide-shorts"${s.hideShorts ? ' checked' : ''}> Hide Shorts everywhere (home, subscriptions, trending, search, channels)</label>
       <button class="btn primary" type="submit">Save</button>
       <span class="muted small" id="saved"></span>
@@ -2011,6 +2165,7 @@ function viewSettings() {
       pauseHistory: document.getElementById('pause').checked,
       hideShorts: document.getElementById('hide-shorts').checked,
       explore: +document.getElementById('explore').value,
+      smartMatch: document.getElementById('smart-match').checked,
     });
     store.del('feed');
     if (settings().clientId) loadGis().catch(() => {});
@@ -2040,6 +2195,7 @@ function viewSettings() {
     if (!confirm('Erase your API key, sign-in, subscriptions, watch later list and history from this browser?')) return;
     signOut();
     for (const k of ['settings', 'subs', 'later', 'history', 'feed', 'profile', 'catNames']) store.del(k);
+    vectorStore.clear();
     clearRecoCache({ all: true });
     renderAccount();
     route();
@@ -2101,8 +2257,10 @@ $app.addEventListener('click', e => {
   const btn = e.target.closest('[data-dismiss]');
   if (!btn) return;
   const id = btn.dataset.dismiss;
-  learn(feedIndex.get(id), -2);
+  const v = feedIndex.get(id);
+  learn(v, -2);
   store.set('reco:hidden', [id, ...store.get('reco:hidden', [])].slice(0, 500));
+  if (v) store.set('reco:dismissed', [{ id, title: v.title, tags: v.tags }, ...store.get('reco:dismissed', [])].slice(0, 60));
   btn.closest('.card').remove();
   toast('Got it. You\'ll see less like that.');
 });
