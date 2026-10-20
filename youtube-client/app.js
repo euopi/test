@@ -1336,6 +1336,7 @@ function mountBarePlayer(id, start, onEnd) {
 // and progress isn't tracked.
 
 const sessionYouTubePlayer = new Set(); // videos switched back to YouTube's player
+const RELAY_VERSION = 2; // matches relay/worker.js; the relay reports its own on load
 
 const invidiousServers = () => settings().invidiousServers.split(/\s+/)
   .map(h => h.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, ''))
@@ -1353,6 +1354,18 @@ function mountInvidiousPlayer(ctx, id, start, onEnd) {
   bar.className = 'player-bar small';
   document.querySelector('.player-wrap').after(bar);
 
+  // A relay announces its version; plain Invidious servers stay silent.
+  let relayVersion = null;
+  const onRelay = e => {
+    if (e.source !== frame.contentWindow || typeof e.data?.tubeRelay !== 'number') return;
+    relayVersion = e.data.tubeRelay;
+    const note = bar.querySelector('.relay-note');
+    if (note) note.innerHTML = relayVersion >= RELAY_VERSION ? 'Relay code up to date.'
+      : '<strong>Your relay code is out of date</strong> (that breaks the controls): paste the latest '
+        + '<a href="relay/worker.js" target="_blank" rel="noopener">relay/worker.js</a> into Cloudflare and deploy.';
+  };
+  window.addEventListener('message', onRelay);
+
   const load = (t = 0) => {
     const host = servers[index];
     if (!host) {
@@ -1363,6 +1376,7 @@ function mountInvidiousPlayer(ctx, id, start, onEnd) {
       autoplay: settings().autoplay ? 1 : 0, local: 'true', ...(t > 0 ? { t: Math.floor(t) } : {}),
     });
     bar.innerHTML = `<span class="muted">Ad-free via <strong>${esc(host)}</strong> (${index + 1}/${servers.length}).
+      <span class="relay-note">${host.endsWith('.workers.dev') ? 'Checking relay version…' : ''}</span>
       Not loading or stuck?</span>
       <button class="btn" data-inv="next">Try next server</button>
       <button class="btn" data-inv="youtube">Use YouTube player</button>`;
@@ -1388,8 +1402,19 @@ function mountInvidiousPlayer(ctx, id, start, onEnd) {
     playVideo: () => {},
     getCurrentTime: () => 0,
     getDuration: () => 0,
-    destroy: () => bar.remove(),
+    destroy: () => {
+      bar.remove();
+      window.removeEventListener('message', onRelay);
+    },
   };
+  // Relays from before version 2 never report in.
+  setTimeout(() => {
+    const note = bar.querySelector('.relay-note');
+    if (relayVersion === null && note && servers[index]?.endsWith('.workers.dev')) {
+      note.innerHTML = '<strong>Your relay code is out of date</strong> (that breaks the controls): paste the latest '
+        + '<a href="relay/worker.js" target="_blank" rel="noopener">relay/worker.js</a> into Cloudflare and deploy.';
+    }
+  }, 6000);
 }
 
 function teardownPlayer() {

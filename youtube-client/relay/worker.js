@@ -11,6 +11,7 @@
 // general-purpose proxy.
 
 const TARGET = 'invidious.tiekoetter.com'; // any working Invidious server
+const RELAY_VERSION = 2; // Tube's player bar says when this is out of date
 
 const site = host => host.split('.').slice(-2).join('.');
 const allowed = host => host === TARGET || host.endsWith('.' + site(TARGET));
@@ -44,7 +45,6 @@ html, body { margin: 0; height: 100%; background: #000; color: #ddd; font: 15px/
 video { width: 100%; height: 100%; display: block; }
 .msg { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; padding: 24px; text-align: center; }
 .msg small { color: #999; }
-.msg[hidden] { display: none; } /* otherwise it sits invisibly over the video and eats every click */
 </style></head><body>${body}</body></html>`, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 
 async function playerPage(request, id, url) {
@@ -67,7 +67,7 @@ async function playerPage(request, id, url) {
   const video = [...html.matchAll(/<source\b[^>]*>/g)].map(m => attrs(m[0]))
     .find(a => a.src && /^video\/mp4/.test(a.type || ''));
   if (!video) {
-    return shell(`<div class="msg"><strong>${escapeHtml(TARGET)} couldn't load this video.</strong>
+    return shell(`<script>parent.postMessage({ tubeRelay: ${RELAY_VERSION} }, '*');</script>` + `<div class="msg"><strong>${escapeHtml(TARGET)} couldn't load this video.</strong>
       <span>${escapeHtml(pageText(html) || 'No reason given.')}</span>
       <small>Server answered ${status || 'nothing'}. If every video does this, the server is refusing the relay or YouTube is
       blocking it: change TARGET at the top of the relay code to another Invidious server and redeploy.</small></div>`);
@@ -75,9 +75,11 @@ async function playerPage(request, id, url) {
   const tracks = [...html.matchAll(/<track\b[^>]*>/g)].map(m => attrs(m[0])).filter(a => a.src)
     .map(a => `<track kind="captions" src="${escapeHtml(a.src)}" label="${escapeHtml(a.label || '')}">`).join('');
   return shell(`<video id="v" controls playsinline${autoplay ? ' autoplay' : ''} src="${escapeHtml(video.src)}${start ? '#t=' + start : ''}">${tracks}</video>
-<div class="msg" id="msg" hidden></div>
 <script>
-const v = document.getElementById('v'), msg = document.getElementById('msg');
+parent.postMessage({ tubeRelay: ${RELAY_VERSION} }, '*');
+const v = document.getElementById('v');
+// The message box only exists once something has failed, so nothing ever
+// sits on top of a working video's controls.
 v.addEventListener('error', async () => {
   let text = 'The video file failed to load.';
   try {
@@ -86,8 +88,10 @@ v.addEventListener('error', async () => {
       ? 'The video downloaded fine, but this browser cannot play its format (MP4/H.264).'
       : 'The server refused the video file (it answered ' + r.status + '). Try another TARGET server in the relay.';
   } catch (e) {}
+  const msg = document.createElement('div');
+  msg.className = 'msg';
   msg.textContent = text;
-  msg.hidden = false;
+  document.body.append(msg);
 });
 </script>`);
 }
