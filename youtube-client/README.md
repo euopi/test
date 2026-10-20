@@ -72,11 +72,15 @@ pushes that video's channel and topics down. Everything halves in weight every
 45 days, so old phases fade.
 
 Candidates come from your subscriptions' uploads, channels you watch but
-don't follow, trending in your top categories, channels featured on your
-favorite channels' pages, and three topic searches a day. They're scored
-against the profile, with a freshness boost, a cap on how often one channel
-appears, and every fifth slot reserved for something outside your
-subscriptions. Library shows what it learned and lets you remove any of it.
+don't follow, the charts for your top categories, channels featured on your
+favorite channels' pages, and four searches a day built from topics that show
+up together in videos you finished (e.g. "minecraft redstone farm"). Topic
+match outweighs channel loyalty in the score, and a video from a channel you
+don't know only gets in if it clearly shares your topics, which keeps random
+chart videos out. A Settings slider sets how much of the feed goes to new
+channels versus familiar ones; each card says why it's there; and videos shown
+on four different days without being opened drop out. Library shows what it
+learned and lets you remove any of it.
 
 To start with your real taste instead of a blank slate, import your YouTube
 watch history: in Google Takeout, Deselect all, pick "YouTube and YouTube
@@ -84,7 +88,7 @@ Music", limit it to history (JSON or HTML), and load `watch-history.json` in
 Library -> Recommendations. Importing rebuilds the profile from that file.
 
 Quota: a home load costs roughly 30-50 units when its caches are stale (the
-topic searches, 300 units, run once a day), and nothing when they're fresh.
+topic searches, 400 units, run once a day), and nothing when they're fresh.
 
 ## Signing in (optional)
 

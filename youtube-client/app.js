@@ -27,7 +27,7 @@ const store = {
   },
 };
 
-const DEFAULT_SETTINGS = { apiKey: '', clientId: '', region: 'US', autoplay: true, pauseHistory: false, hideShorts: true };
+const DEFAULT_SETTINGS = { apiKey: '', clientId: '', region: 'US', autoplay: true, pauseHistory: false, hideShorts: true, explore: 50 };
 const settings = () => ({ ...DEFAULT_SETTINGS, ...store.get('settings', {}) });
 
 const getSubs = () => store.get('subs', []);
@@ -578,25 +578,59 @@ function hashUnit(s) {
   return (h >>> 0) / 4294967296;
 }
 
-function scoreVideo(v, p, subIds, day) {
+// How well a video's topics match yours: the summed weight of the topics it
+// shares with your profile, and how many of them are clearly yours.
+function topicMatch(v, p) {
   const terms = termsFor(v);
-  const termScore = terms.reduce((sum, t) => sum + comp(p.terms[t] || 0), 0) / Math.sqrt(terms.length || 1);
-  const ageDays = Math.max(0, (Date.now() - Date.parse(v.publishedAt)) / DAY) || 0;
-  return comp(p.channels[v.channelId] || 0)
-    + 0.5 * comp(p.categories[v.categoryId] || 0)
-    + 0.9 * termScore
-    + (subIds.has(v.channelId) ? 0.8 : 0)
-    + 1.2 * Math.exp(-ageDays / 5)
-    + 0.08 * Math.log10(1 + (+v.views || 0))
-    + 0.3 * (hashUnit(v.id + day) - 0.5); // a little daily shuffle
+  let sum = 0, matched = 0;
+  for (const t of terms) {
+    const w = p.terms[t] || 0;
+    sum += comp(w);
+    if (w > 0.3) matched++;
+  }
+  return { score: sum / Math.sqrt(terms.length || 1), matched };
 }
 
-// Highest scores first, but no channel hogs the feed, and every fifth slot
-// goes to something from outside your subscriptions.
+const isFamiliar = (v, p, subIds) => subIds.has(v.channelId) || (p.channels[v.channelId] || 0) > 0.5;
+
+// Topic match counts for more than channel loyalty, so a strong match from a
+// new channel can beat a so-so upload from one you watch.
+function scoreVideo(v, p, subIds, day, match) {
+  const ageDays = Math.max(0, (Date.now() - Date.parse(v.publishedAt)) / DAY) || 0;
+  return 0.6 * comp(p.channels[v.channelId] || 0)
+    + 0.4 * comp(p.categories[v.categoryId] || 0)
+    + 1.2 * match.score
+    + (subIds.has(v.channelId) ? 0.4 : 0)
+    + 1.0 * Math.exp(-ageDays / 7)
+    + 0.08 * Math.log10(1 + (+v.views || 0))
+    + 0.25 * (hashUnit(v.id + day) - 0.5); // a little daily shuffle
+}
+
+function whyFor(v, familiar, subIds) {
+  if (subIds.has(v.channelId)) return '';
+  if (familiar) return 'From a channel you watch';
+  return v.why || '';
+}
+
+// Videos shown on four different days without being opened drop out, so the
+// feed doesn't keep offering the same things.
+function recordImpressions(videos, day) {
+  const seen = store.get('reco:seen', {});
+  for (const v of videos) {
+    const s = seen[v.id] ||= { days: 0, last: '' };
+    if (s.last !== day) { s.days++; s.last = day; }
+  }
+  store.set('reco:seen', Object.fromEntries(Object.entries(seen).slice(-1500)));
+}
+
+// Best scores first, with no channel hogging the feed and a share of slots
+// (the "familiar vs. new" setting) kept for channels you don't already watch.
 function rankFeed(candidates, p, subIds) {
   const hidden = new Set(store.get('reco:hidden', []));
   const watched = new Map(getHistory().map(h => [h.id, h]));
+  const seen = store.get('reco:seen', {});
   const day = new Date().toDateString();
+  const learned = hasProfile(p);
   const byId = new Map();
   for (const v of candidates) {
     if (!v?.id || byId.has(v.id) || hidden.has(v.id) || v.live === 'upcoming') continue;
@@ -604,27 +638,36 @@ function rankFeed(candidates, p, subIds) {
     const h = watched.get(v.id);
     if (h && (!h.duration || h.progress / h.duration > 0.5)) continue;
     if ((p.channels[v.channelId] || 0) < -3.5) continue; // "Not interested" twice, roughly
-    byId.set(v.id, { v, score: scoreVideo(v, p, subIds, day), discover: !subIds.has(v.channelId) });
+    if ((seen[v.id]?.days || 0) >= 4) continue;
+    const familiar = isFamiliar(v, p, subIds);
+    const match = topicMatch(v, p);
+    // A channel you don't know has to be clearly on-topic to get in. This is
+    // what keeps random chart videos out.
+    if (learned && !familiar && match.matched < 2 && !(match.matched === 1 && (p.categories[v.categoryId] || 0) > 1)) continue;
+    byId.set(v.id, { v, familiar, score: scoreVideo(v, p, subIds, day, match) });
   }
   const items = [...byId.values()];
   const perChannel = new Map();
-  const out = [];
-  const pick = discoverOnly => {
+  const pick = want => {
     let best = -1, bestScore = -Infinity;
     items.forEach((it, i) => {
-      if (discoverOnly && !it.discover) return;
-      const adj = it.score - 0.7 * (perChannel.get(it.v.channelId) || 0);
+      if (!want(it)) return;
+      const adj = it.score - 0.8 * (perChannel.get(it.v.channelId) || 0);
       if (adj > bestScore) { bestScore = adj; best = i; }
     });
     return best;
   };
-  while (out.length < 96 && items.length) {
-    let i = out.length % 5 === 4 ? pick(true) : -1;
-    if (i < 0) i = pick(false);
+  const explore = settings().explore / 100;
+  const out = [];
+  for (let n = 0; out.length < 96 && items.length; n++) {
+    const wantNew = Math.floor((n + 1) * explore) > Math.floor(n * explore);
+    let i = pick(it => it.familiar !== wantNew);
+    if (i < 0) i = pick(() => true);
     const [it] = items.splice(i, 1);
     perChannel.set(it.v.channelId, (perChannel.get(it.v.channelId) || 0) + 1);
-    out.push(it.v);
+    out.push({ ...it.v, why: whyFor(it.v, it.familiar, subIds) });
   }
+  recordImpressions(out.slice(0, 24), day);
   return out;
 }
 
@@ -643,7 +686,7 @@ async function cachedSource(name, ttl, fetcher) {
 
 function clearRecoCache({ all = false } = {}) {
   for (const k of ['channels', 'categories', 'trending']) store.del('reco:' + k);
-  if (all) for (const k of ['neighbors', 'topics', 'searched', 'hidden']) store.del('reco:' + k);
+  if (all) for (const k of ['neighbors', 'topics', 'searched', 'hidden', 'seen']) store.del('reco:' + k);
   store.del('feed');
 }
 
@@ -660,56 +703,98 @@ async function latestUploads(channelIds, per) {
   return hydrate(ids);
 }
 
+async function categoryNames() {
+  let names = store.get('catNames', null);
+  if (!names) {
+    const d = await yt('videoCategories', { part: 'snippet', regionCode: settings().region });
+    names = Object.fromEntries((d.items || []).map(c => [c.id, c.snippet.title]));
+    store.set('catNames', names);
+  }
+  return names;
+}
+
 async function categoryTrending(p) {
+  const names = await categoryNames().catch(() => ({}));
   const out = [];
   for (const [id] of topEntries(p.categories, 3).filter(([, w]) => w > 0)) {
     try {
       const d = await yt('videos', {
         ...LIST_PARTS, chart: 'mostPopular', videoCategoryId: id,
-        regionCode: settings().region, maxResults: 20,
+        regionCode: settings().region, maxResults: 25,
       });
-      out.push(...(d.items || []).map(toVideo));
+      const why = names[id] ? `Popular in ${names[id]}` : 'Popular in a category you watch';
+      out.push(...(d.items || []).map(toVideo).map(v => ({ ...v, why })));
     } catch { /* some categories have no chart */ }
   }
   return out;
 }
 
 // Channels featured on the pages of channels you like, minus ones you know.
-async function neighborUploads(seeds, known) {
-  const found = new Set();
-  await pool(seeds.slice(0, 5), 5, async id => {
+async function neighborUploads(seeds, known, names) {
+  const found = new Map(); // new channel -> the channel that featured it
+  await pool(seeds.slice(0, 8), 4, async id => {
     try {
       const d = await yt('channelSections', { part: 'contentDetails', channelId: id });
-      for (const s of d.items || []) for (const c of s.contentDetails?.channels || []) if (!known.has(c)) found.add(c);
+      for (const s of d.items || []) {
+        for (const c of s.contentDetails?.channels || []) if (!known.has(c) && !found.has(c)) found.set(c, id);
+      }
     } catch {}
   });
-  const picks = [...found].sort(() => Math.random() - 0.5).slice(0, 10);
-  return picks.length ? latestUploads(picks, 3) : [];
+  const picks = [...found.keys()].sort(() => Math.random() - 0.5).slice(0, 15);
+  const videos = picks.length ? await latestUploads(picks, 3) : [];
+  return videos.map(v => {
+    const by = names[found.get(v.channelId)];
+    return { ...v, why: by ? `Featured by ${by}` : 'Similar to channels you watch' };
+  });
 }
 
-// Searches cost 100 units each, so: three a day, rotating through your top
-// topics so the same one isn't searched again for three days.
+// Specific searches built from your taste: the strongest topics that appear
+// together in videos you finished, then your strongest multi-word tags. Plain
+// single words only as a last resort, since they search too broadly.
+function searchQueries(p, searched) {
+  const now = Date.now();
+  const usable = q => q && now - (searched[q] || 0) > 3 * DAY;
+  const fromWatched = [], fromTags = [], fromWords = [];
+  for (const h of getHistory().filter(h => h.duration && h.progress / h.duration >= 0.6).slice(0, 30)) {
+    const terms = [...new Set(tokenize(h.title))].filter(t => (p.terms[t] || 0) > 0.3)
+      .sort((a, b) => p.terms[b] - p.terms[a]).slice(0, 3);
+    if (terms.length >= 2) fromWatched.push(terms.join(' '));
+  }
+  for (const [t, w] of topEntries(p.terms, 300)) {
+    if (w <= 0) break;
+    if (t.includes(' ')) fromTags.push(t);
+    else if (t.length >= 5) fromWords.push(t);
+  }
+  const out = [];
+  for (const list of [fromWatched.slice(0, 2), fromTags.slice(0, 3), fromWatched.slice(2), fromTags.slice(3), fromWords]) {
+    for (const q of list) if (out.length < 4 && usable(q) && !out.includes(q)) out.push(q);
+  }
+  return out;
+}
+
+// Four searches a day (400 quota units), each query rested for three days.
 async function topicSearches(p) {
   const searched = store.get('reco:searched', {});
   const now = Date.now();
-  const terms = topEntries(p.terms, 80)
-    .filter(([t, w]) => w > 0 && t.length >= 4 && now - (searched[t] || 0) > 3 * DAY)
-    .slice(0, 3)
-    .map(([t]) => t);
-  const ids = [];
-  for (const q of terms) {
-    const d = await yt('search', { part: 'snippet', q, type: 'video', maxResults: 12, regionCode: settings().region });
-    ids.push(...(d.items || []).map(i => i.id.videoId));
+  const reason = new Map();
+  for (const q of searchQueries(p, searched)) {
+    const d = await yt('search', {
+      part: 'snippet', q, type: 'video', maxResults: 15, regionCode: settings().region,
+      publishedAfter: new Date(now - 365 * DAY).toISOString(),
+    });
+    for (const i of d.items || []) if (!reason.has(i.id.videoId)) reason.set(i.id.videoId, q);
     searched[q] = now;
   }
   store.set('reco:searched', Object.fromEntries(Object.entries(searched).filter(([, at]) => now - at < 14 * DAY)));
-  return hydrate(ids);
+  return (await hydrate([...reason.keys()])).map(v => ({ ...v, why: `Related to "${reason.get(v.id)}"` }));
 }
 
 async function recommendations(subs, p) {
   const subIds = new Set(subs.map(s => s.id));
+  const learned = hasProfile(p);
   const topChannels = topEntries(p.channels, 30).filter(([, w]) => w > 0).map(([id]) => id);
   const known = new Set([...subIds, ...topChannels]);
+  const names = { ...p.names, ...Object.fromEntries(subs.map(s => [s.id, s.title])) };
   const results = await Promise.allSettled([
     subs.length ? subscriptionFeed(subs) : [],
     cachedSource('channels', 3 * HOUR, () => {
@@ -717,11 +802,12 @@ async function recommendations(subs, p) {
       return ids.length ? latestUploads(ids, 5) : [];
     }),
     cachedSource('categories', 6 * HOUR, () => categoryTrending(p)),
-    cachedSource('trending', 6 * HOUR, async () => ((await yt('videos', {
+    // The general chart is only a stand-in until there's a profile to go on.
+    learned ? [] : cachedSource('trending', 6 * HOUR, async () => ((await yt('videos', {
       ...LIST_PARTS, chart: 'mostPopular', regionCode: settings().region, maxResults: 30,
     })).items || []).map(toVideo)),
-    cachedSource('neighbors', DAY, () => neighborUploads(topChannels.length ? topChannels : [...subIds], known)),
-    hasProfile(p) ? cachedSource('topics', DAY, () => topicSearches(p)) : [],
+    cachedSource('neighbors', DAY, () => neighborUploads(topChannels.length ? topChannels : [...subIds], known, names)),
+    learned ? cachedSource('topics', DAY, () => topicSearches(p)) : [],
   ]);
   const ok = results.filter(r => r.status === 'fulfilled');
   if (!ok.length) throw results[0].reason;
@@ -870,6 +956,7 @@ function videoCard(v, { list, dismiss } = {}) {
       <a class="title" href="${href}" title="${esc(v.title)}">${esc(v.title)}</a>
       <a class="byline" href="#/channel/${encodeURIComponent(v.channelId)}">${esc(v.channelTitle)}</a>
       <div class="sub">${sub}</div>
+      ${v.why ? `<div class="why">${esc(v.why)}</div>` : ''}
     </div>
     ${dismiss ? `<button class="dismiss" data-dismiss="${esc(v.id)}" title="Not interested" aria-label="Not interested">×</button>` : ''}
   </article>`;
@@ -1865,6 +1952,11 @@ function viewSettings() {
       </label>
       <label class="check"><input type="checkbox" id="autoplay"${s.autoplay ? ' checked' : ''}> Autoplay videos, and the next one in a playlist</label>
       <label class="check"><input type="checkbox" id="pause"${s.pauseHistory ? ' checked' : ''}> Pause watch history</label>
+      <label>For you: familiar channels vs. new ones
+        <span class="range-row"><span class="muted small">Familiar</span>
+          <input type="range" id="explore" min="0" max="90" step="10" value="${esc(s.explore)}">
+          <span class="muted small">New</span></span>
+      </label>
       <label class="check"><input type="checkbox" id="hide-shorts"${s.hideShorts ? ' checked' : ''}> Hide Shorts everywhere (home, subscriptions, trending, search, channels)</label>
       <button class="btn primary" type="submit">Save</button>
       <span class="muted small" id="saved"></span>
@@ -1918,6 +2010,7 @@ function viewSettings() {
       autoplay: document.getElementById('autoplay').checked,
       pauseHistory: document.getElementById('pause').checked,
       hideShorts: document.getElementById('hide-shorts').checked,
+      explore: +document.getElementById('explore').value,
     });
     store.del('feed');
     if (settings().clientId) loadGis().catch(() => {});
@@ -2044,11 +2137,11 @@ window.addEventListener('hashchange', route);
 window.addEventListener('pagehide', () => player?._tubeTick?.());
 if (settings().clientId) loadGis().catch(() => {});
 // Cached feeds from before Shorts detection can't be filtered properly.
-if (store.get('cacheVersion') !== 2) {
+if (store.get('cacheVersion') !== 3) {
   clearRecoCache();
   store.del('reco:neighbors');
   store.del('reco:topics');
-  store.set('cacheVersion', 2);
+  store.set('cacheVersion', 3);
 }
 renderAccount();
 route();
