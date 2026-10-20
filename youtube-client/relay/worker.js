@@ -10,7 +10,7 @@
 // the one server below (and its subdomains), so it can't be used as a
 // general-purpose proxy.
 
-const TARGET = 'invidious.flokinet.to'; // any working Invidious server
+const TARGET = 'invidious.tiekoetter.com'; // any working Invidious server
 
 const site = host => host.split('.').slice(-2).join('.');
 const allowed = host => host === TARGET || host.endsWith('.' + site(TARGET));
@@ -44,6 +44,7 @@ html, body { margin: 0; height: 100%; background: #000; color: #ddd; font: 15px/
 video { width: 100%; height: 100%; display: block; }
 .msg { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; padding: 24px; text-align: center; }
 .msg small { color: #999; }
+.msg[hidden] { display: none; } /* otherwise it sits invisibly over the video and eats every click */
 </style></head><body>${body}</body></html>`, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 
 async function playerPage(request, id, url) {

@@ -121,7 +121,7 @@ instead of the API key, so the key is optional.
 ## Ad-free player through your own relay
 
 If your network blocks Invidious servers by name, `relay/worker.js` is a
-Cloudflare Worker that passes one Invidious server (invidious.flokinet.to by
+Cloudflare Worker that passes one Invidious server (invidious.tiekoetter.com by
 default; change `TARGET`) through your own `workers.dev` address. It only
 relays that server, so it can't be used as a general proxy.
 
