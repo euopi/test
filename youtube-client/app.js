@@ -27,7 +27,8 @@ const store = {
   },
 };
 
-const DEFAULT_SETTINGS = { apiKey: '', clientId: '', region: 'US', autoplay: true, pauseHistory: false, hideShorts: true, explore: 50, smartMatch: true };
+const DEFAULT_SETTINGS = { apiKey: '', clientId: '', region: 'US', autoplay: true, pauseHistory: false, hideShorts: true, explore: 50, smartMatch: true,
+  adFree: false, invidiousServers: 'invidious.tiekoetter.com\ninv.nadeko.net\ninvidious.nerdvpn.de\nyt.chocolatemoo53.com\ninvidious.f5.si' };
 const settings = () => ({ ...DEFAULT_SETTINGS, ...store.get('settings', {}) });
 
 const getSubs = () => store.get('subs', []);
@@ -1206,6 +1207,10 @@ const PLAYER_ERRORS = {
 };
 
 async function mountPlayer(ctx, id, { start = 0, onEnd } = {}) {
+  if (settings().adFree && !sessionYouTubePlayer.has(id)) {
+    mountInvidiousPlayer(ctx, id, start, onEnd);
+    return;
+  }
   const el = document.getElementById('player');
   if (location.protocol === 'file:') {
     el.outerHTML = `<div class="player-error">${esc(PLAYER_ERRORS[153])}</div>`;
@@ -1320,6 +1325,71 @@ function mountBarePlayer(id, start, onEnd) {
   const tick = () => { if (currentTime) saveProgress(id, currentTime, duration); };
   playerTimer = setInterval(tick, 5000);
   player._tubeTick = tick;
+}
+
+/* ---------- ad-free player (Invidious) ---------- */
+
+// Invidious servers fetch videos from YouTube themselves and serve them with
+// no ads. Public ones get blocked by YouTube often, so the bar under the
+// video can hop to the next server or fall back to YouTube's own player. The
+// embed can't be controlled from here, so seeking reloads it at the new time
+// and progress isn't tracked.
+
+const sessionYouTubePlayer = new Set(); // videos switched back to YouTube's player
+
+const invidiousServers = () => settings().invidiousServers.split(/\s+/)
+  .map(h => h.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, ''))
+  .filter(Boolean);
+
+function mountInvidiousPlayer(ctx, id, start, onEnd) {
+  const servers = invidiousServers();
+  let index = Math.min(+store.get('invidiousIndex', 0) || 0, Math.max(0, servers.length - 1));
+  const frame = Object.assign(document.createElement('iframe'), {
+    id: 'player', allowFullscreen: true, referrerPolicy: 'no-referrer',
+  });
+  frame.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+  document.getElementById('player').replaceWith(frame);
+  const bar = document.createElement('div');
+  bar.className = 'player-bar small';
+  document.querySelector('.player-wrap').after(bar);
+
+  const load = (t = 0) => {
+    const host = servers[index];
+    if (!host) {
+      bar.innerHTML = 'No ad-free servers set. Add some in Settings.';
+      return;
+    }
+    frame.src = `https://${host}/embed/${encodeURIComponent(id)}?` + new URLSearchParams({
+      autoplay: settings().autoplay ? 1 : 0, local: 'true', ...(t > 0 ? { t: Math.floor(t) } : {}),
+    });
+    bar.innerHTML = `<span class="muted">Ad-free via <strong>${esc(host)}</strong> (${index + 1}/${servers.length}).
+      Not loading or stuck?</span>
+      <button class="btn" data-inv="next">Try next server</button>
+      <button class="btn" data-inv="youtube">Use YouTube player</button>`;
+  };
+  bar.addEventListener('click', e => {
+    const b = e.target.closest('[data-inv]');
+    if (!b) return;
+    if (b.dataset.inv === 'next') {
+      index = (index + 1) % servers.length;
+      store.set('invidiousIndex', index); // remember the last one that was tried
+      load(start);
+    } else {
+      sessionYouTubePlayer.add(id);
+      player?.destroy();
+      player = null;
+      document.querySelector('.player-wrap').innerHTML = '<div id="player"></div>';
+      mountPlayer(ctx, id, { start, onEnd });
+    }
+  });
+  load(start);
+  player = {
+    seekTo: t => load(t),
+    playVideo: () => {},
+    getCurrentTime: () => 0,
+    getDuration: () => 0,
+    destroy: () => bar.remove(),
+  };
 }
 
 function teardownPlayer() {
@@ -2117,6 +2187,13 @@ function viewSettings() {
       </label>
       <label class="check"><input type="checkbox" id="smart-match"${s.smartMatch ? ' checked' : ''}> Smart matching: an AI model that runs in
         your browser and matches videos by meaning, not just shared words, across 50+ languages (118 MB one-time download)</label>
+      <label class="check"><input type="checkbox" id="ad-free"${s.adFree ? ' checked' : ''}> Ad-free player: play videos through an
+        Invidious server instead of YouTube's player. Public servers break often; a bar under the video switches servers or goes back to YouTube.</label>
+      <label>Ad-free servers, tried in order (one per line)
+        <textarea id="inv-servers" rows="4" spellcheck="false">${esc(s.invidiousServers)}</textarea>
+        <span class="muted small">Up-to-date list: <a href="https://docs.invidious.io/instances/" target="_blank" rel="noopener">docs.invidious.io/instances</a>.
+          Resume points and timestamp seeking work less well in this player.</span>
+      </label>
       <label class="check"><input type="checkbox" id="hide-shorts"${s.hideShorts ? ' checked' : ''}> Hide Shorts everywhere (home, subscriptions, trending, search, channels)</label>
       <button class="btn primary" type="submit">Save</button>
       <span class="muted small" id="saved"></span>
@@ -2172,6 +2249,8 @@ function viewSettings() {
       hideShorts: document.getElementById('hide-shorts').checked,
       explore: +document.getElementById('explore').value,
       smartMatch: document.getElementById('smart-match').checked,
+      adFree: document.getElementById('ad-free').checked,
+      invidiousServers: document.getElementById('inv-servers').value.trim() || DEFAULT_SETTINGS.invidiousServers,
     });
     store.del('feed');
     if (settings().clientId) loadGis().catch(() => {});

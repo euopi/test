@@ -305,6 +305,12 @@ select, .settings input:not([type=checkbox]) {
 
 .head .tabs.inline { margin: 0; border: 0; }
 .center { text-align: center; }
+.player-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.player-bar .btn { padding: 4px 12px; font-size: .82rem; }
+.settings textarea {
+  font: .88rem ui-monospace, monospace; color: inherit; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; resize: vertical;
+}
 .meta .why { color: var(--muted); font-size: .8rem; font-style: italic; }
 .range-row { display: flex; align-items: center; gap: 10px; max-width: 360px; }
 .range-row input { flex: 1; accent-color: var(--accent); }

@@ -122,7 +122,11 @@ instead of the API key, so the key is optional.
 
 - Some uploaders disable embedding, and those videos won't play here. The
   player shows a "Watch on YouTube" link when that happens.
-- Ads in the embedded player are YouTube's call, not this app's.
+- Ads in the embedded player are YouTube's call, not this app's. The optional
+  ad-free player (Settings) plays through a public Invidious server instead;
+  those get blocked by YouTube often, so a bar under the video switches to the
+  next server on the list or back to YouTube's player. Seeking reloads that
+  player at the new time, and progress isn't tracked there.
 - The Data API no longer offers "related videos", so there is no
   recommendations sidebar outside of playlists.
 - Watch later, history and YouTube's own recommendations can't be read by any
