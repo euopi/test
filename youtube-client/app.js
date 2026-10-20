@@ -597,7 +597,7 @@ const isFamiliar = (v, p, subIds) => subIds.has(v.channelId) || (p.channels[v.ch
 // new channel can beat a so-so upload from one you watch.
 function scoreVideo(v, p, subIds, day, match, meaning) {
   const ageDays = Math.max(0, (Date.now() - Date.parse(v.publishedAt)) / DAY) || 0;
-  return (meaning == null ? 0 : 5 * (meaning - 0.2))
+  return (meaning == null ? 0 : 5 * (meaning - MEANING_BASE))
     + 0.6 * comp(p.channels[v.channelId] || 0)
     + 0.4 * comp(p.categories[v.categoryId] || 0)
     + 1.2 * match.score
@@ -649,8 +649,8 @@ function rankFeed(candidates, p, subIds, meaning = null) {
     // out. With smart matching on, a keyword hit that means something else
     // ("build" a PC vs. "build" in Minecraft) is turned away too.
     const byWords = match.matched >= 2 || (match.matched === 1 && (p.categories[v.categoryId] || 0) > 1);
-    const byMeaning = sem != null && sem >= 0.27;
-    if (learned && !familiar && !(byWords && (sem == null || sem >= 0.13)) && !byMeaning) continue;
+    const byMeaning = sem != null && sem >= MEANING_ADMIT;
+    if (learned && !familiar && !(byWords && (sem == null || sem >= MEANING_VETO)) && !byMeaning) continue;
     byId.set(v.id, { v, familiar, byMeaning: byMeaning && !byWords, score: scoreVideo(v, p, subIds, day, match, sem) });
   }
   const items = [...byId.values()];
@@ -825,13 +825,14 @@ async function recommendations(subs, p, onStatus) {
 
 /* ---------- smart matching ---------- */
 
-// A small language model (all-MiniLM-L6-v2, ~23 MB, cached by the browser
-// after the first download) turns each title into a "meaning" vector, so a
-// video can match your history even when it shares no words with it. Vectors
-// are kept in IndexedDB so each video is only processed once.
+// A small multilingual language model (paraphrase-multilingual-MiniLM-L12-v2,
+// ~118 MB, cached by the browser after the first download) turns each title
+// into a "meaning" vector, so a video can match your history even when it
+// shares no words with it, including across languages. Vectors are kept in
+// IndexedDB, keyed by model, so each video is only processed once.
 
 const TRANSFORMERS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
-const EMBED_MODEL = 'Xenova/all-MiniLM-L6-v2';
+const EMBED_MODEL = 'Xenova/paraphrase-multilingual-MiniLM-L12-v2';
 let embedderPromise = null;
 
 function loadEmbedder(onProgress) {
@@ -902,7 +903,9 @@ const embedText = v => [v.title, ...(v.tags || []).slice(0, 5)].filter(Boolean).
 // Vectors for every video, keyed by video ID, computing only the missing ones.
 async function embedAll(videos, onStatus) {
   const unique = [...new Map(videos.filter(v => v?.id && v.title).map(v => [v.id, v])).values()];
-  const vecs = await vectorStore.getMany(unique.map(v => v.id));
+  const key = id => EMBED_MODEL + ':' + id;
+  const stored = await vectorStore.getMany(unique.map(v => key(v.id)));
+  const vecs = new Map([...stored].map(([k, vec]) => [k.slice(EMBED_MODEL.length + 1), vec]));
   const missing = unique.filter(v => !vecs.has(v.id));
   if (!missing.length) return vecs;
   const extractor = await loadEmbedder(f => onStatus?.(`Downloading the matching model (first time only)… ${Math.round(f * 100)}%`));
@@ -913,7 +916,7 @@ async function embedAll(videos, onStatus) {
     const dim = out.dims[1];
     const fresh = batch.map((v, j) => [v.id, out.data.slice(j * dim, (j + 1) * dim)]);
     fresh.forEach(([id, vec]) => vecs.set(id, vec));
-    await vectorStore.putMany(fresh);
+    await vectorStore.putMany(fresh.map(([id, vec]) => [key(id), vec]));
   }
   return vecs;
 }
@@ -928,9 +931,12 @@ function dot(a, b) {
 // you've watched (mostly the single closest, so one strong interest isn't
 // diluted by your others; recent and finished ones count a bit more), minus
 // a penalty if it resembles something you marked "Not interested". Measured
-// on real titles: unrelated videos land around 0.1-0.15, related ones
-// 0.3-0.5. null when smart matching is off, there's too little history, or
-// the model can't load.
+// on real English, Spanish and French titles: unrelated videos mostly land
+// at 0.15-0.25, related ones 0.36-0.65 (see the thresholds below). null when
+// smart matching is off, there's too little history, or the model can't load.
+const MEANING_ADMIT = 0.36; // close enough to let in a channel you don't know
+const MEANING_VETO = 0.24;  // below this, a keyword match is a false alarm
+const MEANING_BASE = 0.28;  // roughly where "unrelated" ends
 async function semanticScores(candidates, onStatus) {
   const history = getHistory().slice(0, 300);
   if (!settings().smartMatch || history.length < 3) return null;
@@ -950,7 +956,7 @@ async function semanticScores(candidates, onStatus) {
       const [first = 0, second = first] = refs.map(r => dot(vec, r.vec) * r.w).sort((a, b) => b - a);
       let score = 0.7 * first + 0.3 * second;
       const worst = negs.reduce((m, n) => Math.max(m, dot(vec, n)), 0);
-      if (worst > 0.4) score -= (worst - 0.4) * 1.5;
+      if (worst > 0.5) score -= (worst - 0.5) * 1.5;
       scores.set(c.id, score);
     }
     return scores;
@@ -2110,7 +2116,7 @@ function viewSettings() {
           <span class="muted small">New</span></span>
       </label>
       <label class="check"><input type="checkbox" id="smart-match"${s.smartMatch ? ' checked' : ''}> Smart matching: an AI model that runs in
-        your browser and matches videos by meaning, not just shared words (23 MB one-time download)</label>
+        your browser and matches videos by meaning, not just shared words, across 50+ languages (118 MB one-time download)</label>
       <label class="check"><input type="checkbox" id="hide-shorts"${s.hideShorts ? ' checked' : ''}> Hide Shorts everywhere (home, subscriptions, trending, search, channels)</label>
       <button class="btn primary" type="submit">Save</button>
       <span class="muted small" id="saved"></span>
@@ -2294,12 +2300,15 @@ document.addEventListener('click', e => {
 window.addEventListener('hashchange', route);
 window.addEventListener('pagehide', () => player?._tubeTick?.());
 if (settings().clientId) loadGis().catch(() => {});
-// Cached feeds from before Shorts detection can't be filtered properly.
-if (store.get('cacheVersion') !== 3) {
+// One-time cleanups when stored data changes shape.
+const cacheVersion = store.get('cacheVersion') || 0;
+if (cacheVersion < 3) {
+  // Cached feeds from before Shorts detection can't be filtered properly.
   clearRecoCache();
   store.del('reco:neighbors');
   store.del('reco:topics');
-  store.set('cacheVersion', 3);
 }
+if (cacheVersion < 4) vectorStore.clear(); // vectors from the earlier English-only model
+store.set('cacheVersion', 4);
 renderAccount();
 route();

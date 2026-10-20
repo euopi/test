@@ -83,16 +83,17 @@ on four different days without being opened drop out. Library shows what it
 learned and lets you remove any of it.
 
 Smart matching (on by default, toggle in Settings) adds meaning on top of
-word matching. A small language model, all-MiniLM-L6-v2 loaded through
-Transformers.js, runs in the browser and turns each title into a vector; a
-candidate scores by how close it sits to the things you've watched, so
-"I built a castle in Minecraft" matches "Building a medieval fortress in
-survival mode" with no words in common, while "Building a gaming PC" no
-longer sneaks in on the word "building". The model is a 23 MB one-time
-download that the browser caches; vectors are stored in IndexedDB so each
-video is only processed once. The model is English-trained, so it's weaker
-on titles in other languages. If it can't load, the feed falls back to word
-matching.
+word matching. A multilingual language model,
+paraphrase-multilingual-MiniLM-L12-v2 loaded through Transformers.js, runs in
+the browser and turns each title into a vector that lands in the same place
+for the same meaning across 50+ languages. A candidate scores by how close it
+sits to the things you've watched, so "Construí un castillo gigante en
+Minecraft" matches "Building a medieval fortress in survival mode", while
+"Building a gaming PC" no longer sneaks in on the word "building". The
+cutoffs were set from similarities measured on English, Spanish and French
+titles. The model is a 118 MB one-time download that the browser caches;
+vectors are stored in IndexedDB so each video is only processed once. If it
+can't load, the feed falls back to word matching.
 
 To start with your real taste instead of a blank slate, import your YouTube
 watch history: in Google Takeout, Deselect all, pick "YouTube and YouTube
