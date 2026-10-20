@@ -118,6 +118,21 @@ app in testing mode. Browser-only sign-ins last an hour; after that the app
 asks again with a quick popup. While signed in, requests use your sign-in
 instead of the API key, so the key is optional.
 
+## Ad-free player through your own relay
+
+If your network blocks Invidious servers by name, `relay/worker.js` is a
+Cloudflare Worker that passes one Invidious server (invidious.flokinet.to by
+default; change `TARGET`) through your own `workers.dev` address. It only
+relays that server, so it can't be used as a general proxy.
+
+1. Sign up at dash.cloudflare.com (free).
+2. Workers & Pages -> Create -> start from "Hello World", name it (e.g.
+   `tube-relay`), Deploy.
+3. Edit code, replace everything with the contents of `relay/worker.js`,
+   Deploy.
+4. In Tube's Settings, tick "Ad-free player" and put the Worker's address
+   (e.g. `tube-relay.yourname.workers.dev`) at the top of the server list.
+
 ## Limits
 
 - Some uploaders disable embedding, and those videos won't play here. The
