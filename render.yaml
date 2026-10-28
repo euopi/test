@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: sunline-festival
+    runtime: node
+    plan: free
+    rootDir: sunline
+    branch: claude/lucid-turing-k801kx
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /

@@ -1,0 +1,8 @@
+{
+  "name": "sunline-festival",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Open-world driving game with multiplayer rooms",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
