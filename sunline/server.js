@@ -131,7 +131,7 @@ server.on('error', e => {
 
 server.listen(PORT, '0.0.0.0', () => {
   const ips = Object.values(os.networkInterfaces()).flat().filter(i => i && (i.family === 'IPv4' || i.family === 4) && !i.internal).map(i => i.address);
-  console.log('\n  Sunline Festival LAN server is running.\n');
+  console.log('\n  Sunline Festival server is running.\n');
   console.log(`  On this computer:  http://localhost:${PORT}`);
   for (const ip of ips) console.log(`  On your network:   http://${ip}:${PORT}`);
   console.log('\n  Everyone on the same Wi-Fi opens one of the network links in a browser.');
