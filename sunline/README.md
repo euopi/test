@@ -1,3 +1,13 @@
+---
+title: Sunline Festival
+emoji: 🏁
+colorFrom: pink
+colorTo: yellow
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Sunline Festival
 
 Open-world driving game with online multiplayer. `server.js` serves the game from `public/` and relays car positions between players. It uses only Node's built-in modules.
