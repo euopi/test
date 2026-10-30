@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Skyway Sprint</title>
+<style>
+  :root {
+    --ink: #2b1d2e;
+    --paper: #fff6ec;
+    --accent: #e0703a;
+    --gold: #f2b531;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #f3a77e; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); touch-action: none; user-select: none; -webkit-user-select: none; }
+  canvas { display: block; }
+  #hud { position: fixed; inset: 0 0 auto 0; display: flex; justify-content: space-between; align-items: flex-start; padding: 14px 16px; pointer-events: none; font-weight: 700; text-shadow: 0 1px 0 rgba(255,255,255,.5); }
+  #score { font-size: 28px; font-variant-numeric: tabular-nums; }
+  #score small { display: block; font-size: 12px; opacity: .7; font-weight: 600; }
+  #coins { font-size: 22px; font-variant-numeric: tabular-nums; color: #7a4a00; }
+  #power { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); width: 140px; height: 8px; border-radius: 4px; background: rgba(43,29,46,.2); overflow: hidden; display: none; }
+  #power div { height: 100%; background: #3a8fe0; width: 100%; }
+  #overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(43,29,46,.25); }
+  .panel { background: var(--paper); border-radius: 16px; padding: 28px 28px 24px; max-width: 380px; width: 100%; text-align: center; box-shadow: 0 20px 60px rgba(43,29,46,.35); }
+  .panel h1 { margin: 0 0 4px; font-size: 34px; letter-spacing: -.5px; }
+  .panel p { margin: 6px 0; line-height: 1.45; }
+  .panel .keys { font-size: 14px; opacity: .8; margin: 14px 0 18px; }
+  .panel .big { font-size: 40px; font-weight: 800; margin: 8px 0 0; }
+  .panel .sub { font-size: 14px; opacity: .7; }
+  button { font: inherit; font-weight: 700; font-size: 18px; border: 0; border-radius: 999px; padding: 12px 34px; background: var(--accent); color: #fff; cursor: pointer; margin-top: 10px; }
+  button:hover { filter: brightness(1.07); }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div id="score">0<small>best 0</small></div>
+  <div id="coins">◆ 0</div>
+</div>
+<div id="power"><div></div></div>
+<div id="overlay">
+  <div class="panel" id="startPanel">
+    <h1>Skyway Sprint</h1>
+    <p>Carry the sun-letter across the cloud bridge. Don't look down.</p>
+    <p class="keys">← → / A D to change lanes<br>↑ / W / Space to jump · ↓ / S to slide<br>Swipe on touch screens · P to pause</p>
+    <button id="startBtn">Run</button>
+  </div>
+  <div class="panel hidden" id="overPanel">
+    <p class="sub" id="deathMsg">You crashed</p>
+    <p class="big" id="finalScore">0</p>
+    <p class="sub" id="finalDetail"></p>
+    <button id="againBtn">Run again</button>
+  </div>
+  <div class="panel hidden" id="pausePanel">
+    <h1>Paused</h1>
+    <button id="resumeBtn">Resume</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+  const TILE = 4;
+  const LANE_X = [-2.2, 0, 2.2];
+  const VIEW_AHEAD = 170;
+  const BASE_SPEED = 13, MAX_SPEED = 32;
+  const BASE_GRAV = 28, BASE_JUMP = 10;
+  const STAND_H = 1.7, SLIDE_H = 0.8;
+  const SLIDE_TIME = 0.75;
+  const MAGNET_TIME = 8;
+
+  // ---------- renderer / scene ----------
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  document.body.prepend(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const FOG = 0xf4b892;
+  scene.fog = new THREE.Fog(FOG, 50, 165);
+
+  const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 600);
+
+  // gradient sky dome that follows the camera
+  const sky = new THREE.Mesh(
+    new THREE.SphereGeometry(400, 32, 16),
+    new THREE.ShaderMaterial({
+      side: THREE.BackSide, depthWrite: false, fog: false,
+      uniforms: { top: { value: new THREE.Color(0x6f7fc4) }, mid: { value: new THREE.Color(0xf6a07a) }, bottom: { value: new THREE.Color(0xffe2b8) } },
+      vertexShader: 'varying float h; void main(){ h = normalize(position).y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+      fragmentShader: 'uniform vec3 top; uniform vec3 mid; uniform vec3 bottom; varying float h; void main(){ vec3 c = h > 0.05 ? mix(mid, top, smoothstep(0.05, 0.6, h)) : mix(bottom, mid, smoothstep(-0.3, 0.05, h)); gl_FragColor = vec4(c,1.0); }'
+    })
+  );
+  scene.add(sky);
+
+  // low sun disc
+  const sun = new THREE.Mesh(new THREE.CircleGeometry(18, 40), new THREE.MeshBasicMaterial({ color: 0xfff1c9, fog: false }));
+  scene.add(sun);
+
+  scene.add(new THREE.HemisphereLight(0xffe9d6, 0x5b4366, 0.85));
+  const sunLight = new THREE.DirectionalLight(0xffd4a8, 0.95);
+  sunLight.castShadow = true;
+  sunLight.shadow.mapSize.set(1024, 1024);
+  Object.assign(sunLight.shadow.camera, { left: -12, right: 12, top: 14, bottom: -14, near: 1, far: 60 });
+  scene.add(sunLight, sunLight.target);
+
+  // ---------- shared geometry & materials ----------
+  const mat = (color, extra = {}) => new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.85, metalness: 0 }, extra));
+  const M = {
+    stoneA: mat(0xe2bb93), stoneB: mat(0xd2a780), rail: mat(0xb88a6a), pillar: mat(0xa98194),
+    crate: mat(0x8f5a2e), crateBand: mat(0x5e3a1d), wall: mat(0x7c6890), wallTop: mat(0x9a86ad),
+    banner: mat(0xc0443a), post: mat(0x4e3b52), lantern: mat(0xffd27a, { emissive: 0xffb24a, emissiveIntensity: 0.9 }),
+    coin: mat(0xf2b531, { emissive: 0x8a5600, emissiveIntensity: 0.6, metalness: 0.3, roughness: 0.35 }),
+    magnet: mat(0x58a6ff, { emissive: 0x1d5fb8, emissiveIntensity: 0.8 }),
+    cloud: mat(0xfff3ea, { roughness: 1 }), mountain: mat(0x9c7fa8, { roughness: 1, flatShading: true }),
+    skin: mat(0xe9b48c), cloth: mat(0x2f6f73), pants: mat(0x3b2f45), scarf: mat(0xe0703a), bag: mat(0x8f5a2e), visor: mat(0x2b1d2e)
+  };
+  const G = {
+    tile: new THREE.BoxGeometry(2.12, 0.6, TILE - 0.08),
+    edge: new THREE.BoxGeometry(0.5, 0.45, TILE),
+    deck: new THREE.BoxGeometry(7.4, 0.9, TILE),
+    pillar: new THREE.CylinderGeometry(1.3, 2.0, 40, 8),
+    post: new THREE.BoxGeometry(0.16, 1.4, 0.16),
+    lantern: new THREE.BoxGeometry(0.32, 0.32, 0.32),
+    crate: new THREE.BoxGeometry(1.6, 1.0, 1.2),
+    crateBand: new THREE.BoxGeometry(1.66, 0.14, 1.26),
+    wall: new THREE.BoxGeometry(1.9, 3.0, 0.9),
+    wallTop: new THREE.BoxGeometry(2.05, 0.25, 1.05),
+    gatePost: new THREE.BoxGeometry(0.14, 3.4, 0.14),
+    banner: new THREE.BoxGeometry(1.9, 2.2, 0.18),
+    coin: new THREE.OctahedronGeometry(0.3),
+    magnet: new THREE.IcosahedronGeometry(0.42),
+    cloud: new THREE.SphereGeometry(1, 10, 8)
+  };
+
+  function mesh(geo, material, x, y, z, shadow = true) {
+    const m = new THREE.Mesh(geo, material);
+    m.position.set(x, y, z);
+    m.castShadow = shadow;
+    m.receiveShadow = true;
+    return m;
+  }
+
+  // ---------- player ----------
+  const player = new THREE.Group();
+  const body = new THREE.Group();
+  player.add(body);
+  const torso = mesh(new THREE.BoxGeometry(0.58, 0.68, 0.34), M.cloth, 0, 1.06, 0);
+  const head = mesh(new THREE.SphereGeometry(0.23, 14, 10), M.skin, 0, 1.62, 0);
+  const visor = mesh(new THREE.BoxGeometry(0.36, 0.09, 0.1), M.visor, 0, 1.66, -0.2);
+  const bag = mesh(new THREE.BoxGeometry(0.44, 0.44, 0.22), M.bag, 0, 1.1, 0.27);
+  const scarf = mesh(new THREE.BoxGeometry(0.16, 0.06, 0.6), M.scarf, 0.08, 1.4, 0.4);
+  body.add(torso, head, visor, bag, scarf);
+  function limb(w, h, material, x, y) {
+    const pivot = new THREE.Group();
+    pivot.position.set(x, y, 0);
+    pivot.add(mesh(new THREE.BoxGeometry(w, h, w), material, 0, -h / 2, 0));
+    body.add(pivot);
+    return pivot;
+  }
+  const legL = limb(0.2, 0.72, M.pants, -0.15, 0.72);
+  const legR = limb(0.2, 0.72, M.pants, 0.15, 0.72);
+  const armL = limb(0.15, 0.6, M.cloth, -0.38, 1.36);
+  const armR = limb(0.15, 0.6, M.cloth, 0.38, 1.36);
+  scene.add(player);
+
+  // ---------- background: clouds + far mountains ----------
+  const clouds = [];
+  for (let i = 0; i < 34; i++) {
+    const c = new THREE.Group();
+    const puffs = 3 + Math.floor(Math.random() * 3);
+    for (let j = 0; j < puffs; j++) {
+      const p = new THREE.Mesh(G.cloud, M.cloud);
+      const s = 2 + Math.random() * 3;
+      p.scale.set(s * 1.6, s * 0.6, s);
+      p.position.set((j - puffs / 2) * 2.6, Math.random() * 0.8, Math.random() * 2);
+      c.add(p);
+    }
+    resetCloud(c, -Math.random() * 300);
+    clouds.push(c);
+    scene.add(c);
+  }
+  function resetCloud(c, z) {
+    const side = Math.random() < 0.5 ? -1 : 1;
+    c.position.set(side * (10 + Math.random() * 60), -6 - Math.random() * 14, z);
+  }
+
+  const farRing = new THREE.Group();
+  for (let i = 0; i < 16; i++) {
+    const h = 30 + Math.random() * 45;
+    const m = new THREE.Mesh(new THREE.ConeGeometry(18 + Math.random() * 16, h, 5), M.mountain);
+    const side = i % 2 ? 1 : -1;
+    m.position.set(side * (60 + Math.random() * 90), h / 2 - 30, -150 - Math.random() * 110);
+    m.rotation.y = Math.random() * Math.PI;
+    farRing.add(m);
+  }
+  scene.add(farRing);
+
+  // ---------- world state ----------
+  const rows = new Map();   // row index -> meshes to dispose
+  const gaps = new Set();   // "row:lane"
+  let obstacles = [];       // {mesh, lane, x, z, d, y0, y1, w}
+  let pickups = [];         // {mesh, kind, z, baseY, x}
+  let genRow, nextObstacleRow, coinRun;
+
+  const S = {};             // run state
+  let best = 0;
+  try { best = +localStorage.getItem('skyway-best') || 0; } catch (e) {}
+
+  function difficulty() { return Math.min(1, S.dist / 2500); }
+
+  function clearWorld() {
+    for (const list of rows.values()) list.forEach(m => scene.remove(m));
+    rows.clear(); gaps.clear();
+    obstacles.forEach(o => scene.remove(o.mesh));
+    pickups.forEach(p => scene.remove(p.mesh));
+    obstacles = []; pickups = [];
+  }
+
+  function reset() {
+    clearWorld();
+    Object.assign(S, {
+      state: 'ready', dist: 0, speed: BASE_SPEED, lane: 1, x: 0, y: 0, vy: 0,
+      grounded: true, falling: false, slideT: 0, coins: 0, magnetT: 0, phase: 0, deathT: 0
+    });
+    genRow = 0; nextObstacleRow = 9; coinRun = null;
+    player.position.set(0, 0, 0);
+    body.rotation.set(0, 0, 0); body.position.set(0, 0, 0);
+    camera.position.set(0, 3.8, 7);
+    generate();
+    updateHud();
+  }
+
+  function generate() {
+    const until = Math.floor((S.dist + VIEW_AHEAD) / TILE);
+    while (genRow <= until) buildRow(genRow++);
+  }
+
+  function pickPattern() {
+    const d = difficulty();
+    const lanes = [null, null, null];
+    // sometimes a full-width hazard that forces a jump or slide
+    if (Math.random() < 0.1 + 0.15 * d) {
+      const t = ['block', 'bar', 'gap'][Math.floor(Math.random() * 3)];
+      return [t, t, t];
+    }
+    const count = Math.random() < 0.3 + 0.45 * d ? 2 : 1;
+    const order = [0, 1, 2].sort(() => Math.random() - 0.5);
+    for (let i = 0; i < count; i++) {
+      const r = Math.random();
+      lanes[order[i]] = r < 0.3 ? 'block' : r < 0.55 ? 'bar' : r < 0.75 ? 'gap' : 'wall';
+    }
+    return lanes;
+  }
+
+  function buildRow(r) {
+    const z = -r * TILE - TILE / 2;
+    const list = [];
+    let lanes = [null, null, null];
+    if (r === nextObstacleRow) {
+      lanes = pickPattern();
+      const d = difficulty();
+      nextObstacleRow = r + 3 + Math.floor(Math.random() * (3 - d * 1.5 + 1)) + (Math.random() < 0.25 ? 2 : 0);
+    }
+
+    // walking surface
+    for (let l = 0; l < 3; l++) {
+      if (lanes[l] === 'gap') { gaps.add(r + ':' + l); continue; }
+      list.push(mesh(G.tile, (r + l) % 2 ? M.stoneA : M.stoneB, LANE_X[l], -0.3, z, false));
+    }
+    // edges, under-deck, pillars, lanterns
+    list.push(mesh(G.edge, M.rail, -3.55, 0.0, z), mesh(G.edge, M.rail, 3.55, 0.0, z));
+    if (!lanes.includes('gap')) list.push(mesh(G.deck, M.stoneB, 0, -1.1, z, false));
+    if (r % 7 === 0) list.push(mesh(G.pillar, M.pillar, 0, -21.5, z, false));
+    if (r % 3 === 0) {
+      for (const sx of [-3.55, 3.55]) {
+        list.push(mesh(G.post, M.post, sx, 0.9, z), mesh(G.lantern, M.lantern, sx, 1.75, z, false));
+      }
+    }
+    list.forEach(m => scene.add(m));
+    rows.set(r, list);
+
+    // obstacles
+    lanes.forEach((t, l) => { if (t && t !== 'gap') addObstacle(t, l, z); });
+
+    // coin trails
+    if (!coinRun && r > 4 && Math.random() < 0.22) {
+      const free = [0, 1, 2].filter(l => lanes[l] !== 'wall');
+      coinRun = { lane: free[Math.floor(Math.random() * free.length)], left: 5 + Math.floor(Math.random() * 6) };
+    }
+    if (coinRun) {
+      const t = lanes[coinRun.lane];
+      if (t === 'wall') coinRun = null;
+      else {
+        const y = t === 'block' ? 1.95 : t === 'gap' ? 1.7 : t === 'bar' ? 0.45 : 0.9;
+        for (const off of [-1, 1]) addPickup('coin', LANE_X[coinRun.lane], y, z + off);
+        if (--coinRun.left <= 0) coinRun = null;
+      }
+    }
+    // rare magnet
+    if (r > 20 && Math.random() < 0.012) {
+      const free = [0, 1, 2].filter(l => !lanes[l]);
+      if (free.length) addPickup('magnet', LANE_X[free[Math.floor(Math.random() * free.length)]], 1.0, z);
+    }
+  }
+
+  function addObstacle(type, lane, z) {
+    const x = LANE_X[lane];
+    let g, o;
+    if (type === 'block') {
+      g = new THREE.Group();
+      g.add(mesh(G.crate, M.crate, 0, 0.5, 0), mesh(G.crateBand, M.crateBand, 0, 0.25, 0), mesh(G.crateBand, M.crateBand, 0, 0.75, 0));
+      g.rotation.y = (Math.random() - 0.5) * 0.15;
+      o = { y0: 0, y1: 1.0, d: 1.2, w: 0.8 };
+    } else if (type === 'wall') {
+      g = new THREE.Group();
+      g.add(mesh(G.wall, M.wall, 0, 1.5, 0), mesh(G.wallTop, M.wallTop, 0, 3.1, 0));
+      o = { y0: 0, y1: 3.2, d: 0.9, w: 0.95 };
+    } else {
+      g = new THREE.Group();
+      g.add(mesh(G.gatePost, M.post, -0.92, 1.7, 0), mesh(G.gatePost, M.post, 0.92, 1.7, 0), mesh(G.banner, M.banner, 0, 2.2, 0));
+      o = { y0: 1.1, y1: 3.3, d: 0.3, w: 0.95 };
+    }
+    g.position.set(x, 0, z);
+    scene.add(g);
+    obstacles.push(Object.assign(o, { mesh: g, type, x, z }));
+  }
+
+  function addPickup(kind, x, y, z) {
+    const m = mesh(kind === 'coin' ? G.coin : G.magnet, kind === 'coin' ? M.coin : M.magnet, x, y, z);
+    scene.add(m);
+    pickups.push({ mesh: m, kind, x, z, baseY: y });
+  }
+
+  function recycle() {
+    const pz = -S.dist;
+    const curRow = Math.floor(S.dist / TILE);
+    for (const [r, list] of rows) {
+      if (r < curRow - 4) {
+        list.forEach(m => scene.remove(m));
+        rows.delete(r);
+        for (let l = 0; l < 3; l++) gaps.delete(r + ':' + l);
+      }
+    }
+    obstacles = obstacles.filter(o => (o.z > pz + 12 ? (scene.remove(o.mesh), false) : true));
+    pickups = pickups.filter(p => (p.mesh.position.z > pz + 12 ? (scene.remove(p.mesh), false) : true));
+  }
+
+  // ---------- audio ----------
+  let actx = null;
+  function beep(freq, dur, type = 'square', vol = 0.06, to = null) {
+    if (!actx) return;
+    const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (to) o.frequency.exponentialRampToValueAtTime(to, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur);
+  }
+  function initAudio() {
+    if (actx) return;
+    try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+  }
+
+  // ---------- input ----------
+  function act(a) {
+    if (S.state !== 'run') return;
+    const k = Math.sqrt(S.speed / BASE_SPEED);
+    if (a === 'left' && S.lane > 0) { S.lane--; beep(330, 0.06, 'triangle', 0.04); }
+    if (a === 'right' && S.lane < 2) { S.lane++; beep(330, 0.06, 'triangle', 0.04); }
+    if (a === 'jump' && S.grounded && !S.falling) {
+      S.vy = BASE_JUMP * k; S.grounded = false; S.slideT = 0;
+      beep(420, 0.15, 'square', 0.05, 760);
+    }
+    if (a === 'slide' && !S.falling) {
+      if (!S.grounded) S.vy = Math.min(S.vy, -22 * k);
+      S.slideT = SLIDE_TIME;
+      beep(220, 0.18, 'sawtooth', 0.03, 110);
+    }
+  }
+  const keyMap = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'jump', KeyW: 'jump', Space: 'jump', ArrowDown: 'slide', KeyS: 'slide' };
+  addEventListener('keydown', e => {
+    if (keyMap[e.code]) { e.preventDefault(); if (!e.repeat) act(keyMap[e.code]); }
+    if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
+    if ((e.code === 'Enter' || e.code === 'Space') && (S.state === 'ready' || S.state === 'over')) start();
+  });
+  let touch = null;
+  addEventListener('touchstart', e => { const t = e.changedTouches[0]; touch = { x: t.clientX, y: t.clientY, used: false }; }, { passive: true });
+  addEventListener('touchmove', e => {
+    if (!touch || touch.used) return;
+    const t = e.changedTouches[0], dx = t.clientX - touch.x, dy = t.clientY - touch.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 28) return;
+    touch.used = true;
+    act(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'slide' : 'jump'));
+  }, { passive: true });
+  addEventListener('blur', () => { if (S.state === 'run') togglePause(); });
+
+  // ---------- UI ----------
+  const $ = id => document.getElementById(id);
+  const overlay = $('overlay');
+  function showPanel(id) {
+    overlay.classList.toggle('hidden', !id);
+    ['startPanel', 'overPanel', 'pausePanel'].forEach(p => $(p).classList.toggle('hidden', p !== id));
+  }
+  function score() { return Math.floor(S.dist) + S.coins * 10; }
+  function updateHud() {
+    $('score').innerHTML = score() + '<small>best ' + best + '</small>';
+    $('coins').textContent = '◆ ' + S.coins;
+    $('power').style.display = S.magnetT > 0 ? 'block' : 'none';
+    $('power').firstElementChild.style.width = (S.magnetT / MAGNET_TIME * 100) + '%';
+  }
+  function start() {
+    initAudio();
+    if (S.state === 'over') reset();
+    S.state = 'run';
+    showPanel(null);
+  }
+  function togglePause() {
+    if (S.state === 'run') { S.state = 'paused'; showPanel('pausePanel'); }
+    else if (S.state === 'paused') { S.state = 'run'; showPanel(null); }
+  }
+  function die(msg) {
+    if (S.state !== 'run') return;
+    S.state = 'dying'; S.deathT = 0; S.deathMsg = msg;
+    beep(msg === 'fell' ? 300 : 160, 0.5, 'sawtooth', 0.07, 50);
+  }
+  function gameOver() {
+    S.state = 'over';
+    const sc = score();
+    const isBest = sc > best;
+    if (isBest) { best = sc; try { localStorage.setItem('skyway-best', best); } catch (e) {} }
+    $('deathMsg').textContent = S.deathMsg === 'fell' ? 'You fell into the clouds' : 'You crashed';
+    $('finalScore').textContent = sc;
+    $('finalDetail').textContent = Math.floor(S.dist) + ' m · ' + S.coins + ' sunstones' + (isBest ? ' · new best!' : ' · best ' + best);
+    updateHud();
+    showPanel('overPanel');
+  }
+  $('startBtn').onclick = start;
+  $('againBtn').onclick = start;
+  $('resumeBtn').onclick = togglePause;
+
+  // ---------- simulation ----------
+  function overGap() {
+    const row = Math.floor(S.dist / TILE);
+    for (let l = 0; l < 3; l++) {
+      if (gaps.has(row + ':' + l) && Math.abs(S.x - LANE_X[l]) < 0.75) return true;
+    }
+    return false;
+  }
+
+  function step(dt) {
+    const k = Math.sqrt(S.speed / BASE_SPEED);
+    S.speed = Math.min(MAX_SPEED, BASE_SPEED + S.dist * 0.0065);
+    if (!S.falling) S.dist += S.speed * dt;
+    S.x += (LANE_X[S.lane] - S.x) * Math.min(1, dt * 14);
+    if (S.slideT > 0 && S.grounded) S.slideT -= dt;
+
+    // vertical motion and gaps
+    if (S.grounded && overGap()) { S.grounded = false; S.falling = true; S.vy = 0; }
+    if (!S.grounded) {
+      S.vy -= BASE_GRAV * k * k * dt;
+      S.y += S.vy * dt;
+      if (S.y <= 0 && !S.falling) {
+        if (overGap()) S.falling = true;
+        else { S.y = 0; S.vy = 0; S.grounded = true; }
+      }
+      if (S.falling && S.y < -0.3) die('fell');
+    }
+
+    // collisions
+    const pz = -S.dist;
+    const h = S.slideT > 0 ? SLIDE_H : STAND_H;
+    for (const o of obstacles) {
+      if (Math.abs(o.z - pz) > o.d / 2 + 0.3) continue;
+      if (Math.abs(o.x - S.x) > o.w + 0.33) continue;
+      if (S.y + h <= o.y0 || S.y >= o.y1) continue;
+      die('crash');
+      return;
+    }
+
+    // pickups
+    const cy = S.y + h / 2;
+    for (let i = pickups.length - 1; i >= 0; i--) {
+      const p = pickups[i], m = p.mesh;
+      if (S.magnetT > 0 && p.kind === 'coin' && m.position.z < pz + 1 && m.position.z > pz - 22) {
+        const f = Math.min(1, dt * 9);
+        m.position.x += (S.x - m.position.x) * f;
+        m.position.y += (cy - m.position.y) * f;
+        m.position.z += (pz - m.position.z) * f;
+      }
+      const dx = m.position.x - S.x, dy = m.position.y - cy, dz = m.position.z - pz;
+      if (dx * dx + dy * dy * 0.5 + dz * dz < 0.9) {
+        scene.remove(m); pickups.splice(i, 1);
+        if (p.kind === 'coin') { S.coins++; beep(880 + (S.coins % 5) * 90, 0.08, 'square', 0.035); }
+        else { S.magnetT = MAGNET_TIME; beep(520, 0.4, 'triangle', 0.06, 1040); }
+      }
+    }
+    if (S.magnetT > 0) S.magnetT = Math.max(0, S.magnetT - dt);
+
+    generate();
+    recycle();
+  }
+
+  // ---------- presentation ----------
+  function animate(dt, t) {
+    const pz = -S.dist;
+    player.position.set(S.x, S.y, pz);
+    const sliding = S.slideT > 0 && S.grounded;
+
+    if (S.state === 'run' || S.state === 'ready') {
+      if (S.state === 'run') S.phase += dt * S.speed * 0.75;
+      const sw = S.state === 'run' ? Math.sin(S.phase) : Math.sin(t * 2) * 0.08;
+      if (!S.grounded) {
+        legL.rotation.x = -0.9; legR.rotation.x = 0.4; armL.rotation.x = 1.0; armR.rotation.x = -0.6;
+      } else {
+        legL.rotation.x = sw * 0.9; legR.rotation.x = -sw * 0.9;
+        armL.rotation.x = -sw * 0.8; armR.rotation.x = sw * 0.8;
+      }
+      body.rotation.x += ((sliding ? 1.2 : -0.08) - body.rotation.x) * Math.min(1, dt * 18);
+      body.position.y = sliding ? 0.25 : (S.grounded ? Math.abs(Math.sin(S.phase)) * 0.07 : 0);
+      body.rotation.z = (LANE_X[S.lane] - S.x) * -0.12;
+      scarf.rotation.y = Math.sin(t * 14) * 0.15;
+    } else if (S.state === 'dying') {
+      S.deathT += dt;
+      if (S.deathMsg === 'crash') {
+        body.rotation.x = Math.max(-1.5, body.rotation.x - dt * 6);
+        body.position.z = Math.min(0.6, body.position.z + dt * 3);
+      }
+      if (S.deathT > 1.1) gameOver();
+    }
+    if (S.state === 'dying' && S.deathMsg === 'fell') {
+      S.vy -= BASE_GRAV * dt; S.y += S.vy * dt;
+    }
+
+    // pickups spin
+    for (const p of pickups) {
+      p.mesh.rotation.y += dt * 3;
+      if (S.magnetT <= 0 || p.kind !== 'coin') p.mesh.position.y = p.baseY + Math.sin(t * 3 + p.z) * 0.08;
+    }
+
+    // camera follows
+    const camY = S.falling ? 3.4 : 3.6 + S.y * 0.35;
+    camera.position.x += (S.x * 0.55 - camera.position.x) * Math.min(1, dt * 6);
+    camera.position.y += (camY - camera.position.y) * Math.min(1, dt * 6);
+    camera.position.z = pz + 6.6;
+    camera.lookAt(S.x * 0.35, 1.1 + (S.falling ? 0 : S.y * 0.25), pz - 8);
+    camera.fov = 62 + (S.speed - BASE_SPEED) * 0.35;
+    camera.updateProjectionMatrix();
+
+    // backdrop follows along
+    sky.position.copy(camera.position);
+    sun.position.set(camera.position.x - 40, 22, pz - 300);
+    farRing.position.z = pz;
+    sunLight.position.set(S.x - 6, 14, pz + 6);
+    sunLight.target.position.set(S.x, 0, pz - 4);
+    for (const c of clouds) if (c.position.z > camera.position.z + 20) resetCloud(c, pz - 220 - Math.random() * 80);
+  }
+
+  // ---------- loop ----------
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (S.state === 'run') {
+      // substeps keep collisions honest at high speed
+      const n = Math.ceil(dt / 0.012);
+      for (let i = 0; i < n && S.state === 'run'; i++) step(dt / n);
+      updateHud();
+    }
+    if (S.state !== 'paused') animate(dt, now / 1000);
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+
+  addEventListener('resize', () => {
+    renderer.setSize(innerWidth, innerHeight);
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+  });
+
+  reset();
+  showPanel('startPanel');
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
