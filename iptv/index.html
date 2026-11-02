@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IPTV</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📺</text></svg>">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span>📺</span> IPTV</div>
+  <select id="source" title="Channel source">
+    <option value="builtin">World (iptv-org)</option>
+    <option value="m3u">My playlist</option>
+  </select>
+  <button id="load-btn" class="btn">Load M3U…</button>
+  <span id="stats"></span>
+</header>
+
+<main>
+  <aside id="groups">
+    <div class="side-title">Library</div>
+    <ul id="special"></ul>
+    <div class="side-title" id="groups-title">Countries</div>
+    <input id="group-filter" type="search" placeholder="Filter…">
+    <ul id="group-list"></ul>
+  </aside>
+
+  <section id="channels">
+    <div class="list-head">
+      <input id="search" type="search" placeholder="Search channels  ( / )" autocomplete="off">
+      <select id="category" title="Category"></select>
+    </div>
+    <div id="list-title"></div>
+    <ul id="list"></ul>
+  </section>
+
+  <section id="player">
+    <div class="video-wrap">
+      <video id="video" controls playsinline></video>
+      <div id="overlay">Pick a channel to start watching</div>
+    </div>
+    <div class="now" hidden>
+      <img id="now-logo" alt="">
+      <div class="now-text">
+        <strong id="now-name"></strong>
+        <span id="now-meta"></span>
+      </div>
+      <button id="fav-btn" class="icon" title="Favorite (F)">☆</button>
+      <button id="prev-btn" class="icon" title="Previous channel (↑)">▲</button>
+      <button id="next-btn" class="icon" title="Next channel (↓)">▼</button>
+    </div>
+    <p class="hint">↑ ↓ change channel · F favorite · / search · Esc stop. Some streams are geo-blocked or offline; the app tries every URL a channel has and then tells you.</p>
+  </section>
+</main>
+
+<dialog id="m3u-dialog">
+  <form method="dialog">
+    <h3>Load an M3U playlist</h3>
+    <label>Playlist URL
+      <input id="m3u-url" type="url" placeholder="https://example.com/playlist.m3u">
+    </label>
+    <p class="or">or</p>
+    <label>File from your computer
+      <input id="m3u-file" type="file" accept=".m3u,.m3u8,audio/x-mpegurl,application/vnd.apple.mpegurl,text/plain">
+    </label>
+    <p id="m3u-error" class="error"></p>
+    <div class="row">
+      <button value="cancel" class="btn ghost">Cancel</button>
+      <button id="m3u-go" value="default" class="btn">Load</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+<script src="data/channels.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
