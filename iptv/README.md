@@ -2,7 +2,11 @@
 
 A browser IPTV player. No install, no build step.
 
-Open `index.html` in your browser (double-clicking it works). Some browsers are
+Open `IPTV.html` in your browser. It is one self-contained file (styles, channel
+list and player all inlined), so you can copy it anywhere and double-click it.
+To rebuild it after editing the source, run `python3 bundle.py`.
+
+For development, `index.html` loads the same pieces as separate files. Some browsers are
 stricter with pages opened from disk; if anything misbehaves, serve the folder
 instead with `python3 -m http.server` and go to http://localhost:8000.
 
