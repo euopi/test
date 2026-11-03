@@ -99,7 +99,25 @@ dialog {
   padding: 20px; width: min(440px, calc(100vw - 32px));
 }
 dialog::backdrop { background: rgba(0,0,0,.6); }
-dialog h3 { margin: 0 0 14px; }
+dialog h3 { margin: 0; }
+dialog h4 { margin: 18px 0 10px; font-size: 14px; }
+dialog label + label { margin-top: 10px; }
+dialog input[type=text] {
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; outline: none; color: var(--text);
+}
+.dlg-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+#saved { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 40vh; overflow-y: auto; }
+#saved li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface-2); border-radius: 8px; }
+#saved li.current { outline: 1px solid var(--accent); }
+#saved .pl-info { flex: 1; min-width: 0; cursor: pointer; }
+#saved .pl-info div, #saved .pl-info small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#saved .pl-info small { color: var(--muted); font-size: 12px; }
+#saved .icon { width: 30px; height: 30px; flex: none; }
+#saved .none { color: var(--muted); background: none; justify-content: center; }
+.btn.small { padding: 4px 10px; font-weight: 500; font-size: 13px; cursor: pointer; }
+.backup { display: flex; align-items: center; gap: 8px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+.backup span { margin-right: auto; }
+.backup label.btn { display: inline-block; flex-direction: row; color: var(--text); }
 dialog label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 13px; }
 dialog input[type=url] { color: var(--text); }
 .or { text-align: center; color: var(--muted); margin: 12px 0; }

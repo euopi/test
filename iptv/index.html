@@ -12,9 +12,8 @@
   <div class="brand"><span>📺</span> IPTV</div>
   <select id="source" title="Channel source">
     <option value="builtin">World (iptv-org)</option>
-    <option value="m3u">My playlist</option>
   </select>
-  <button id="load-btn" class="btn">Load M3U…</button>
+  <button id="load-btn" class="btn">Playlists</button>
   <span id="stats"></span>
 </header>
 
@@ -56,8 +55,17 @@
 </main>
 
 <dialog id="m3u-dialog">
-  <form method="dialog">
-    <h3>Load an M3U playlist</h3>
+  <div class="dlg-head">
+    <h3>Playlists</h3>
+    <button id="dlg-close" class="icon" title="Close">✕</button>
+  </div>
+  <ul id="saved"></ul>
+
+  <form id="add-form">
+    <h4>Add a playlist</h4>
+    <label>Name
+      <input id="m3u-name" type="text" placeholder="e.g. Sports" maxlength="60">
+    </label>
     <label>Playlist URL
       <input id="m3u-url" type="url" placeholder="https://example.com/playlist.m3u">
     </label>
@@ -67,10 +75,16 @@
     </label>
     <p id="m3u-error" class="error"></p>
     <div class="row">
-      <button value="cancel" class="btn ghost">Cancel</button>
-      <button id="m3u-go" value="default" class="btn">Load</button>
+      <button id="m3u-go" type="submit" class="btn">Save &amp; open</button>
     </div>
   </form>
+
+  <div class="backup">
+    <span>Backup</span>
+    <button id="export-btn" type="button" class="btn ghost small">Export</button>
+    <label class="btn ghost small">Import<input id="import-file" type="file" accept=".json,application/json" hidden></label>
+  </div>
+  <p id="storage-warn" class="error" hidden>This browser isn't letting the page save anything, so playlists will be forgotten when you close it. Use Export to keep a copy.</p>
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>

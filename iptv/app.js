@@ -7,6 +7,34 @@
     set(k, v) { try { localStorage.setItem("iptv:" + k, JSON.stringify(v)); return true; } catch { return false; } },
   };
 
+  // Playlist bodies can be several MB, past localStorage's ~5 MB cap, so they
+  // live in IndexedDB. The list of playlists (names, URLs) stays in localStorage.
+  const texts = (() => {
+    let dbp = null;
+    const open = () => dbp || (dbp = new Promise((res, rej) => {
+      const r = indexedDB.open("iptv", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("texts");
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    }));
+    const tx = async (mode, fn) => {
+      const db = await open();
+      return new Promise((res, rej) => {
+        const t = db.transaction("texts", mode);
+        const req = fn(t.objectStore("texts"));
+        t.oncomplete = () => res(req && req.result);
+        t.onerror = t.onabort = () => rej(t.error);
+      });
+    };
+    return {
+      get: (id) => tx("readonly", (st) => st.get(id)).catch(() => undefined),
+      set: (id, text) => tx("readwrite", (st) => st.put(text, id)).then(() => true, () => false),
+      del: (id) => tx("readwrite", (st) => st.delete(id)).catch(() => {}),
+    };
+  })();
+
+  const storageOK = (() => { try { localStorage.setItem("iptv:t", "1"); localStorage.removeItem("iptv:t"); return true; } catch { return false; } })();
+
   const $ = (s) => document.querySelector(s);
   const el = {
     source: $("#source"), loadBtn: $("#load-btn"), stats: $("#stats"),
@@ -14,7 +42,9 @@
     search: $("#search"), category: $("#category"), listTitle: $("#list-title"), list: $("#list"),
     video: $("#video"), overlay: $("#overlay"), now: $(".now"), nowLogo: $("#now-logo"), nowName: $("#now-name"),
     nowMeta: $("#now-meta"), fav: $("#fav-btn"), prev: $("#prev-btn"), next: $("#next-btn"),
-    dialog: $("#m3u-dialog"), m3uUrl: $("#m3u-url"), m3uFile: $("#m3u-file"), m3uError: $("#m3u-error"), m3uGo: $("#m3u-go"),
+    dialog: $("#m3u-dialog"), dlgClose: $("#dlg-close"), saved: $("#saved"), addForm: $("#add-form"),
+    m3uName: $("#m3u-name"), m3uUrl: $("#m3u-url"), m3uFile: $("#m3u-file"), m3uError: $("#m3u-error"), m3uGo: $("#m3u-go"),
+    exportBtn: $("#export-btn"), importFile: $("#import-file"), storageWarn: $("#storage-warn"),
   };
 
   const state = {
@@ -42,7 +72,17 @@
     return out;
   }
 
-  function parseM3U(text) {
+  // An HLS stream (rather than a channel list) has these tags. If someone saves
+  // a stream link, treat it as a one-channel playlist instead of listing its
+  // quality variants or video segments as "channels".
+  const isStream = (text) => /#EXT-X-(STREAM-INF|TARGETDURATION|MEDIA-SEQUENCE)/i.test(text);
+
+  function parseM3U(text, url) {
+    if (isStream(text)) {
+      if (!url) return [];
+      const name = decodeURIComponent(url.split(/[?#]/)[0].split("/").pop() || "Stream").replace(/\.m3u8?$/i, "");
+      return [{ key: "m3u:" + url, name, logo: "", urls: [url], cats: [], group: "Streams", groupLabel: "Streams", quality: "" }];
+    }
     const lines = text.split(/\r?\n/);
     const out = [];
     let info = null;
@@ -106,18 +146,95 @@
     refresh();
   }
 
-  function switchSource(src) {
+  // ---------- saved playlists ----------
+  // each: { id, name, url (blank for files), updated (ms) }
+  const playlists = () => store.get("playlists", []);
+  const savePlaylists = (list) => store.set("playlists", list);
+  const playlistById = (id) => playlists().find((p) => p.id === id);
+  const STALE_MS = 6 * 60 * 60 * 1000;
+
+  function renderSourceOptions() {
+    el.source.innerHTML = '<option value="builtin">World (iptv-org)</option>' +
+      playlists().map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("");
+    el.source.value = state.source;
+  }
+
+  async function fetchText(url) {
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new Error(`server answered ${r.status}`);
+    return r.text();
+  }
+
+  // Pulls a URL playlist again and stores the new copy. Returns the channel list.
+  async function refreshPlaylist(p) {
+    const text = await fetchText(p.url);
+    const list = parseM3U(text, p.url);
+    if (!list.length) throw new Error("no channels in it any more");
+    await texts.set(p.id, text);
+    savePlaylists(playlists().map((x) => x.id === p.id ? { ...x, updated: Date.now() } : x));
+    return { list, text };
+  }
+
+  async function switchSource(src) {
+    const p = src === "builtin" ? null : playlistById(src);
+    if (!p) src = "builtin";
     state.source = src;
-    el.source.value = src;
     store.set("source", src);
     state.view = { type: "all" };
-    if (src === "builtin") {
-      setChannels(loadBuiltin());
-    } else {
-      const text = store.get("m3u", "");
-      setChannels(text ? parseM3U(text) : []);
-      if (!text) el.dialog.showModal();
+    renderSourceOptions();
+    if (!p) { setChannels(loadBuiltin()); return; }
+
+    const cached = await texts.get(p.id);
+    if (state.source !== src) return;
+    if (cached) setChannels(parseM3U(cached, p.url));
+    else { setChannels([]); el.listTitle.textContent = p.url ? "Downloading playlist…" : ""; }
+
+    // keep URL playlists current without making you re-add them
+    if (p.url && (!cached || Date.now() - (p.updated || 0) > STALE_MS)) {
+      try {
+        const fresh = await refreshPlaylist(p);
+        if (state.source === src && fresh.text !== cached) setChannels(fresh.list);
+      } catch (err) {
+        if (!cached && state.source === src) {
+          el.list.innerHTML = `<li class="empty">Couldn't download “${esc(p.name)}” (${esc(err.message)}). Try again from Playlists → ⟳.</li>`;
+        }
+      }
+    } else if (!p.url && !cached) {
+      el.list.innerHTML = `<li class="empty">This playlist's file wasn't saved by the browser. Remove it and add the file again.</li>`;
     }
+  }
+
+  function renderSaved() {
+    const list = playlists();
+    el.saved.innerHTML = list.length ? list.map((p) => `
+      <li data-id="${esc(p.id)}" class="${p.id === state.source ? "current" : ""}">
+        <span class="pl-info" data-act="open" title="Open">
+          <div>${esc(p.name)}</div>
+          <small>${p.url ? esc(p.url) : "From a file"}${p.updated ? " · updated " + new Date(p.updated).toLocaleDateString() : ""}</small>
+        </span>
+        ${p.url ? '<button class="icon" data-act="refresh" title="Download again">⟳</button>' : ""}
+        <button class="icon" data-act="rename" title="Rename">✎</button>
+        <button class="icon" data-act="delete" title="Remove">🗑</button>
+      </li>`).join("") : '<li class="none">No saved playlists yet.</li>';
+  }
+
+  function openPlaylists() {
+    el.m3uError.textContent = "";
+    el.storageWarn.hidden = storageOK;
+    renderSaved();
+    el.dialog.showModal();
+  }
+
+  const newId = () => "pl" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+  async function addPlaylist(name, url, text) {
+    const id = newId();
+    const nameGuess = url ? decodeURIComponent(url.split(/[?#]/)[0].split("/").pop() || "").replace(/\.m3u8?$/i, "") : "";
+    const entry = { id, name: name || nameGuess || "Playlist " + (playlists().length + 1), url: url || "", updated: Date.now() };
+    const stored = await texts.set(id, text);
+    if (!stored && !url) throw new Error("the browser refused to store the file");
+    savePlaylists([...playlists(), entry]);
+    return entry;
   }
 
   // ---------- favorites & recent (per source) ----------
@@ -185,8 +302,8 @@
       : v.type === "group" ? (state.groups.find((g) => g.id === v.group) || {}).label : "All channels";
     el.listTitle.textContent = `${title} · ${state.visible.length.toLocaleString()}`;
     if (!state.visible.length) {
-      const msg = !state.channels.length && state.source === "m3u"
-        ? "No playlist loaded yet. Use “Load M3U…” up top."
+      const msg = !state.channels.length && state.source !== "builtin"
+        ? "This playlist is empty."
         : v.type === "fav" && !state.query ? "No favorites yet. Press F or ☆ while watching a channel."
         : "Nothing matches.";
       el.list.innerHTML = `<li class="empty">${msg}</li>`;
@@ -342,30 +459,108 @@
   el.next.addEventListener("click", () => step(1));
   el.source.addEventListener("change", () => switchSource(el.source.value));
 
-  el.loadBtn.addEventListener("click", () => { el.m3uError.textContent = ""; el.dialog.showModal(); });
-  el.m3uGo.addEventListener("click", async (e) => {
+  el.loadBtn.addEventListener("click", openPlaylists);
+  el.dlgClose.addEventListener("click", () => el.dialog.close());
+
+  el.addForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     el.m3uError.textContent = "";
+    const file = el.m3uFile.files[0];
+    const url = el.m3uUrl.value.trim();
     let text = "";
     try {
-      if (el.m3uFile.files[0]) text = await el.m3uFile.files[0].text();
-      else if (el.m3uUrl.value.trim()) {
-        const r = await fetch(el.m3uUrl.value.trim());
-        if (!r.ok) throw new Error(`server answered ${r.status}`);
-        text = await r.text();
-      } else { el.m3uError.textContent = "Give a URL or pick a file."; return; }
+      if (file) text = await file.text();
+      else if (url) text = await fetchText(url);
+      else { el.m3uError.textContent = "Give a URL or pick a file."; return; }
     } catch (err) {
       el.m3uError.textContent = `Couldn't fetch it (${err.message}). The host probably blocks browser downloads (CORS); download the file and pick it here instead.`;
       return;
     }
-    const list = parseM3U(text);
-    if (!list.length) { el.m3uError.textContent = "No channels found in that playlist."; return; }
-    if (!store.set("m3u", text)) el.m3uError.textContent = "";
+    if (!parseM3U(text, file ? "" : url).length) {
+      el.m3uError.textContent = file && isStream(text)
+        ? "That file is a single video stream, not a channel list. Paste its web address in the URL box instead."
+        : "No channels found in that playlist.";
+      return;
+    }
+    let entry;
+    try {
+      entry = await addPlaylist(el.m3uName.value.trim() || (file ? file.name.replace(/\.m3u8?$/i, "") : ""), file ? "" : url, text);
+    } catch (err) { el.m3uError.textContent = `Couldn't save it: ${err.message}.`; return; }
+    el.addForm.reset();
     el.dialog.close();
-    el.m3uFile.value = "";
-    state.source = "m3u"; el.source.value = "m3u"; store.set("source", "m3u");
-    state.view = { type: "all" };
-    setChannels(list);
+    switchSource(entry.id);
+  });
+
+  el.saved.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-act]"); if (!btn) return;
+    const id = btn.closest("li").dataset.id;
+    const p = playlistById(id); if (!p) return;
+    const act = btn.dataset.act;
+    if (act === "open") { el.dialog.close(); switchSource(id); }
+    else if (act === "rename") {
+      const name = prompt("Rename playlist", p.name);
+      if (name && name.trim()) {
+        savePlaylists(playlists().map((x) => x.id === id ? { ...x, name: name.trim().slice(0, 60) } : x));
+        renderSaved(); renderSourceOptions();
+      }
+    } else if (act === "delete") {
+      if (!confirm(`Remove “${p.name}”? Its favorites go with it.`)) return;
+      savePlaylists(playlists().filter((x) => x.id !== id));
+      texts.del(id);
+      store.set("fav:" + id, []); store.set("recent:" + id, []);
+      if (state.source === id) switchSource("builtin"); else renderSourceOptions();
+      renderSaved();
+    } else if (act === "refresh") {
+      btn.disabled = true; btn.textContent = "…";
+      el.m3uError.textContent = "";
+      try {
+        const fresh = await refreshPlaylist(p);
+        if (state.source === id) setChannels(fresh.list);
+      } catch (err) {
+        el.m3uError.textContent = `Couldn't update “${p.name}”: ${err.message}.`;
+      }
+      renderSaved();
+    }
+  });
+
+  el.exportBtn.addEventListener("click", async () => {
+    const out = { app: "iptv", version: 1, playlists: [] };
+    for (const p of playlists()) {
+      out.playlists.push({ ...p, text: p.url ? undefined : await texts.get(p.id), favorites: store.get("fav:" + p.id, []) });
+    }
+    out.builtinFavorites = store.get("fav:builtin", []);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 1)], { type: "application/json" }));
+    a.download = "iptv-playlists.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+
+  el.importFile.addEventListener("change", async () => {
+    const f = el.importFile.files[0]; el.importFile.value = "";
+    if (!f) return;
+    el.m3uError.textContent = "";
+    try {
+      const data = JSON.parse(await f.text());
+      if (!Array.isArray(data.playlists)) throw new Error("not an IPTV backup file");
+      const have = new Set(playlists().map((p) => (p.url || "") + "|" + p.name));
+      let added = 0;
+      for (const p of data.playlists) {
+        if (have.has((p.url || "") + "|" + p.name)) continue;
+        if (!p.url && !p.text) continue;
+        const entry = await addPlaylist(p.name, p.url || "", p.text || "");
+        if (p.url) savePlaylists(playlists().map((x) => x.id === entry.id ? { ...x, updated: 0 } : x));
+        if (Array.isArray(p.favorites)) store.set("fav:" + entry.id, p.favorites);
+        added++;
+      }
+      if (Array.isArray(data.builtinFavorites)) {
+        store.set("fav:builtin", [...new Set([...store.get("fav:builtin", []), ...data.builtinFavorites])]);
+      }
+      renderSaved(); renderSourceOptions(); renderGroups();
+      el.m3uError.textContent = added ? "" : "Nothing new in that backup.";
+    } catch (err) {
+      el.m3uError.textContent = `Import failed: ${err.message}.`;
+    }
   });
 
   document.addEventListener("keydown", (e) => {
@@ -381,5 +576,17 @@
 
   // ---------- boot ----------
   if (!window.Hls) showOverlay("hls.js failed to load (offline?). Only Safari can play streams without it.");
-  switchSource(store.get("source", "builtin") === "m3u" && store.get("m3u", "") ? "m3u" : "builtin");
+  (async () => {
+    // carry over the single playlist older versions of this app kept
+    const legacy = store.get("m3u", "");
+    if (legacy) {
+      try {
+        const entry = await addPlaylist("My playlist", "", legacy);
+        store.set("fav:" + entry.id, store.get("fav:m3u", []));
+        if (store.get("source") === "m3u") store.set("source", entry.id);
+        localStorage.removeItem("iptv:m3u");
+      } catch { /* keep the legacy copy and try again next time */ }
+    }
+    switchSource(store.get("source", "builtin"));
+  })();
 })();

@@ -15,9 +15,14 @@ instead with `python3 -m http.server` and go to http://localhost:8000.
 - Ships with about 8,000 free, legal live channels from 179 countries, taken
   from the public [iptv-org](https://github.com/iptv-org/iptv) database.
   Browse by country, filter by category, or search everything.
-- Loads your own M3U playlist from a URL or a file. It's remembered between
-  visits; switch between it and the built-in list with the dropdown.
-- Favorites and recently watched, kept per source in your browser.
+- Saves as many of your own M3U playlists as you like, from a URL or a file,
+  and lists them in the dropdown next to the built-in list. Playlists saved by
+  URL download a fresh copy when you open them if the saved one is over 6
+  hours old, or right away with the ⟳ button. Pasting a single stream link
+  saves it as a one-channel playlist.
+- Rename or remove playlists, and Export/Import them all (with favorites) as
+  a JSON backup, for moving to another browser or computer.
+- Favorites and recently watched, kept per playlist in your browser.
 - Each channel's backup stream URLs are tried in turn before it's marked dead.
 - Keys: ↑/↓ change channel, F favorite, / search, Esc stop.
 
