@@ -191,6 +191,7 @@
   .meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--green) 0 68%, var(--yellow) 68% 88%, var(--red) 88%);
     clip-path: inset(0 calc(100% - var(--v, 0%)) 0 0); }
   .pane { flex: 1; overflow-y: auto; padding: 10px 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+  .pane > *, #clipBody > *, #trackBody > * { flex-shrink: 0; }   /* let long panes scroll instead of squashing controls */
   .section-title { font-size: 11px; font-weight: 590; color: var(--label2); text-transform: none; margin: 0 0 -6px 2px; }
   .field { display: flex; flex-direction: column; gap: 6px; }
   .field > span { font-size: 11.5px; color: var(--label2); padding-left: 2px; }
@@ -239,7 +240,29 @@
   #toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); padding: 10px 18px; border-radius: 20px; z-index: 50;
     max-width: 90vw; font-weight: 500; }
 
+  /* document menu */
+  #btnDoc { gap: 4px; padding: 0 10px 0 12px; font-weight: 590; max-width: 200px; }
+  #btnDoc .docname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #btnDoc svg { width: 12px; height: 12px; color: var(--label2); }
+  .menu { position: fixed; z-index: 45; min-width: 230px; border-radius: 14px; padding: 6px; display: flex; flex-direction: column; }
+  .menu button { justify-content: space-between; height: 30px; padding: 0 10px; border-radius: 8px; font-size: 13px; }
+  .menu button:hover { background: var(--accent); color: #fff; }
+  .menu button:hover kbd { color: rgba(255,255,255,.8); background: transparent; }
+  .menu hr { border: 0; height: .5px; background: var(--separator); margin: 5px 8px; }
+  .menu kbd { background: transparent; color: var(--label3); padding: 0; }
+  /* loop range */
+  #selection { position: absolute; top: 0; bottom: 0; left: 0; z-index: 1; pointer-events: none;
+    background: color-mix(in srgb, var(--accent) 9%, transparent); border-left: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+    border-right: 1px solid color-mix(in srgb, var(--accent) 50%, transparent); }
+  #selection.off { background: color-mix(in srgb, var(--label) 4%, transparent); border-color: var(--label4); }
+  #loopBar { position: absolute; top: 3px; height: 6px; border-radius: 3px; background: var(--accent); z-index: 1; pointer-events: none; }
+  #loopBar.off { background: var(--label3); }
+  .corner .tb { height: 22px; min-width: 24px; padding: 0 4px; border-radius: 6px; color: var(--label2); }
+  .corner .tb svg { width: 14px; height: 14px; }
+  .process { display: flex; flex-direction: column; gap: 10px; }
+
   @media (max-width: 900px) {
+    #btnDoc .docname { display: none; }
     :root { --header-w: 148px; --insp-w: auto; }
     .inspector { top: auto; left: var(--gap); max-height: 62vh; }
     .inspector.closed { transform: translateY(calc(100% + 20px)); }
@@ -256,9 +279,13 @@
 </head>
 <body>
 <header class="toolbar">
+  <div class="capsule glass" role="group" aria-label="Document">
+    <button id="btnDoc" class="tb" title="Project menu"><span class="docname" id="docName">Untitled</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+  </div>
   <div class="capsule glass" role="group" aria-label="Transport">
     <button id="btnPlay" class="tb" title="Play / Pause (Space)"></button>
     <button id="btnStop" class="tb" title="Return to start (Home)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5.5v13M18.5 6.2v11.6a.8.8 0 0 1-1.25.66l-8.6-5.8a.8.8 0 0 1 0-1.32l8.6-5.8a.8.8 0 0 1 1.25.66z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    <button id="btnLoop" class="tb" title="Loop the selected range (L). Shift-drag the ruler to set it."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.5 20.5 6 17 9.5"/><path d="M3.5 11.5V10a4 4 0 0 1 4-4h13"/><path d="M7 21.5 3.5 18 7 14.5"/><path d="M20.5 12.5V14a4 4 0 0 1-4 4h-13"/></svg></button>
     <button id="btnRec" class="tb" title="Record (R)"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6.5"/></svg></button>
     <div class="divider"></div>
     <span id="time" class="timecode">0:00.000</span>
@@ -290,6 +317,17 @@
   <button id="btnExport" class="prominent" title="Export the mix as WAV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3.5M7.5 8 12 3.5 16.5 8"/><path d="M4.5 14v4a2.5 2.5 0 0 0 2.5 2.5h10a2.5 2.5 0 0 0 2.5-2.5v-4"/></svg><span>Export</span></button>
 </header>
 
+<div id="docMenu" class="menu glass" hidden>
+  <button data-act="new">New Project</button>
+  <button data-act="open">Open Project…<kbd>⌘O</kbd></button>
+  <button data-act="save">Save Project…<kbd>⌘S</kbd></button>
+  <hr>
+  <button data-act="rename">Rename…</button>
+  <button data-act="import">Import Audio…</button>
+  <button data-act="export">Export Mix<kbd>⌘E</kbd></button>
+</div>
+<input type="file" id="projInput" accept=".laep,application/octet-stream" hidden>
+
 <div id="help" class="glass" hidden>
   <h3>Keyboard Shortcuts</h3>
   <dl>
@@ -302,6 +340,12 @@
     <dt><kbd>R</kbd></dt><dd>Record</dd>
     <dt><kbd>⌘ ↩</kbd></dt><dd>Generate speech</dd>
     <dt><kbd>⌘ scroll</kbd></dt><dd>Zoom</dd>
+    <dt><kbd>L</kbd></dt><dd>Loop on / off</dd>
+    <dt><kbd>⇧ drag ruler</kbd></dt><dd>Select a loop range</dd>
+    <dt><kbd>⌘ C X V</kbd></dt><dd>Copy, cut, paste clip at playhead</dd>
+    <dt><kbd>⇧ ⌫</kbd></dt><dd>Ripple delete (close the gap)</dd>
+    <dt><kbd>← →</kbd></dt><dd>Nudge clip (⇧ for bigger steps)</dd>
+    <dt><kbd>⌘ S / ⌘ O</kbd></dt><dd>Save / open project</dd>
   </dl>
   <p class="hint" style="margin-top:10px">Drag the ruler, the playhead or any empty part of a track to scrub. Drag clips to move them between tracks and drag their edges to trim. Drop audio files onto a track to import them there.</p>
 </div>
@@ -310,16 +354,19 @@
   <div class="scroll" id="scroll">
     <div class="inner" id="inner">
       <div class="ruler-row" id="rulerRow">
-        <div class="corner" title="Zoom">
+        <div class="corner">
+          <button class="tb" id="btnFit" title="Zoom to fit the whole project"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></svg></button>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>
           <input type="range" id="zoom" min="0" max="100" value="45" aria-label="Zoom">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg>
         </div>
         <canvas id="ruler"></canvas>
+        <div id="loopBar" hidden></div>
         <div id="cap" title="Drag to scrub"></div>
       </div>
       <div id="tracks"></div>
       <div class="add-row"><button id="btnAddTrack">＋ Add Track</button></div>
+      <div id="selection" hidden></div>
       <div id="playhead"></div>
     </div>
   </div>
@@ -386,7 +433,12 @@
         <label class="field"><span>Sample rate</span><select id="pRate"><option value="44100">44.1 kHz</option><option value="48000" selected>48 kHz</option></select></label>
         <label class="field"><span>Bit depth</span><select id="pBits"><option value="16">16-bit</option><option value="24">24-bit</option></select></label>
       </div>
+      <div class="row2">
+        <label class="field"><span>Format</span><select id="pFormat"><option value="wav">WAV</option><option value="mp3">MP3</option></select></label>
+        <label class="field" id="pKbpsField"><span>MP3 quality</span><select id="pKbps"><option value="128">128 kbps</option><option value="192" selected>192 kbps</option><option value="320">320 kbps</option></select></label>
+      </div>
       <label class="switch-row"><span class="txt">Normalize<small>Scale the finished file so it peaks at −1 dB</small></span><input type="checkbox" class="switch" id="pNorm"></label>
+      <label class="switch-row"><span class="txt">Loop range only<small>Export just the selected range instead of the whole project</small></span><input type="checkbox" class="switch" id="pRange"></label>
       <p class="meta" id="projMeta"></p>
     </div>
 
@@ -409,6 +461,20 @@
         <label class="switch-row"><span class="txt">Reverse<small>Play the clip backwards</small></span><input type="checkbox" class="switch" id="cReverse"></label>
         <p class="meta" id="clipMeta"></p>
         <button id="btnNormalize" class="btn wide" title="Set gain so the clip peaks at -1 dBFS">Normalize to −1 dB</button>
+        <p class="section-title">Remove silence</p>
+        <div class="group-box process">
+          <div class="fx-row"><span>Threshold</span><input type="range" id="silThr" min="-70" max="-20" step="1" value="-45"><output id="silThrV">−45 dB</output></div>
+          <div class="fx-row"><span>Min. gap</span><input type="range" id="silMin" min="0.1" max="2" step="0.05" value="0.35"><output id="silMinV">0.35 s</output></div>
+          <label class="switch-row"><span class="txt">Close gaps<small>Pull the remaining pieces together</small></span><input type="checkbox" class="switch" id="silClose" checked></label>
+          <button id="btnSilence" class="btn wide">Remove Silence</button>
+        </div>
+        <p class="section-title">Tempo and pitch</p>
+        <div class="group-box process">
+          <div class="fx-row"><span>Tempo</span><input type="range" id="tpTempo" min="50" max="200" step="1" value="100"><output id="tpTempoV">100%</output></div>
+          <div class="fx-row"><span>Pitch</span><input type="range" id="tpPitch" class="bipolar" min="-12" max="12" step="0.5" value="0"><output id="tpPitchV">0 st</output></div>
+          <button id="btnStretch" class="btn wide">Apply Tempo and Pitch</button>
+          <p class="hint">Tempo changes speed without changing pitch; pitch shifts in semitones without changing speed. Creates new audio, so it can be undone.</p>
+        </div>
         <button id="btnClipWav" class="btn wide">Save Clip as WAV…</button>
       </div>
     </div>
@@ -548,6 +614,8 @@ let pps = 80;                            // pixels per second
 let playhead = 0;                        // seconds
 let playing = null;                      // live playback graph
 let scrubbing = false;
+let loop = { start: 0, end: 0, on: false };   // loop / selection range in seconds
+const hasRange = () => loop.end - loop.start > 0.01;
 let snapOn = true;
 let undoStack = [], redoStack = [];
 let _uid = 0;
@@ -605,8 +673,7 @@ function afterStructuralChange() {
 }
 
 // ---------- buffers & peaks ----------
-function registerBuffer(buffer) {
-  const id = uid("b");
+function registerBuffer(buffer, id = uid("b")) {
   const spp = 256;                          // samples per peak bucket
   const n = Math.ceil(buffer.length / spp);
   const peaks = new Float32Array(n * 2);
@@ -728,6 +795,7 @@ function render() {
   });
   drawRuler();
   updatePlayhead();
+  renderLoop();
   renderInspector();
   $("btnUndo").disabled = !undoStack.length;
   $("btnRedo").disabled = !redoStack.length;
@@ -871,6 +939,7 @@ function renderProjectPane() {
   $("pLimiter").checked = state.master.limiter;
   $("btnMono").classList.toggle("on", state.master.mono);
   const end = projectEnd();
+  $("pRange").disabled = !hasRange();
   $("projMeta").textContent = `${state.tracks.length} track${state.tracks.length === 1 ? "" : "s"} · ${state.clips.length} clip${state.clips.length === 1 ? "" : "s"} · ${fmtTime(end)} long · exports ${state.master.mono ? "mono" : "stereo"}`;
 }
 function selectClip(id) {
@@ -1029,14 +1098,27 @@ function play() {
   master.out.connect(split); split.connect(anL, 0); split.connect(anR, 1);
   const when0 = c.currentTime + 0.04;
   const graph = buildGraph(c, master.input, playhead, when0);
-  playing = { ...graph, master, meters: [anL, anR], meterBuf: new Float32Array(1024), peaks: [0, 0], when0, from: playhead, raf: 0, last: playhead };
+  playing = { ...graph, master, meters: [anL, anR], meterBuf: new Float32Array(1024), peaks: [0, 0], when0, from: playhead, raf: 0, last: playhead, next: null };
   $("btnPlay").innerHTML = ICON_PAUSE;
   const tick = () => {
     if (!playing) return;
-    const pos = Math.max(playing.last, clockPosition());   // never step backwards
+    let pos = Math.max(playing.last, clockPosition());   // never step backwards
+    // Gapless loop: shortly before the loop end, schedule the next pass to start exactly at the end.
+    const looping = loop.on && hasRange() && !recorder && playing.from < loop.end;
+    if (looping) {
+      const endCtx = playing.when0 + (loop.end - playing.from);
+      if (!playing.next && pos >= loop.end - 0.25) {
+        playing.sources.forEach(s => { try { s.stop(endCtx); } catch {} });
+        playing.next = { ...buildGraph(c, playing.master.input, loop.start, endCtx), when0: endCtx };
+      }
+      if (playing.next && pos >= loop.end) {
+        Object.assign(playing, { sources: playing.next.sources, trackNodes: playing.next.trackNodes, when0: playing.next.when0, from: loop.start, next: null });
+        pos = clockPosition();
+      }
+    }
     playing.last = pos;
     playhead = pos;
-    if (playhead >= projectEnd() && !recorder) { playhead = projectEnd(); stop(false); updatePlayhead(); return; }
+    if (!looping && playhead >= projectEnd() && !recorder) { playhead = projectEnd(); stop(false); updatePlayhead(); return; }
     updatePlayhead();
     followPlayhead();
     updateMeters();
@@ -1048,6 +1130,7 @@ function stop(rewind) {
   if (playing) {
     cancelAnimationFrame(playing.raf);
     playing.sources.forEach(s => { try { s.stop(); } catch {} });
+    playing.next?.sources.forEach(s => { try { s.stop(); } catch {} });
     playing.master.out.disconnect();
     playing = null;
   }
@@ -1055,7 +1138,33 @@ function stop(rewind) {
   $("btnPlay").innerHTML = ICON_PLAY;
   if (rewind) { playhead = 0; updatePlayhead(); els.scroll.scrollLeft = 0; }
 }
-function togglePlay() { playing ? stop(false) : play(); }
+function togglePlay() {
+  if (playing) return stop(false);
+  if (loop.on && hasRange() && (playhead < loop.start || playhead >= loop.end)) playhead = loop.start;
+  play();
+}
+function renderLoop() {
+  const show = hasRange();
+  $("selection").hidden = $("loopBar").hidden = !show;
+  $("btnLoop").classList.toggle("on", loop.on);
+  if (!show) return;
+  const x = headerW() + loop.start * pps, w = (loop.end - loop.start) * pps;
+  for (const el of [$("selection"), $("loopBar")]) { el.style.transform = `translateX(${x}px)`; el.style.width = w + "px"; el.classList.toggle("off", !loop.on); }
+}
+function setLoop(start, end, on = loop.on) {
+  loop = { start: Math.max(0, Math.min(start, end)), end: Math.max(start, end), on };
+  renderLoop(); renderProjectPane();
+}
+function toggleLoop() {
+  if (!hasRange()) {
+    const c = clipById(sel.clipId);
+    if (c) setLoop(c.start, c.start + c.duration, true);
+    else if (projectEnd() > 0) setLoop(0, projectEnd(), true);
+    else return toast("Shift-drag on the ruler to choose a range to loop.");
+  } else setLoop(loop.start, loop.end, !loop.on);
+  toast(loop.on ? `Looping ${fmtTime(loop.start)} to ${fmtTime(loop.end)}` : "Loop off");
+  if (playing) { stop(false); togglePlay(); }
+}
 function restartIfPlaying() { if (playing && !recorder) { stop(false); play(); } }
 function seek(t) {
   playhead = Math.max(0, t);
@@ -1213,20 +1322,48 @@ function download(blob, name) {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
+let lamePromise = null;
+function loadLame() {
+  return lamePromise ||= new Promise((res, rej) => {
+    const sc = document.createElement("script");
+    sc.src = "https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js";
+    sc.onload = () => res(window.lamejs); sc.onerror = () => { lamePromise = null; rej(new Error("Could not load the MP3 encoder")); };
+    document.head.appendChild(sc);
+  });
+}
+async function encodeMp3(buffer, kbps) {
+  const lame = await loadLame();
+  const ch = buffer.numberOfChannels, sr = buffer.sampleRate;
+  const enc = new lame.Mp3Encoder(ch, sr, kbps);
+  const toI16 = d => { const o = new Int16Array(d.length); for (let i = 0; i < d.length; i++) { const v = clamp(d[i], -1, 1); o[i] = v < 0 ? v * 0x8000 : v * 0x7fff; } return o; };
+  const L = toI16(buffer.getChannelData(0)), Rr = ch > 1 ? toI16(buffer.getChannelData(1)) : null;
+  const parts = [], block = 1152 * 20;
+  for (let i = 0; i < L.length; i += block) {
+    const mp3 = ch > 1 ? enc.encodeBuffer(L.subarray(i, i + block), Rr.subarray(i, i + block)) : enc.encodeBuffer(L.subarray(i, i + block));
+    if (mp3.length) parts.push(new Uint8Array(mp3));
+    if (i % (block * 40) === 0) await new Promise(r => setTimeout(r));   // keep the page responsive
+  }
+  const tail = enc.flush(); if (tail.length) parts.push(new Uint8Array(tail));
+  return new Blob(parts, { type: "audio/mpeg" });
+}
 async function exportMix() {
-  const end = projectEnd();
-  if (end <= 0) return toast("Nothing to export yet.");
+  const useRange = $("pRange").checked && hasRange();
+  const from = useRange ? loop.start : 0, end = useRange ? loop.end : projectEnd();
+  if (end - from <= 0) return toast("Nothing to export yet.");
   const sr = +$("pRate").value, chans = state.master.mono ? 1 : 2;
-  const tail = state.tracks.some(t => t.fx.reverb > 0) ? 2.4 : 0;     // let reverb ring out
-  const oc = new OfflineAudioContext(chans, Math.ceil((end + tail) * sr) + 1, sr);
+  const tail = !useRange && state.tracks.some(t => t.fx.reverb > 0) ? 2.4 : 0;     // let reverb ring out
+  const oc = new OfflineAudioContext(chans, Math.ceil((end - from + tail) * sr) + 1, sr);
   const m = masterChain(oc, oc.destination);
-  buildGraph(oc, m.input, 0, 0);
+  buildGraph(oc, m.input, from, 0);
   const label = $("btnExport").querySelector("span");
   $("btnExport").disabled = true; label.textContent = "Rendering…";
   try {
     const out = await oc.startRendering();
     if ($("pNorm").checked) normalizeBuffer(out);
-    download(encodeWav(out, +$("pBits").value), state.master.mono ? "mix-mono.wav" : "mix.wav");
+    const base = (state.name || "mix").replace(/[^\w\- ]+/g, "_").trim() || "mix";
+    if ($("pFormat").value === "mp3") { label.textContent = "Encoding…"; download(await encodeMp3(out, +$("pKbps").value), base + ".mp3"); }
+    else download(encodeWav(out, +$("pBits").value), base + ".wav");
+  } catch (err) { toast("Export failed: " + err.message);
   }
   finally { $("btnExport").disabled = false; label.textContent = "Export"; }
 }
@@ -1385,7 +1522,24 @@ els.scroll.addEventListener("drop", e => {
 });
 
 // scrubbing from the ruler and the playhead's handle
-els.ruler.addEventListener("pointerdown", e => { if (e.button === 0) startScrub(e, els.ruler); });
+els.ruler.addEventListener("pointerdown", e => {
+  if (e.button !== 0) return;
+  if (!e.shiftKey && !e.altKey) return startScrub(e, els.ruler);
+  // Shift/Alt-drag: select a loop range
+  e.preventDefault();
+  els.ruler.setPointerCapture(e.pointerId);
+  const snap = t => { if (!snapOn) return t; const tol = 8 / pps; for (const p of snapPoints(null)) if (Math.abs(p - t) < tol) return p; return t; };
+  const t0 = snap(Math.max(0, laneTimeAt(e.clientX)));
+  const mv = ev => setLoop(t0, snap(Math.max(0, laneTimeAt(ev.clientX))), true);
+  const up = () => { els.ruler.removeEventListener("pointermove", mv); els.ruler.removeEventListener("pointerup", up); if (!hasRange()) setLoop(0, 0, false); };
+  els.ruler.addEventListener("pointermove", mv); els.ruler.addEventListener("pointerup", up);
+});
+els.tracks.addEventListener("dblclick", e => {
+  const node = e.target.closest(".clip"); if (!node) return;
+  const c = clipById(node.dataset.id);
+  setLoop(c.start, c.start + c.duration, true);
+  toast("Looping this clip. Press L to turn the loop off.");
+});
 els.cap.addEventListener("pointerdown", e => { if (e.button === 0) startScrub(e, els.cap); });
 let rulerRaf = 0;
 els.scroll.addEventListener("scroll", () => { if (!rulerRaf) rulerRaf = requestAnimationFrame(() => { rulerRaf = 0; drawRuler(); }); });
@@ -1511,8 +1665,16 @@ document.addEventListener("keydown", e => {
   else if (mod && e.key.toLowerCase() === "d") { e.preventDefault(); duplicateSelected(); }
   else if (!mod && e.key.toLowerCase() === "s") splitSelected();
   else if (!mod && e.key.toLowerCase() === "r") toggleRecord();
-  else if (e.key === "Delete" || e.key === "Backspace") { if (sel.clipId) { e.preventDefault(); deleteSelected(); } }
-  else if (e.key === "Escape") $("help").hidden = true;
+  else if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); saveProjectFile(); }
+  else if (mod && e.key.toLowerCase() === "o") { e.preventDefault(); $("projInput").click(); }
+  else if (mod && e.key.toLowerCase() === "e") { e.preventDefault(); exportMix(); }
+  else if (mod && e.key.toLowerCase() === "c") copyClip(false);
+  else if (mod && e.key.toLowerCase() === "x") copyClip(true);
+  else if (mod && e.key.toLowerCase() === "v") pasteClip();
+  else if (!mod && e.key.toLowerCase() === "l") toggleLoop();
+  else if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); nudge((e.key === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 0.1 : 0.01)); }
+  else if (e.key === "Delete" || e.key === "Backspace") { if (sel.clipId) { e.preventDefault(); e.shiftKey ? rippleDelete() : deleteSelected(); } }
+  else if (e.key === "Escape") { $("help").hidden = true; $("docMenu").hidden = true; }
 });
 window.addEventListener("resize", () => render());
 darkMQ.addEventListener("change", () => render());
@@ -1628,12 +1790,301 @@ $("btnTtsLoad").onclick = loadModel;
 $("btnTtsCancel").onclick = () => { resetWorker(); setStatus("Cancelled. The model reloads from cache on next use."); setBar(0); };
 $("ttsText").addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") generateSpeech(); });
 
+// ---------- clip editing extras ----------
+let clipboard = null;
+function copyClip(cut) {
+  const c = clipById(sel.clipId); if (!c) return;
+  clipboard = { ...c };
+  if (cut) deleteSelected(); else toast("Clip copied. Paste with ⌘V at the playhead.");
+}
+function pasteClip() {
+  if (!clipboard) return;
+  const t = trackById(sel.trackId) || ensureTrack();
+  pushUndo();
+  const c = { ...clipboard, id: uid("c"), trackId: t.id, start: playhead };
+  state.clips.push(c); sel.clipId = c.id;
+  playhead = c.start + c.duration;
+  afterStructuralChange();
+}
+function rippleDelete() {
+  const c = clipById(sel.clipId); if (!c) return;
+  pushUndo();
+  state.clips = state.clips.filter(x => x.id !== c.id);
+  for (const x of state.clips) if (x.trackId === c.trackId && x.start >= c.start + c.duration - 1e-6) x.start -= c.duration;
+  sel.clipId = null;
+  afterStructuralChange();
+}
+let nudgeTimer = null, nudgeSnap = null;
+function nudge(dt) {
+  const c = clipById(sel.clipId);
+  if (!c) { playhead = Math.max(0, playhead + dt * 10); return seek(playhead); }
+  if (!nudgeSnap) nudgeSnap = JSON.stringify(state);
+  c.start = Math.max(0, c.start + dt);
+  const el = document.querySelector(`.clip[data-id="${c.id}"]`); if (el) el.style.left = c.start * pps + "px";
+  renderInspector();
+  clearTimeout(nudgeTimer);
+  nudgeTimer = setTimeout(() => { pushUndo(nudgeSnap); nudgeSnap = null; afterStructuralChange(); }, 400);
+}
+function zoomToFit() {
+  const end = projectEnd(); if (end <= 0) return;
+  const target = clamp((visibleLaneWidth() - 40) / end, 5, 800);
+  $("zoom").value = Math.log(target / 5) / Math.log(160) * 100;
+  setZoom(null);
+  els.scroll.scrollLeft = 0;
+  drawRuler();
+}
+
+// Remove silence: split the clip into its audible pieces, optionally pulling them together.
+function removeSilence() {
+  const c = clipById(sel.clipId); if (!c) return toast("Select a clip first.");
+  if (c.reverse) return toast("Turn Reverse off before removing silence.");
+  const b = buffers.get(c.bufferId).buffer, sr = b.sampleRate;
+  const thr = dbToGain(+$("silThr").value), minGap = +$("silMin").value, pad = 0.04, win = Math.round(sr * 0.01);
+  const i0 = Math.floor(c.offset * sr), i1 = Math.min(b.length, Math.floor((c.offset + c.duration) * sr));
+  const chans = []; for (let ch = 0; ch < b.numberOfChannels; ch++) chans.push(b.getChannelData(ch));
+  // per-window loudness (RMS)
+  const loud = [];
+  for (let i = i0; i < i1; i += win) {
+    let sum = 0, n = 0;
+    for (let j = i; j < Math.min(i1, i + win); j++) for (const d of chans) { sum += d[j] * d[j]; n++; }
+    loud.push(Math.sqrt(sum / Math.max(1, n)) * c.gain >= thr);
+  }
+  // collect audible segments, bridging gaps shorter than minGap
+  const segs = []; let cur = null, quiet = 0;
+  const gapWins = Math.ceil(minGap * sr / win);
+  loud.forEach((on, k) => {
+    if (on) { if (!cur) cur = [k, k]; else cur[1] = k; quiet = 0; }
+    else if (cur && ++quiet > gapWins) { segs.push(cur); cur = null; }
+  });
+  if (cur) segs.push(cur);
+  if (!segs.length) return toast("The whole clip is below the threshold. Lower the threshold and try again.");
+  const pieces = segs.map(([a, z]) => {
+    const s0 = Math.max(c.offset, c.offset + a * win / sr - pad), s1 = Math.min(c.offset + c.duration, c.offset + (z + 1) * win / sr + pad);
+    return [s0, s1];
+  });
+  const removed = c.duration - pieces.reduce((a, [x, y]) => a + (y - x), 0);
+  if (removed < 0.05) return toast("No silence long enough to remove.");
+  pushUndo();
+  state.clips = state.clips.filter(x => x.id !== c.id);
+  let cursor = c.start + (pieces[0][0] - c.offset);
+  const close = $("silClose").checked, created = [];
+  for (const [s0, s1] of pieces) {
+    const start = close ? cursor : c.start + (s0 - c.offset);
+    const piece = { ...c, id: uid("c"), start, offset: s0, duration: s1 - s0, fadeIn: 0.01, fadeOut: 0.01 };
+    state.clips.push(piece); created.push(piece);
+    cursor = start + piece.duration + 0.12;
+  }
+  if (close) {   // shift later clips on the same track left by the time saved
+    const oldEnd = c.start + c.duration, newEnd = created.at(-1).start + created.at(-1).duration, shift = oldEnd - newEnd;
+    for (const x of state.clips) if (x.trackId === c.trackId && !created.includes(x) && x.start >= oldEnd - 1e-6) x.start -= shift;
+  }
+  sel.clipId = created[0].id;
+  afterStructuralChange();
+  toast(`Removed ${removed.toFixed(1)} s of silence in ${created.length} piece${created.length > 1 ? "s" : ""}.`);
+}
+
+// Tempo / pitch: WSOLA time-stretch, then resample for pitch.
+function wsola(chans, factor, sr) {
+  const N = Math.round(sr * 0.046) & ~1, hopOut = N >> 1, hopIn = hopOut / factor, tol = Math.round(sr * 0.012);
+  const len = chans[0].length, outLen = Math.ceil(len * factor) + N;
+  const out = chans.map(() => new Float32Array(outLen)), norm = new Float32Array(outLen);
+  const win = new Float32Array(N); for (let i = 0; i < N; i++) win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / N);
+  const mono = new Float32Array(len); for (const d of chans) for (let i = 0; i < len; i++) mono[i] += d[i] / chans.length;
+  let prev = 0;
+  for (let k = 0; k * hopOut < outLen - N; k++) {
+    const nominal = Math.round(k * hopIn);
+    let best = nominal;
+    if (k > 0) {   // find the offset whose start best continues the previous frame
+      const ref = prev + hopOut; let bestScore = -Infinity;
+      for (let d = -tol; d <= tol; d += 2) {
+        const pos = nominal + d; if (pos < 0 || pos + hopOut >= len || ref + hopOut >= len) continue;
+        let sc = 0; for (let i = 0; i < hopOut; i += 4) sc += mono[ref + i] * mono[pos + i];
+        if (sc > bestScore) { bestScore = sc; best = pos; }
+      }
+    }
+    if (best + N >= len) break;
+    const o = k * hopOut;
+    for (let ch = 0; ch < chans.length; ch++) { const src = chans[ch], dst = out[ch]; for (let i = 0; i < N; i++) dst[o + i] += src[best + i] * win[i]; }
+    for (let i = 0; i < N; i++) norm[o + i] += win[i];
+    prev = best;
+  }
+  const n = Math.min(outLen, Math.round(len * factor));
+  return out.map(d => { const r = d.subarray(0, n); for (let i = 0; i < n; i++) if (norm[i] > 1e-3) r[i] /= norm[i]; return r; });
+}
+function resample(d, ratio) {   // ratio > 1 = shorter (higher pitch)
+  const n = Math.floor(d.length / ratio), o = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const x = i * ratio, j = Math.floor(x), f = x - j; o[i] = d[j] * (1 - f) + (d[j + 1] ?? d[j]) * f; }
+  return o;
+}
+async function applyTempoPitch() {
+  const c = clipById(sel.clipId); if (!c) return toast("Select a clip first.");
+  const tempo = +$("tpTempo").value / 100, semis = +$("tpPitch").value;
+  if (tempo === 1 && semis === 0) return toast("Change the tempo or pitch first.");
+  const b = buffers.get(c.bufferId).buffer, sr = b.sampleRate;
+  const i0 = Math.floor(c.offset * sr), i1 = Math.min(b.length, Math.ceil((c.offset + c.duration) * sr));
+  let chans = []; for (let ch = 0; ch < b.numberOfChannels; ch++) chans.push(b.getChannelData(ch).slice(i0, i1));
+  if (c.reverse) chans = chans.map(d => d.reverse());
+  $("btnStretch").disabled = true; $("btnStretch").textContent = "Processing…";
+  await new Promise(r => setTimeout(r, 30));
+  try {
+    const p = Math.pow(2, semis / 12);
+    let outCh = wsola(chans, p / tempo, sr);           // stretch so that resampling by p lands on the target length
+    if (p !== 1) outCh = outCh.map(d => resample(d, p));
+    const nb = new AudioBuffer({ numberOfChannels: outCh.length, length: outCh[0].length, sampleRate: sr });
+    outCh.forEach((d, i) => nb.copyToChannel(d, i));
+    pushUndo();
+    const k = nb.duration / c.duration;
+    Object.assign(c, { bufferId: registerBuffer(nb), offset: 0, duration: nb.duration, reverse: false,
+      fadeIn: c.fadeIn * k, fadeOut: c.fadeOut * k,
+      name: c.name.replace(/ \((tempo|pitch).*\)$/, "") + ` (${[tempo !== 1 && `tempo ${Math.round(tempo * 100)}%`, semis && `pitch ${semis > 0 ? "+" : ""}${semis} st`].filter(Boolean).join(", ")})` });
+    afterStructuralChange();
+    toast("Applied. Undo with ⌘Z if it doesn't sound right.");
+  } finally { $("btnStretch").disabled = false; $("btnStretch").textContent = "Apply Tempo and Pitch"; }
+}
+$("silThr").oninput = e => { $("silThrV").textContent = `−${Math.abs(e.target.value)} dB`; setRangeFill(e.target); };
+$("silMin").oninput = e => { $("silMinV").textContent = `${(+e.target.value).toFixed(2)} s`; setRangeFill(e.target); };
+$("tpTempo").oninput = e => { $("tpTempoV").textContent = `${e.target.value}%`; setRangeFill(e.target); };
+$("tpPitch").oninput = e => { const v = +e.target.value; $("tpPitchV").textContent = `${v > 0 ? "+" : ""}${v} st`; };
+$("tpTempo").ondblclick = () => { $("tpTempo").value = 100; $("tpTempo").oninput({ target: $("tpTempo") }); };
+$("tpPitch").ondblclick = () => { $("tpPitch").value = 0; $("tpPitch").oninput({ target: $("tpPitch") }); };
+$("btnSilence").onclick = removeSilence;
+$("btnStretch").onclick = applyTempoPitch;
+$("btnLoop").onclick = toggleLoop;
+$("btnFit").onclick = zoomToFit;
+$("pFormat").onchange = () => { $("pKbpsField").hidden = $("pFormat").value !== "mp3"; $("pBits").closest(".field").hidden = $("pFormat").value === "mp3"; };
+$("pFormat").onchange();
+
+// ---------- projects: autosave (IndexedDB) and project files ----------
+function setDocName() { $("docName").textContent = state.name || "Untitled"; document.title = (state.name ? state.name + " · " : "") + "Layer Audio Editor"; }
+const usedBufferIds = () => [...new Set(state.clips.map(c => c.bufferId))];
+let dbp = null;
+function db() {
+  return dbp ||= new Promise((res, rej) => {
+    const r = indexedDB.open("layer-audio-editor", 1);
+    r.onupgradeneeded = () => { r.result.createObjectStore("kv"); r.result.createObjectStore("buffers"); };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+const idb = async (store, mode, fn) => { const d = await db(); return new Promise((res, rej) => { const tx = d.transaction(store, mode); const req = fn(tx.objectStore(store)); tx.oncomplete = () => res(req?.result); tx.onerror = () => rej(tx.error); }); };
+const savedBuffers = new Set();
+let lastSaved = "";
+async function autosave() {
+  try {
+    const snap = JSON.stringify({ state, loop });
+    if (snap === lastSaved) return;
+    for (const id of usedBufferIds()) {
+      if (savedBuffers.has(id)) continue;
+      const b = buffers.get(id).buffer, chans = [];
+      for (let ch = 0; ch < b.numberOfChannels; ch++) chans.push(b.getChannelData(ch));
+      await idb("buffers", "readwrite", s => s.put({ sr: b.sampleRate, chans }, id));
+      savedBuffers.add(id);
+    }
+    await idb("kv", "readwrite", s => s.put(snap, "project"));
+    lastSaved = snap;
+    // drop audio no longer used by the project
+    const keep = new Set(usedBufferIds());
+    const keys = await idb("buffers", "readonly", s => s.getAllKeys());
+    const stale = keys.filter(k => !keep.has(k));
+    if (stale.length) { await idb("buffers", "readwrite", s => { stale.forEach(k => s.delete(k)); }); stale.forEach(k => savedBuffers.delete(k)); }
+  } catch (err) { console.warn("Autosave failed", err); }
+}
+function loadProjectData(st, lp, bufs) {
+  stop(false);
+  for (const [id, b] of Object.entries(bufs)) if (!buffers.has(id)) {
+    const ab = new AudioBuffer({ numberOfChannels: b.chans.length, length: b.chans[0].length, sampleRate: b.sr });
+    b.chans.forEach((d, i) => ab.copyToChannel(d, i));
+    registerBuffer(ab, id);
+  }
+  state = st; loop = lp || { start: 0, end: 0, on: false };
+  state.clips = state.clips.filter(c => buffers.has(c.bufferId));
+  undoStack = []; redoStack = [];
+  sel = { trackId: state.tracks[0]?.id ?? null, clipId: null };
+  playhead = 0;
+  normalizeState(); setDocName();
+  render(); zoomToFit();
+}
+async function restoreSession() {
+  try {
+    const snap = await idb("kv", "readonly", s => s.get("project"));
+    if (!snap) return false;
+    const { state: st, loop: lp } = JSON.parse(snap);
+    const bufs = {};
+    for (const id of new Set(st.clips.map(c => c.bufferId))) {
+      const b = await idb("buffers", "readonly", s => s.get(id));
+      if (b) { bufs[id] = b; savedBuffers.add(id); }
+    }
+    loadProjectData(st, lp, bufs);
+    lastSaved = snap;
+    if (st.clips.length) toast("Restored your last session.");
+    return true;
+  } catch (err) { console.warn("Restore failed", err); return false; }
+}
+setInterval(autosave, 2500);
+window.addEventListener("pagehide", autosave);
+
+// Project file: "LAEP1" + JSON header length + JSON + raw float32 channel data, gzip-compressed when possible.
+async function saveProjectFile() {
+  const ids = usedBufferIds();
+  const meta = ids.map(id => { const b = buffers.get(id).buffer; return { id, sr: b.sampleRate, ch: b.numberOfChannels, len: b.length }; });
+  const head = new TextEncoder().encode(JSON.stringify({ version: 1, state, loop, buffers: meta }));
+  const parts = [new TextEncoder().encode("LAEP1"), new Uint32Array([head.length]), head];
+  for (const id of ids) { const b = buffers.get(id).buffer; for (let ch = 0; ch < b.numberOfChannels; ch++) parts.push(b.getChannelData(ch)); }
+  let blob = new Blob(parts, { type: "application/octet-stream" });
+  if (window.CompressionStream) blob = await new Response(blob.stream().pipeThrough(new CompressionStream("gzip"))).blob();
+  download(blob, (state.name || "Untitled").replace(/[^\w\- ]+/g, "_") + ".laep");
+}
+async function openProjectFile(file) {
+  try {
+    let buf = new Uint8Array(await file.arrayBuffer());
+    if (buf[0] === 0x1f && buf[1] === 0x8b) buf = new Uint8Array(await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
+    if (new TextDecoder().decode(buf.subarray(0, 5)) !== "LAEP1") throw new Error("not a project file from this editor");
+    const hl = new DataView(buf.buffer, buf.byteOffset + 5, 4).getUint32(0, true);
+    const meta = JSON.parse(new TextDecoder().decode(buf.subarray(9, 9 + hl)));
+    let off = 9 + hl;
+    const bufs = {};
+    for (const m of meta.buffers) {
+      const chans = [];
+      for (let ch = 0; ch < m.ch; ch++) { chans.push(new Float32Array(buf.slice(off, off + m.len * 4).buffer)); off += m.len * 4; }
+      bufs[m.id] = { sr: m.sr, chans };
+    }
+    loadProjectData(meta.state, meta.loop, bufs);
+    toast(`Opened “${state.name || file.name}”.`);
+  } catch (err) { toast("Couldn't open that file: " + err.message); }
+}
+$("projInput").onchange = e => { const f = e.target.files[0]; if (f) openProjectFile(f); e.target.value = ""; };
+function newProject() {
+  if (state.clips.length && !confirm("Start a new project? Your current one is replaced (save it first if you want to keep it).")) return;
+  loadProjectData({ tracks: [], clips: [], master: { mono: false, limiter: true } }, null, {});
+  addTrack("Voice", { undoable: false }); addTrack("Music", { select: false, undoable: false });
+  render();
+}
+$("btnDoc").onclick = e => {
+  e.stopPropagation();
+  const m = $("docMenu"), r = e.currentTarget.getBoundingClientRect();
+  m.style.left = r.left + "px"; m.style.top = (r.bottom + 8) + "px";
+  m.hidden = !m.hidden;
+};
+$("docMenu").onclick = e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  $("docMenu").hidden = true;
+  const act = b.dataset.act;
+  if (act === "new") newProject();
+  else if (act === "open") $("projInput").click();
+  else if (act === "save") saveProjectFile();
+  else if (act === "import") $("fileInput").click();
+  else if (act === "export") exportMix();
+  else if (act === "rename") { const n = prompt("Project name", state.name || "Untitled"); if (n != null) { pushUndo(); state.name = n.trim(); setDocName(); } }
+};
+document.addEventListener("pointerdown", e => { if (!e.target.closest("#docMenu, #btnDoc")) $("docMenu").hidden = true; });
+
 // ---------- boot ----------
 document.querySelectorAll("input[type=range]").forEach(setRangeFill);
 if (narrowMQ.matches) { els.insp.classList.add("closed"); $("btnInspector").classList.remove("on"); }
 addTrack("Voice", { undoable: false });
 addTrack("Music", { select: false, undoable: false });
 setZoom(null);
+setDocName();
+restoreSession();
 </script>
 </body>
 </html>
