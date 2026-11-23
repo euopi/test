@@ -237,7 +237,7 @@
   #help dl { display: grid; grid-template-columns: auto 1fr; gap: 7px 14px; margin: 0; font-size: 12px; }
   #help dd { margin: 0; color: var(--label2); }
   kbd { font: 11px var(--mono); background: var(--fill2); border-radius: 5px; padding: 2px 6px; }
-  #toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); padding: 10px 18px; border-radius: 20px; z-index: 50;
+  #toast { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); padding: 10px 18px; border-radius: 20px; z-index: 50;
     max-width: 90vw; font-weight: 500; }
 
   /* document menu */
@@ -260,6 +260,18 @@
   .corner .tb { height: 22px; min-width: 24px; padding: 0 4px; border-radius: 6px; color: var(--label2); }
   .corner .tb svg { width: 14px; height: 14px; }
   .process { display: flex; flex-direction: column; gap: 10px; }
+  .chips { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+  .chips button { height: 26px; border-radius: 7px; background: var(--fill2); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .chips button:hover { background: var(--fill); }
+  .chips button.on { background: var(--accent); color: #fff; }
+  #rangeBar { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 14; display: flex; align-items: center; gap: 2px;
+    height: 40px; border-radius: 20px; padding: 0 5px 0 14px; white-space: nowrap; max-width: calc(100% - 20px); overflow-x: auto; }
+  #rangeBar .info { font: 12px var(--mono); font-variant-numeric: tabular-nums; color: var(--label2); margin-right: 6px; }
+  #rangeBar .tb { font-size: 12.5px; font-weight: 500; padding: 0 10px; }
+  #rangeBar .tb.danger { color: var(--red); }
+  .track.reordering { position: relative; z-index: 9; box-shadow: 0 10px 30px rgba(0,0,0,.25); opacity: .95; }
+  .th { cursor: grab; }
+  .th input, .th button { cursor: default; }
 
   @media (max-width: 900px) {
     #btnDoc .docname { display: none; }
@@ -346,6 +358,10 @@
     <dt><kbd>⇧ ⌫</kbd></dt><dd>Ripple delete (close the gap)</dd>
     <dt><kbd>← →</kbd></dt><dd>Nudge clip (⇧ for bigger steps)</dd>
     <dt><kbd>⌘ S / ⌘ O</kbd></dt><dd>Save / open project</dd>
+    <dt><kbd>⇧/⌘ click</kbd></dt><dd>Select several clips</dd>
+    <dt><kbd>⌘ A</kbd></dt><dd>Select all clips</dd>
+    <dt><kbd>+ / −</kbd></dt><dd>Zoom in / out</dd>
+    <dt>Drag a track header</dt><dd>Reorder tracks</dd>
   </dl>
   <p class="hint" style="margin-top:10px">Drag the ruler, the playhead or any empty part of a track to scrub. Drag clips to move them between tracks and drag their edges to trim. Drop audio files onto a track to import them there.</p>
 </div>
@@ -369,6 +385,16 @@
       <div id="selection" hidden></div>
       <div id="playhead"></div>
     </div>
+  </div>
+
+  <div id="rangeBar" class="glass" hidden>
+    <span class="info" id="rangeInfo"></span>
+    <button class="tb danger" data-r="delete" title="Remove this stretch from every track and close the gap (Delete)">Delete</button>
+    <button class="tb" data-r="silence" title="Remove this stretch but leave the gap">Silence</button>
+    <button class="tb" data-r="split" title="Split every clip at the range edges">Split</button>
+    <button class="tb" data-r="trim" title="Keep only what's inside the range">Trim to Range</button>
+    <button class="tb" data-r="insert" title="Push everything after the range start later by the range length">Insert Silence</button>
+    <button class="tb" data-r="clear" title="Clear the range"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
 
   <aside class="inspector glass" id="inspector">
@@ -419,6 +445,9 @@
         <p class="section-title">Dynamics and space</p>
         <div class="group-box" id="fxDyn"></div>
         <button class="btn wide" id="tReset">Reset Effects</button>
+        <p class="section-title">Speed</p>
+        <div class="group-box process" id="spdTrack"></div>
+        <div class="actions"><button class="btn" id="tDup">Duplicate Track</button><button class="btn" id="tDel" style="color:var(--red)">Delete Track</button></div>
       </div>
     </div>
 
@@ -428,6 +457,8 @@
         <label class="switch-row"><span class="txt">Mono<small>Sum every track to one channel, for playback and export</small></span><input type="checkbox" class="switch" id="pMono"></label>
         <label class="switch-row"><span class="txt">Limiter<small>Hold peaks under −1 dB so the mix never clips</small></span><input type="checkbox" class="switch" id="pLimiter" checked></label>
       </div>
+      <p class="section-title">Speed</p>
+      <div class="group-box process" id="spdProject"></div>
       <p class="section-title">Export</p>
       <div class="row2">
         <label class="field"><span>Sample rate</span><select id="pRate"><option value="44100">44.1 kHz</option><option value="48000" selected>48 kHz</option></select></label>
@@ -468,12 +499,13 @@
           <label class="switch-row"><span class="txt">Close gaps<small>Pull the remaining pieces together</small></span><input type="checkbox" class="switch" id="silClose" checked></label>
           <button id="btnSilence" class="btn wide">Remove Silence</button>
         </div>
-        <p class="section-title">Tempo and pitch</p>
+        <p class="section-title" id="spdClipTitle">Speed</p>
+        <div class="group-box process" id="spdClip"></div>
+        <p class="section-title">Pitch</p>
         <div class="group-box process">
-          <div class="fx-row"><span>Tempo</span><input type="range" id="tpTempo" min="50" max="200" step="1" value="100"><output id="tpTempoV">100%</output></div>
           <div class="fx-row"><span>Pitch</span><input type="range" id="tpPitch" class="bipolar" min="-12" max="12" step="0.5" value="0"><output id="tpPitchV">0 st</output></div>
-          <button id="btnStretch" class="btn wide">Apply Tempo and Pitch</button>
-          <p class="hint">Tempo changes speed without changing pitch; pitch shifts in semitones without changing speed. Creates new audio, so it can be undone.</p>
+          <button id="btnStretch" class="btn wide">Apply Pitch Shift</button>
+          <p class="hint">Shifts pitch in semitones without changing length. Undo with ⌘Z.</p>
         </div>
         <button id="btnClipWav" class="btn wide">Save Clip as WAV…</button>
       </div>
@@ -607,9 +639,21 @@ const hasFx = t => Object.keys(FX_DEFAULT).some(k => t.fx[k] !== FX_DEFAULT[k]);
 function normalizeState() {
   state.master = { mono: false, limiter: true, ...state.master };
   for (const t of state.tracks) t.fx = { ...FX_DEFAULT, ...t.fx };
-  for (const c of state.clips) { c.channels ||= "stereo"; c.reverse ||= false; }
+  for (const c of state.clips) {
+    c.channels ||= "stereo"; c.reverse ||= false; c.speed ||= 1; c.keepPitch ??= true; c.orig ??= null;
+    if (c.orig && !buffers.has(c.orig.bufferId)) { c.orig = null; c.speed = 1; }   // original audio missing: treat as baked
+  }
 }
-let sel = { trackId: null, clipId: null };
+let sel = { trackId: null, clipId: null, multi: new Set() };   // clipId = primary, multi = every selected clip
+const isSel = id => sel.multi.has(id);
+const selectedClips = () => [...sel.multi].map(clipById).filter(Boolean);
+function syncSel() {
+  if (!(sel.multi instanceof Set)) sel.multi = new Set();
+  for (const id of [...sel.multi]) if (!clipById(id)) sel.multi.delete(id);
+  if (sel.clipId && !clipById(sel.clipId)) sel.clipId = null;
+  if (sel.clipId && !sel.multi.has(sel.clipId)) sel.multi = new Set([sel.clipId]);
+  if (!sel.clipId) sel.multi.clear();
+}
 let pps = 80;                            // pixels per second
 let playhead = 0;                        // seconds
 let playing = null;                      // live playback graph
@@ -721,33 +765,89 @@ function deleteTrack(id) {
   state.clips = state.clips.filter(c => c.trackId !== id);
   afterStructuralChange();
 }
+// A new clip covering local time [u0, u1] of clip c (handles reversed clips correctly).
+function sliceClip(c, u0, u1) {
+  const D = c.duration;
+  const n = { ...c, id: uid("c"), start: c.start + u0, duration: u1 - u0,
+    offset: c.reverse ? c.offset + (D - u1) : c.offset + u0,
+    fadeIn: u0 > 1e-6 ? Math.min(0.005, u1 - u0) : Math.min(c.fadeIn, u1 - u0),
+    fadeOut: u1 < D - 1e-6 ? Math.min(0.005, u1 - u0) : Math.min(c.fadeOut, u1 - u0) };
+  if (n.fadeIn + n.fadeOut > n.duration) n.fadeOut = Math.max(0, n.duration - n.fadeIn);
+  return n;
+}
 function splitSelected() {
-  const c = clipById(sel.clipId);
-  if (!c) return toast("Select a clip first.");
-  const t = playhead - c.start;
-  if (t <= 0.005 || t >= c.duration - 0.005) return toast("Move the playhead inside the selected clip to split it.");
+  const targets = selectedClips().filter(c => playhead - c.start > 0.005 && c.start + c.duration - playhead > 0.005);
+  if (!targets.length) return toast(sel.clipId ? "Move the playhead inside the selected clip to split it." : "Select a clip first.");
   pushUndo();
-  const right = { ...c, id: uid("c"), start: c.start + t, offset: c.offset + t, duration: c.duration - t, fadeIn: 0 };
-  c.duration = t; c.fadeOut = 0;
-  state.clips.push(right);
-  sel.clipId = right.id;
+  const rights = [];
+  for (const c of targets) {
+    const t = playhead - c.start;
+    const L = sliceClip(c, 0, t), Rt = sliceClip(c, t, c.duration);
+    state.clips.splice(state.clips.indexOf(c), 1, L, Rt);
+    rights.push(Rt.id);
+  }
+  sel.multi = new Set(rights); sel.clipId = rights.at(-1);
   afterStructuralChange();
 }
 function duplicateSelected() {
-  const c = clipById(sel.clipId);
-  if (!c) return;
+  const group = selectedClips(); if (!group.length) return;
   pushUndo();
-  const d = { ...c, id: uid("c"), start: c.start + c.duration };
-  state.clips.push(d);
-  sel.clipId = d.id;
+  const s0 = Math.min(...group.map(c => c.start)), span = Math.max(...group.map(c => c.start + c.duration)) - s0;
+  const copies = group.map(c => ({ ...c, id: uid("c"), start: c.start + span }));
+  state.clips.push(...copies);
+  sel.multi = new Set(copies.map(c => c.id)); sel.clipId = copies.at(-1).id;
   afterStructuralChange();
 }
 function deleteSelected() {
-  if (!sel.clipId) return;
+  if (!sel.multi.size) return;
   pushUndo();
-  state.clips = state.clips.filter(c => c.id !== sel.clipId);
-  sel.clipId = null;
+  state.clips = state.clips.filter(c => !sel.multi.has(c.id));
+  sel.clipId = null; sel.multi.clear();
   afterStructuralChange();
+}
+function selectAll() {
+  sel.multi = new Set(state.clips.map(c => c.id)); sel.clipId = state.clips.at(-1)?.id ?? null;
+  render(); if (sel.clipId) setTab("clip");
+}
+
+// ---------- range operations (on every track) ----------
+function rangeOp(kind) {
+  if (!hasRange()) return;
+  const a = loop.start, b = loop.end, len = b - a;
+  if (kind === "clear") return setLoop(0, 0, false);
+  pushUndo();
+  const out = [];
+  for (const c of state.clips) {
+    const s0 = c.start, e0 = c.start + c.duration;
+    const crossesA = s0 < a - 1e-6 && e0 > a + 1e-6, crossesB = s0 < b - 1e-6 && e0 > b + 1e-6;
+    if (kind === "split") {
+      const cuts = [a, b].filter(t => t > s0 + 1e-6 && t < e0 - 1e-6).map(t => t - s0);
+      if (!cuts.length) { out.push(c); continue; }
+      let u = 0; for (const cu of [...cuts, c.duration]) { out.push(sliceClip(c, u, cu)); u = cu; }
+      continue;
+    }
+    if (kind === "insert") {
+      if (crossesA) { out.push(sliceClip(c, 0, a - s0)); const r = sliceClip(c, a - s0, c.duration); r.start += len; out.push(r); }
+      else { if (s0 >= a - 1e-6) c.start += len; out.push(c); }
+      continue;
+    }
+    if (kind === "trim") {
+      if (e0 <= a || s0 >= b) continue;
+      out.push(s0 >= a && e0 <= b ? c : sliceClip(c, Math.max(0, a - s0), Math.min(c.duration, b - s0)));
+      continue;
+    }
+    // delete / silence
+    if (e0 <= a || s0 >= b) { if (kind === "delete" && s0 >= b) c.start -= len; out.push(c); continue; }
+    if (s0 < a) out.push(sliceClip(c, 0, a - s0));
+    if (e0 > b) { const r = sliceClip(c, b - s0, c.duration); if (kind === "delete") r.start -= len; out.push(r); }
+  }
+  state.clips = out;
+  if (kind === "delete") { setLoop(a, a, false); playhead = a; }
+  if (kind === "insert") setLoop(a, b, loop.on);
+  sel.clipId = null; sel.multi.clear();
+  afterStructuralChange();
+  toast({ delete: `Deleted ${len.toFixed(2)} s from every track.`, silence: `Silenced ${len.toFixed(2)} s.`, split: "Split at the range edges.",
+          trim: "Trimmed everything to the range.", insert: `Inserted ${len.toFixed(2)} s of silence.` }[kind]);
 }
 
 // ---------- rendering ----------
@@ -761,6 +861,7 @@ function gridStep() {
   return steps.find(s => s * pps >= 80) || 600;
 }
 function render() {
+  syncSel();
   const W = timelineWidth();
   els.inner.style.width = (headerW() + W) + "px";
   els.tracks.innerHTML = "";
@@ -802,7 +903,7 @@ function render() {
 }
 function clipEl(c, t) {
   const el = document.createElement("div");
-  el.className = "clip" + (c.id === sel.clipId ? " selected" : "");
+  el.className = "clip" + (isSel(c.id) ? " selected" : "");
   el.dataset.id = c.id;
   el.style.left = c.start * pps + "px";
   el.style.width = Math.max(2, c.duration * pps) + "px";
@@ -814,7 +915,7 @@ function clipEl(c, t) {
 }
 const CH_LABEL = { mono: "Mono", left: "Left only", right: "Right only" };
 function clipLabel(c) {
-  return [c.name, CH_LABEL[c.channels], c.reverse && "Reversed"].filter(Boolean).join(" · ");
+  return [c.name, c.speed && c.speed !== 1 && `${c.speed}×`, CH_LABEL[c.channels], c.reverse && "Reversed"].filter(Boolean).join(" · ");
 }
 function positionFades(el, c) {
   const w = c.duration * pps;
@@ -908,6 +1009,10 @@ function renderInspector() {
   $("cChannels").value = stereoSrc ? c.channels : "mono";
   $("cChannels").disabled = !stereoSrc;
   $("cReverse").checked = c.reverse;
+  const g = selectedClips();
+  $("spdClipTitle").textContent = g.length > 1 ? `Speed · ${g.length} clips selected` : "Speed";
+  if (typeof spdClip !== "undefined") spdClip.btn.textContent = g.length > 1 ? `Apply to ${g.length} Clips` : "Apply to Clip";
+  if (typeof spdClip !== "undefined") spdClip.set(commonSpeed(g), c.keepPitch);
   const b = buffers.get(c.bufferId).buffer;
   $("clipMeta").textContent = `${c.duration.toFixed(2)} s · ${(b.sampleRate / 1000).toFixed(1)} kHz · ${b.numberOfChannels === 1 ? "mono" : "stereo"} · on ${trackById(c.trackId)?.name ?? ""}`;
 }
@@ -923,6 +1028,7 @@ function renderTrackPane() {
   $("trackBody").style.display = t ? "contents" : "none";
   if (!t) return;
   if (document.activeElement !== $("tName")) $("tName").value = t.name;
+  if (typeof spdTrack !== "undefined") spdTrack.set(commonSpeed(state.clips.filter(c => c.trackId === t.id)));
   $("tColors").querySelectorAll("button").forEach((b, i) => {
     b.style.setProperty("--c", SYS_COLORS[i][darkMQ.matches ? 1 : 0]);
     b.classList.toggle("on", i === t.color % SYS_COLORS.length);
@@ -940,13 +1046,17 @@ function renderProjectPane() {
   $("btnMono").classList.toggle("on", state.master.mono);
   const end = projectEnd();
   $("pRange").disabled = !hasRange();
+  if (typeof spdProject !== "undefined") spdProject.set(commonSpeed(state.clips));
   $("projMeta").textContent = `${state.tracks.length} track${state.tracks.length === 1 ? "" : "s"} · ${state.clips.length} clip${state.clips.length === 1 ? "" : "s"} · ${fmtTime(end)} long · exports ${state.master.mono ? "mono" : "stereo"}`;
 }
-function selectClip(id) {
+function selectClip(id, additive = false) {
+  if (!additive || !id) sel.multi = new Set(id ? [id] : []);
+  else if (sel.multi.has(id)) { sel.multi.delete(id); id = [...sel.multi].at(-1) ?? null; }
+  else sel.multi.add(id);
   sel.clipId = id;
   const c = clipById(id);
   if (c) sel.trackId = c.trackId;
-  document.querySelectorAll(".clip").forEach(e => e.classList.toggle("selected", e.dataset.id === id));
+  document.querySelectorAll(".clip").forEach(e => e.classList.toggle("selected", sel.multi.has(e.dataset.id)));
   document.querySelectorAll(".track").forEach(e => e.classList.toggle("selected", e.dataset.id === sel.trackId));
   renderInspector();
 }
@@ -1145,7 +1255,11 @@ function togglePlay() {
 }
 function renderLoop() {
   const show = hasRange();
-  $("selection").hidden = $("loopBar").hidden = !show;
+  $("selection").hidden = $("loopBar").hidden = $("rangeBar").hidden = !show;
+  if (show) {
+    $("rangeInfo").textContent = `${fmtTime(loop.start)} – ${fmtTime(loop.end)} · ${(loop.end - loop.start).toFixed(2)} s`;
+    $("rangeBar").style.left = ((els.scroll.clientWidth - rightPad()) / 2) + "px";
+  }
   $("btnLoop").classList.toggle("on", loop.on);
   if (!show) return;
   const x = headerW() + loop.start * pps, w = (loop.end - loop.start) * pps;
@@ -1408,6 +1522,8 @@ els.tracks.addEventListener("pointerdown", e => {
   if (e.button !== 0) return;
   const clipNode = e.target.closest(".clip");
   const laneNode = e.target.closest(".lane");
+  const th = e.target.closest(".th");
+  if (th && !e.target.closest("input, button")) return startTrackReorder(e, th);
   if (!clipNode) {
     if (laneNode) {
       selectTrack(laneNode.parentElement.dataset.id);
@@ -1418,12 +1534,16 @@ els.tracks.addEventListener("pointerdown", e => {
   }
   e.preventDefault();
   const c = clipById(clipNode.dataset.id);
-  selectClip(c.id);
+  if (e.shiftKey || e.metaKey || e.ctrlKey) { selectClip(c.id, true); setTab("clip"); return; }
+  const group = sel.multi.has(c.id) && sel.multi.size > 1 ? selectedClips() : null;
+  if (group) { sel.clipId = c.id; renderInspector(); } else selectClip(c.id);
   setTab("clip");
   const cl = e.target.classList;
   const mode = cl.contains("fi") ? "fi" : cl.contains("fo") ? "fo" : cl.contains("l") ? "l" : cl.contains("r") ? "r" : "move";
   const before = JSON.stringify(state);
   const orig = { ...c };
+  const groupStarts = group && new Map(group.map(g => [g.id, g.start]));
+  const groupMin = group && Math.min(...group.map(g => g.start));
   const bufDur = buffers.get(c.bufferId).buffer.duration;
   const x0 = e.clientX;
   const pts = snapPoints(c.id);
@@ -1435,10 +1555,19 @@ els.tracks.addEventListener("pointerdown", e => {
     const dx = (ev.clientX - x0) / pps;
     if (!moved && Math.abs(ev.clientX - x0) < 3) {
       const row = trackRowAt(ev.clientY);
-      if (mode !== "move" || !row || row.dataset.id === c.trackId) return;
+      if (mode !== "move" || group || !row || row.dataset.id === c.trackId) return;
     }
     moved = true;
-    if (mode === "move") {
+    if (mode === "move" && group) {
+      let s = snapTo(orig.start + dx, pts);
+      const d = Math.max(-groupMin, s - orig.start);
+      for (const g of group) {
+        g.start = groupStarts.get(g.id) + d;
+        const el = document.querySelector(`.clip[data-id="${g.id}"]`); if (el) el.style.left = g.start * pps + "px";
+      }
+      renderInspector();
+      return;
+    } else if (mode === "move") {
       let s = Math.max(0, orig.start + dx);
       const sStart = snapTo(s, pts), sEnd = snapTo(s + orig.duration, pts) - orig.duration;
       s = Math.abs(sStart - s) <= Math.abs(sEnd - s) ? sStart : sEnd;
@@ -1668,13 +1797,23 @@ document.addEventListener("keydown", e => {
   else if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); saveProjectFile(); }
   else if (mod && e.key.toLowerCase() === "o") { e.preventDefault(); $("projInput").click(); }
   else if (mod && e.key.toLowerCase() === "e") { e.preventDefault(); exportMix(); }
+  else if (mod && e.key.toLowerCase() === "a") { e.preventDefault(); selectAll(); }
+  else if (!mod && (e.key === "=" || e.key === "+")) zoomBy(6);
+  else if (!mod && e.key === "-") zoomBy(-6);
   else if (mod && e.key.toLowerCase() === "c") copyClip(false);
   else if (mod && e.key.toLowerCase() === "x") copyClip(true);
   else if (mod && e.key.toLowerCase() === "v") pasteClip();
   else if (!mod && e.key.toLowerCase() === "l") toggleLoop();
   else if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); nudge((e.key === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 0.1 : 0.01)); }
-  else if (e.key === "Delete" || e.key === "Backspace") { if (sel.clipId) { e.preventDefault(); e.shiftKey ? rippleDelete() : deleteSelected(); } }
-  else if (e.key === "Escape") { $("help").hidden = true; $("docMenu").hidden = true; }
+  else if (e.key === "Delete" || e.key === "Backspace") {
+    if (sel.clipId) { e.preventDefault(); e.shiftKey && sel.multi.size === 1 ? rippleDelete() : deleteSelected(); }
+    else if (hasRange()) { e.preventDefault(); rangeOp("delete"); }
+  }
+  else if (e.key === "Escape") {
+    if (!$("help").hidden || !$("docMenu").hidden) { $("help").hidden = true; $("docMenu").hidden = true; }
+    else if (sel.multi.size) { selectClip(null); }
+    else if (hasRange()) rangeOp("clear");
+  }
 });
 window.addEventListener("resize", () => render());
 darkMQ.addEventListener("change", () => render());
@@ -1793,17 +1932,21 @@ $("ttsText").addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && 
 // ---------- clip editing extras ----------
 let clipboard = null;
 function copyClip(cut) {
-  const c = clipById(sel.clipId); if (!c) return;
-  clipboard = { ...c };
-  if (cut) deleteSelected(); else toast("Clip copied. Paste with ⌘V at the playhead.");
+  const group = selectedClips(); if (!group.length) return;
+  clipboard = group.map(c => ({ ...c }));
+  if (cut) deleteSelected(); else toast(`${group.length > 1 ? group.length + " clips" : "Clip"} copied. Paste with ⌘V at the playhead.`);
 }
 function pasteClip() {
-  if (!clipboard) return;
+  if (!clipboard?.length) return;
   const t = trackById(sel.trackId) || ensureTrack();
+  const oneTrack = new Set(clipboard.map(c => c.trackId)).size === 1;
+  const s0 = Math.min(...clipboard.map(c => c.start));
   pushUndo();
-  const c = { ...clipboard, id: uid("c"), trackId: t.id, start: playhead };
-  state.clips.push(c); sel.clipId = c.id;
-  playhead = c.start + c.duration;
+  const pasted = clipboard.map(c => ({ ...c, id: uid("c"), start: playhead + (c.start - s0),
+    trackId: oneTrack || !trackById(c.trackId) ? t.id : c.trackId }));
+  state.clips.push(...pasted);
+  sel.multi = new Set(pasted.map(c => c.id)); sel.clipId = pasted.at(-1).id;
+  playhead = Math.max(...pasted.map(c => c.start + c.duration));
   afterStructuralChange();
 }
 function rippleDelete() {
@@ -1816,11 +1959,14 @@ function rippleDelete() {
 }
 let nudgeTimer = null, nudgeSnap = null;
 function nudge(dt) {
-  const c = clipById(sel.clipId);
-  if (!c) { playhead = Math.max(0, playhead + dt * 10); return seek(playhead); }
+  const group = selectedClips();
+  if (!group.length) { playhead = Math.max(0, playhead + dt * 10); return seek(playhead); }
   if (!nudgeSnap) nudgeSnap = JSON.stringify(state);
-  c.start = Math.max(0, c.start + dt);
-  const el = document.querySelector(`.clip[data-id="${c.id}"]`); if (el) el.style.left = c.start * pps + "px";
+  const d = Math.max(dt, -Math.min(...group.map(c => c.start)));
+  for (const c of group) {
+    c.start += d;
+    const el = document.querySelector(`.clip[data-id="${c.id}"]`); if (el) el.style.left = c.start * pps + "px";
+  }
   renderInspector();
   clearTimeout(nudgeTimer);
   nudgeTimer = setTimeout(() => { pushUndo(nudgeSnap); nudgeSnap = null; afterStructuralChange(); }, 400);
@@ -1916,36 +2062,164 @@ function resample(d, ratio) {   // ratio > 1 = shorter (higher pitch)
   for (let i = 0; i < n; i++) { const x = i * ratio, j = Math.floor(x), f = x - j; o[i] = d[j] * (1 - f) + (d[j + 1] ?? d[j]) * f; }
   return o;
 }
+// ---------- background DSP worker (keeps heavy processing off the UI thread) ----------
+let dspW = null, dspSeq = 0;
+const dspPending = new Map();
+function dsp(msg) {
+  if (!dspW) {
+    const src = `${wsola.toString()}\n${resample.toString()}\n` +
+      `self.onmessage = e => { const m = e.data; let out;
+        if (m.op === "speed") out = m.keep ? wsola(m.chans, 1 / m.S, m.sr) : m.chans.map(d => resample(d, m.S));
+        else if (m.op === "pitch") { out = wsola(m.chans, m.p, m.sr).map(d => resample(d, m.p)); }
+        out = out.map(d => d.slice());
+        self.postMessage({ id: m.id, chans: out }, out.map(d => d.buffer)); };`;
+    dspW = new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+    dspW.onmessage = e => { dspPending.get(e.data.id)?.(e.data.chans); dspPending.delete(e.data.id); };
+  }
+  return new Promise(res => { const id = ++dspSeq; dspPending.set(id, res); dspW.postMessage({ ...msg, id }, msg.chans.map(d => d.buffer)); });
+}
+function regionChans(bufferId, offset, duration) {
+  const b = buffers.get(bufferId).buffer, sr = b.sampleRate;
+  const i0 = Math.max(0, Math.floor(offset * sr)), i1 = Math.min(b.length, Math.ceil((offset + duration) * sr));
+  const chans = []; for (let ch = 0; ch < b.numberOfChannels; ch++) chans.push(b.getChannelData(ch).slice(i0, i1));
+  return { chans, sr };
+}
+function bufferFrom(chans, sr) {
+  const nb = new AudioBuffer({ numberOfChannels: chans.length, length: Math.max(1, chans[0].length), sampleRate: sr });
+  chans.forEach((d, i) => nb.copyToChannel(d, i));
+  return registerBuffer(nb);
+}
+
+// Speed is non-destructive: each clip remembers its original audio (clip.orig) and every speed
+// change re-renders from that, so repeated changes never stack up quality loss.
+const speedCache = new Map();
+const speedKey = (o, S, keep) => `${o.bufferId}|${o.offset.toFixed(5)}|${o.duration.toFixed(5)}|${S}|${keep ? 1 : 0}`;
+async function applySpeed(clips, S, keep, scalePositions, btn) {
+  if (!clips.length) return toast("Nothing to change. Select a clip, or add audio first.");
+  const label = btn?.textContent;
+  if (btn) btn.disabled = true;
+  try {
+    const plans = clips.map(c => {
+      const oldS = c.speed || 1;
+      const orig = c.orig || { bufferId: c.bufferId, offset: c.offset, duration: c.duration };
+      return { c, oldS, orig, oo: c.orig ? c.offset * oldS : 0, od: c.duration * oldS };
+    });
+    if (plans.every(pl => pl.oldS === S && (S === 1 || pl.c.keepPitch === keep))) return toast(`Already at ${S}×.`);
+    const todo = new Map();
+    if (S !== 1) for (const pl of plans) { const k = speedKey(pl.orig, S, keep); if (!speedCache.has(k) || !buffers.has(speedCache.get(k))) todo.set(k, pl.orig); }
+    let i = 0;
+    for (const [k, o] of todo) {
+      if (btn) btn.textContent = todo.size > 1 ? `Rendering ${++i} of ${todo.size}…` : "Rendering…";
+      const { chans, sr } = regionChans(o.bufferId, o.offset, o.duration);
+      speedCache.set(k, bufferFrom(await dsp({ op: "speed", chans, S, keep, sr }), sr));
+    }
+    pushUndo();
+    const anchor = Math.min(...clips.map(c => c.start));
+    const posF = commonSpeed(clips) / S;   // one factor for positions so relative timing is preserved
+    for (const { c, oldS, orig, oo, od } of plans) {
+      const f = oldS / S;
+      if (scalePositions) c.start = anchor + (c.start - anchor) * posF;
+      if (S === 1) Object.assign(c, { bufferId: orig.bufferId, offset: orig.offset + oo, duration: od, orig: null });
+      else {
+        const id = speedCache.get(speedKey(orig, S, keep)), len = buffers.get(id).buffer.duration;
+        const off = Math.min(oo / S, len - 0.01);
+        Object.assign(c, { bufferId: id, offset: off, duration: Math.min(od / S, len - off), orig });
+      }
+      c.fadeIn *= f; c.fadeOut *= f; c.speed = S; c.keepPitch = keep;
+    }
+    afterStructuralChange();
+    toast(`${clips.length > 1 ? clips.length + " clips" : "Clip"} now at ${S}×${S !== 1 ? keep ? ", pitch kept" : ", tape style" : ""}.`);
+  } catch (err) { toast("Speed change failed: " + err.message); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = label; } }
+}
+function speedWidget(box, applyLabel, onApply) {
+  box.innerHTML = `<div class="chips">${[0.5, 0.75, 1, 1.25, 1.5, 2].map(v => `<button data-v="${v}">${v}×</button>`).join("")}</div>
+    <div class="fx-row"><span>Speed</span><input type="range" class="bipolar" min="-2" max="2" step="0.01" value="0" title="Double-click for 1×"><output>1.00×</output></div>
+    <label class="switch-row"><span class="txt">Keep pitch<small>Off speeds up like tape: faster and higher</small></span><input type="checkbox" class="switch" checked></label>
+    <button class="btn wide apply">${applyLabel}</button>`;
+  const rng = box.querySelector("input[type=range]"), out = box.querySelector("output"), keep = box.querySelector(".switch");
+  let cur = 1;   // exact value; the slider is logarithmic and would otherwise round 1.5 to 1.49
+  const val = () => cur;
+  const show = () => { out.textContent = val().toFixed(2) + "×"; box.querySelectorAll(".chips button").forEach(b => b.classList.toggle("on", +b.dataset.v === val())); };
+  const setTo = v => { cur = v; rng.value = Math.log2(v); show(); };
+  rng.oninput = () => { cur = Math.round(Math.pow(2, +rng.value) * 100) / 100; show(); };
+  rng.ondblclick = () => setTo(1);
+  box.querySelectorAll(".chips button").forEach(b => b.onclick = () => setTo(+b.dataset.v));
+  const btn = box.querySelector(".apply");
+  btn.onclick = () => onApply(val(), keep.checked, btn);
+  show();
+  return { set(v, k) { if (document.activeElement === rng) return; setTo(v || 1); keep.checked = k ?? true; }, btn };
+}
+const spdClip = speedWidget($("spdClip"), "Apply to Clip", (S, keep, btn) => {
+  const g = selectedClips(); applySpeed(g, S, keep, g.length > 1, btn);
+});
+const spdTrack = speedWidget($("spdTrack"), "Apply to Whole Track", (S, keep, btn) =>
+  applySpeed(state.clips.filter(c => c.trackId === sel.trackId), S, keep, true, btn));
+const spdProject = speedWidget($("spdProject"), "Apply to Everything", (S, keep, btn) => applySpeed([...state.clips], S, keep, true, btn));
+function commonSpeed(clips) { const v = new Set(clips.map(c => c.speed || 1)); return v.size === 1 ? [...v][0] : 1; }
+
 async function applyTempoPitch() {
   const c = clipById(sel.clipId); if (!c) return toast("Select a clip first.");
-  const tempo = +$("tpTempo").value / 100, semis = +$("tpPitch").value;
-  if (tempo === 1 && semis === 0) return toast("Change the tempo or pitch first.");
-  const b = buffers.get(c.bufferId).buffer, sr = b.sampleRate;
-  const i0 = Math.floor(c.offset * sr), i1 = Math.min(b.length, Math.ceil((c.offset + c.duration) * sr));
-  let chans = []; for (let ch = 0; ch < b.numberOfChannels; ch++) chans.push(b.getChannelData(ch).slice(i0, i1));
-  if (c.reverse) chans = chans.map(d => d.reverse());
+  const semis = +$("tpPitch").value;
+  if (semis === 0) return toast("Move the pitch slider first.");
+  const { chans, sr } = regionChans(c.bufferId, c.offset, c.duration);
+  if (c.reverse) chans.forEach(d => d.reverse());
   $("btnStretch").disabled = true; $("btnStretch").textContent = "Processing…";
-  await new Promise(r => setTimeout(r, 30));
   try {
-    const p = Math.pow(2, semis / 12);
-    let outCh = wsola(chans, p / tempo, sr);           // stretch so that resampling by p lands on the target length
-    if (p !== 1) outCh = outCh.map(d => resample(d, p));
-    const nb = new AudioBuffer({ numberOfChannels: outCh.length, length: outCh[0].length, sampleRate: sr });
-    outCh.forEach((d, i) => nb.copyToChannel(d, i));
+    const id = bufferFrom(await dsp({ op: "pitch", chans, p: Math.pow(2, semis / 12), sr }), sr);
     pushUndo();
-    const k = nb.duration / c.duration;
-    Object.assign(c, { bufferId: registerBuffer(nb), offset: 0, duration: nb.duration, reverse: false,
+    const nd = buffers.get(id).buffer.duration, k = nd / c.duration;
+    Object.assign(c, { bufferId: id, offset: 0, duration: nd, reverse: false, orig: null, speed: 1,
       fadeIn: c.fadeIn * k, fadeOut: c.fadeOut * k,
-      name: c.name.replace(/ \((tempo|pitch).*\)$/, "") + ` (${[tempo !== 1 && `tempo ${Math.round(tempo * 100)}%`, semis && `pitch ${semis > 0 ? "+" : ""}${semis} st`].filter(Boolean).join(", ")})` });
+      name: c.name.replace(/ \(pitch .*\)$/, "") + ` (pitch ${semis > 0 ? "+" : ""}${semis} st)` });
     afterStructuralChange();
-    toast("Applied. Undo with ⌘Z if it doesn't sound right.");
-  } finally { $("btnStretch").disabled = false; $("btnStretch").textContent = "Apply Tempo and Pitch"; }
+    toast("Pitch shifted. Undo with ⌘Z if it doesn't sound right.");
+  } finally { $("btnStretch").disabled = false; $("btnStretch").textContent = "Apply Pitch Shift"; }
 }
+
+// ---------- tracks: reorder by dragging the header, duplicate ----------
+function startTrackReorder(e, th) {
+  const row = th.parentElement, id = row.dataset.id, y0 = e.clientY, h = row.offsetHeight;
+  const from = state.tracks.findIndex(t => t.id === id);
+  let dy = 0, dragging = false;
+  th.setPointerCapture(e.pointerId);
+  const mv = ev => {
+    dy = ev.clientY - y0;
+    if (!dragging && Math.abs(dy) < 5) return;
+    if (!dragging) { dragging = true; row.classList.add("reordering"); selectTrack(id); }
+    row.style.transform = `translateY(${dy}px)`;
+  };
+  const up = () => {
+    th.removeEventListener("pointermove", mv); th.removeEventListener("pointerup", up); th.removeEventListener("pointercancel", up);
+    row.classList.remove("reordering"); row.style.transform = "";
+    if (!dragging) return;
+    const to = clamp(from + Math.round(dy / h), 0, state.tracks.length - 1);
+    if (to === from) return;
+    pushUndo();
+    const [t] = state.tracks.splice(from, 1); state.tracks.splice(to, 0, t);
+    afterStructuralChange();
+  };
+  th.addEventListener("pointermove", mv); th.addEventListener("pointerup", up); th.addEventListener("pointercancel", up);
+}
+$("tDup").onclick = () => {
+  const t = trackById(sel.trackId); if (!t) return;
+  pushUndo();
+  const nt = { ...structuredClone(t), id: uid("t"), name: t.name + " copy", solo: false };
+  state.tracks.splice(state.tracks.indexOf(t) + 1, 0, nt);
+  state.clips.push(...state.clips.filter(c => c.trackId === t.id).map(c => ({ ...c, id: uid("c"), trackId: nt.id })));
+  sel.trackId = nt.id;
+  afterStructuralChange();
+};
+$("tDel").onclick = () => {
+  const t = trackById(sel.trackId); if (!t) return;
+  const n = state.clips.filter(c => c.trackId === t.id).length;
+  if (!n || confirm(`Delete “${t.name}” and its ${n} clip${n > 1 ? "s" : ""}?`)) deleteTrack(t.id);
+};
+$("rangeBar").onclick = e => { const b = e.target.closest("button[data-r]"); if (b) rangeOp(b.dataset.r); };
+function zoomBy(d) { const z = $("zoom"); z.value = clamp(+z.value + d, 0, 100); setZoom(null); }
 $("silThr").oninput = e => { $("silThrV").textContent = `−${Math.abs(e.target.value)} dB`; setRangeFill(e.target); };
 $("silMin").oninput = e => { $("silMinV").textContent = `${(+e.target.value).toFixed(2)} s`; setRangeFill(e.target); };
-$("tpTempo").oninput = e => { $("tpTempoV").textContent = `${e.target.value}%`; setRangeFill(e.target); };
 $("tpPitch").oninput = e => { const v = +e.target.value; $("tpPitchV").textContent = `${v > 0 ? "+" : ""}${v} st`; };
-$("tpTempo").ondblclick = () => { $("tpTempo").value = 100; $("tpTempo").oninput({ target: $("tpTempo") }); };
 $("tpPitch").ondblclick = () => { $("tpPitch").value = 0; $("tpPitch").oninput({ target: $("tpPitch") }); };
 $("btnSilence").onclick = removeSilence;
 $("btnStretch").onclick = applyTempoPitch;
@@ -1956,7 +2230,7 @@ $("pFormat").onchange();
 
 // ---------- projects: autosave (IndexedDB) and project files ----------
 function setDocName() { $("docName").textContent = state.name || "Untitled"; document.title = (state.name ? state.name + " · " : "") + "Layer Audio Editor"; }
-const usedBufferIds = () => [...new Set(state.clips.map(c => c.bufferId))];
+const usedBufferIds = () => [...new Set(state.clips.flatMap(c => c.orig ? [c.bufferId, c.orig.bufferId] : [c.bufferId]))];
 let dbp = null;
 function db() {
   return dbp ||= new Promise((res, rej) => {
@@ -1998,7 +2272,7 @@ function loadProjectData(st, lp, bufs) {
   state = st; loop = lp || { start: 0, end: 0, on: false };
   state.clips = state.clips.filter(c => buffers.has(c.bufferId));
   undoStack = []; redoStack = [];
-  sel = { trackId: state.tracks[0]?.id ?? null, clipId: null };
+  sel = { trackId: state.tracks[0]?.id ?? null, clipId: null, multi: new Set() };
   playhead = 0;
   normalizeState(); setDocName();
   render(); zoomToFit();
@@ -2009,7 +2283,7 @@ async function restoreSession() {
     if (!snap) return false;
     const { state: st, loop: lp } = JSON.parse(snap);
     const bufs = {};
-    for (const id of new Set(st.clips.map(c => c.bufferId))) {
+    for (const id of new Set(st.clips.flatMap(c => c.orig ? [c.bufferId, c.orig.bufferId] : [c.bufferId]))) {
       const b = await idb("buffers", "readonly", s => s.get(id));
       if (b) { bufs[id] = b; savedBuffers.add(id); }
     }
