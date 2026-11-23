@@ -160,11 +160,36 @@
     transition: transform .28s cubic-bezier(.2,.8,.2,1), opacity .2s; }
   .inspector.closed { transform: translateX(calc(100% + 20px)); opacity: 0; pointer-events: none; }
   .insp-head { padding: 14px 14px 6px; }
-  .segmented { display: grid; grid-template-columns: 1fr 1fr; padding: 2px; border-radius: 9px; background: var(--fill2); position: relative; }
+  .segmented { display: grid; grid-template-columns: repeat(4, 1fr); padding: 2px; border-radius: 9px; background: var(--fill2); position: relative; }
   .segmented button { height: 26px; border-radius: 7px; font-weight: 500; color: var(--label); position: relative; z-index: 1; }
-  .segmented .thumb { position: absolute; top: 2px; bottom: 2px; left: 2px; width: calc(50% - 2px); border-radius: 7px; background: var(--elevated);
+  .segmented .thumb { position: absolute; top: 2px; bottom: 2px; left: 2px; width: calc(25% - 1px); border-radius: 7px; background: var(--elevated); transform: translateX(calc(var(--i, 0) * 100%));
     box-shadow: 0 1px 3px rgba(0,0,0,.14), 0 0 0 .5px rgba(0,0,0,.05); transition: transform .22s cubic-bezier(.2,.8,.2,1); }
-  .segmented[data-tab=clip] .thumb { transform: translateX(100%); }
+  .segmented button { font-size: 12.5px; }
+  .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  .switch-row .txt { display: flex; flex-direction: column; gap: 2px; color: var(--label); }
+  .switch-row .txt small { color: var(--label3); font-size: 11.5px; line-height: 1.35; }
+  .switch { appearance: none; -webkit-appearance: none; width: 38px; height: 22px; border-radius: 11px; background: var(--fill); position: relative;
+    flex: none; margin: 0; transition: background-color .2s; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .22s cubic-bezier(.2,.8,.2,1); }
+  .switch:checked { background: var(--green); }
+  .switch:checked::after { transform: translateX(16px); }
+  .group-box { background: var(--fill3); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+  .fx-row { display: grid; grid-template-columns: 70px 1fr 58px; align-items: center; gap: 10px; font-size: 12px; color: var(--label2); }
+  .fx-row input { width: 100%; min-width: 0; }
+  .fx-row output { font: 11.5px var(--mono); font-variant-numeric: tabular-nums; text-align: right; color: var(--label2); }
+  .swatches { display: flex; gap: 10px; flex-wrap: wrap; padding: 2px; }
+  .swatches button { width: 20px; height: 20px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 .5px rgba(0,0,0,.15); }
+  .swatches button.on { box-shadow: 0 0 0 2px var(--content), 0 0 0 4px var(--c); }
+  .fxb { font-size: 9.5px; font-weight: 700; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border-radius: 5px; padding: 2px 4px; letter-spacing: .02em; }
+  .fade { position: absolute; top: 3px; width: 11px; height: 11px; margin-left: -5.5px; border-radius: 50%; background: var(--content);
+    box-shadow: 0 0 0 1.5px var(--color); z-index: 2; cursor: ew-resize; opacity: 0; transition: opacity .12s; }
+  .clip:hover .fade, .clip.selected .fade { opacity: 1; }
+  .meter { display: flex; flex-direction: column; gap: 3px; width: 46px; margin: 0 6px 0 0; }
+  .meter > div { height: 3px; border-radius: 2px; background: var(--fill); overflow: hidden; }
+  .meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--green) 0 68%, var(--yellow) 68% 88%, var(--red) 88%);
+    clip-path: inset(0 calc(100% - var(--v, 0%)) 0 0); }
   .pane { flex: 1; overflow-y: auto; padding: 10px 16px 18px; display: flex; flex-direction: column; gap: 14px; }
   .section-title { font-size: 11px; font-weight: 590; color: var(--label2); text-transform: none; margin: 0 0 -6px 2px; }
   .field { display: flex; flex-direction: column; gap: 6px; }
@@ -218,7 +243,7 @@
     :root { --header-w: 148px; --insp-w: auto; }
     .inspector { top: auto; left: var(--gap); max-height: 62vh; }
     .inspector.closed { transform: translateY(calc(100% + 20px)); }
-    .master, .master-div, .spacer { display: none; }
+    .master, .master-div, .spacer, .meter { display: none; }
     #btnExport span { display: none; }
     #btnExport { width: 36px; padding: 0; }
     .toolbar { padding: 8px 10px; justify-content: space-between; }
@@ -237,6 +262,7 @@
     <button id="btnRec" class="tb" title="Record (R)"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6.5"/></svg></button>
     <div class="divider"></div>
     <span id="time" class="timecode">0:00.000</span>
+    <div class="meter" title="Output level"><div><i id="meterL"></i></div><div><i id="meterR"></i></div></div>
     <div class="divider master-div"></div>
     <label class="master" title="Master volume"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18.3 6.3a8 8 0 0 1 0 11.4"/></svg><input type="range" id="master" min="0" max="1.5" step="0.01" value="1" aria-label="Master volume"></label>
   </div>
@@ -257,6 +283,7 @@
   <div class="spacer"></div>
 
   <div class="capsule glass" role="group" aria-label="View">
+    <button id="btnMono" class="tb" title="Mono output: sum the whole mix to one channel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="6.5"/><path d="M12 9v6"/></svg></button>
     <button id="btnHelp" class="tb" title="Keyboard Shortcuts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="6" width="18" height="12" rx="3"/><path d="M7 10h.01M10.5 10h.01M14 10h.01M17 10h.01M8 14h8"/></svg></button>
     <button id="btnInspector" class="tb on" title="Show or hide the inspector"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="3.5"/><path d="M14.5 4.5v15"/></svg></button>
   </div>
@@ -303,6 +330,8 @@
         <div class="thumb"></div>
         <button role="tab" data-tab="speech">Speech</button>
         <button role="tab" data-tab="clip">Clip</button>
+        <button role="tab" data-tab="track">Track</button>
+        <button role="tab" data-tab="project">Project</button>
       </div>
     </div>
 
@@ -322,15 +351,43 @@
           <label class="check"><input type="checkbox" id="ttsNewTrack"> Put each generation on a new track</label>
           <div class="row2">
             <label class="field"><span>Device</span><select id="device">
-              <option value="auto">Automatic</option><option value="webgpu">GPU (WebGPU)</option><option value="wasm">CPU</option></select></label>
+              <option value="wasm">CPU (smooth)</option><option value="webgpu">GPU (faster)</option></select></label>
             <label class="field"><span>Precision</span><select id="dtype">
               <option value="auto">Automatic</option><option value="fp32">fp32</option><option value="fp16">fp16</option><option value="q8">q8</option><option value="q4">q4</option></select></label>
           </div>
           <button id="btnTtsLoad" class="btn wide">Preload Model</button>
-          <p class="hint">Automatic uses the GPU at full precision when the browser supports WebGPU (about 330 MB), otherwise the CPU at q8 (about 90 MB). Fix a pronunciation with <code>[word](/fənˈɛtɪks/)</code>. New clips land at the playhead, which then moves to the end of the clip.</p>
+          <p class="hint">CPU runs in the background on one core and won't slow your computer down (about 90 MB download). GPU is several times faster but can make the whole computer sluggish while it works, since the screen shares the graphics card (about 330 MB at full precision). Fix a pronunciation with <code>[word](/fənˈɛtɪks/)</code>. New clips land at the playhead, which then moves to the end of the clip.</p>
           <p class="meta" id="engineInfo">Kokoro 82M · runs locally</p>
         </div>
       </details>
+    </div>
+
+    <div class="pane" id="paneTrack" hidden>
+      <div class="placeholder" id="trackEmpty">No track selected</div>
+      <div id="trackBody" style="display:contents">
+        <label class="field"><span>Name</span><input type="text" class="input" id="tName"></label>
+        <div class="field"><span>Colour</span><div class="swatches" id="tColors"></div></div>
+        <p class="section-title">Equalizer</p>
+        <div class="group-box" id="fxEq"></div>
+        <p class="section-title">Dynamics and space</p>
+        <div class="group-box" id="fxDyn"></div>
+        <button class="btn wide" id="tReset">Reset Effects</button>
+      </div>
+    </div>
+
+    <div class="pane" id="paneProject" hidden>
+      <p class="section-title">Output</p>
+      <div class="group-box">
+        <label class="switch-row"><span class="txt">Mono<small>Sum every track to one channel, for playback and export</small></span><input type="checkbox" class="switch" id="pMono"></label>
+        <label class="switch-row"><span class="txt">Limiter<small>Hold peaks under −1 dB so the mix never clips</small></span><input type="checkbox" class="switch" id="pLimiter" checked></label>
+      </div>
+      <p class="section-title">Export</p>
+      <div class="row2">
+        <label class="field"><span>Sample rate</span><select id="pRate"><option value="44100">44.1 kHz</option><option value="48000" selected>48 kHz</option></select></label>
+        <label class="field"><span>Bit depth</span><select id="pBits"><option value="16">16-bit</option><option value="24">24-bit</option></select></label>
+      </div>
+      <label class="switch-row"><span class="txt">Normalize<small>Scale the finished file so it peaks at −1 dB</small></span><input type="checkbox" class="switch" id="pNorm"></label>
+      <p class="meta" id="projMeta"></p>
     </div>
 
     <div class="pane" id="paneClip" hidden>
@@ -346,6 +403,10 @@
           <label class="field"><span>Fade In (s)</span><input type="number" class="input" id="cFadeIn" step="0.05" min="0"></label>
           <label class="field"><span>Fade Out (s)</span><input type="number" class="input" id="cFadeOut" step="0.05" min="0"></label>
         </div>
+        <label class="field"><span>Channels</span><select id="cChannels">
+          <option value="stereo">Stereo (as recorded)</option><option value="mono">Mono (mix left + right)</option>
+          <option value="left">Left channel only</option><option value="right">Right channel only</option></select></label>
+        <label class="switch-row"><span class="txt">Reverse<small>Play the clip backwards</small></span><input type="checkbox" class="switch" id="cReverse"></label>
         <p class="meta" id="clipMeta"></p>
         <button id="btnNormalize" class="btn wide" title="Set gain so the clip peaks at -1 dBFS">Normalize to −1 dB</button>
         <button id="btnClipWav" class="btn wide">Save Clip as WAV…</button>
@@ -363,20 +424,44 @@ let tts = null, loading = null;
 async function hasWebGPU() {
   try { return !!(self.navigator.gpu && await self.navigator.gpu.requestAdapter()); } catch { return false; }
 }
+let device = "wasm";
 async function load(opts) {
-  let device = opts.device;
-  if (device === "auto") device = (await hasWebGPU()) ? "webgpu" : "wasm";
+  // CPU by default: it runs single-threaded in this worker and can't starve the rest of
+  // the machine. WebGPU is faster but can monopolise the GPU the screen also needs.
+  device = opts.device === "webgpu" && (await hasWebGPU()) ? "webgpu" : "wasm";
+  if (opts.device === "webgpu" && device === "wasm") self.postMessage({ type: "note", text: "This browser has no WebGPU, using the CPU." });
   const pick = d => opts.dtype !== "auto" ? opts.dtype : (d === "webgpu" ? "fp32" : "q8");
   const progress = p => self.postMessage({ type: "progress", p });
   try {
     tts = await KokoroTTS.from_pretrained(MODEL, { dtype: pick(device), device, progress_callback: progress });
   } catch (err) {
-    if (device !== "webgpu" || opts.device !== "auto") throw err;
+    if (device !== "webgpu") throw err;
     self.postMessage({ type: "note", text: "GPU failed (" + err.message + "), falling back to CPU." });
     device = "wasm";
     tts = await KokoroTTS.from_pretrained(MODEL, { dtype: pick(device), device, progress_callback: progress });
   }
   self.postMessage({ type: "ready", device, dtype: pick(device) });
+}
+// Split an over-long sentence at clause boundaries so no single model run is huge.
+function shorten(sentence, max) {
+  if (sentence.length <= max) return [sentence];
+  const parts = sentence.split(/(?<=[,;:–—])\s+/);
+  const out = [];
+  let cur = "";
+  for (const part of parts) {
+    if (cur && (cur + " " + part).length > max) { out.push(cur); cur = part; }
+    else cur = cur ? cur + " " + part : part;
+  }
+  if (cur) out.push(cur);
+  // a clause that is still too long gets split on word boundaries
+  return out.flatMap(s => {
+    if (s.length <= max) return [s];
+    const words = s.split(/\s+/), res = [];
+    let c = "";
+    for (const w of words) { if (c && (c + " " + w).length > max) { res.push(c); c = w; } else c = c ? c + " " + w : w; }
+    if (c) res.push(c);
+    return res;
+  });
 }
 self.onmessage = async (e) => {
   const m = e.data;
@@ -391,9 +476,15 @@ self.onmessage = async (e) => {
       const splitter = new TextSplitterStream();
       splitter.push(m.text);
       splitter.close();
-      for await (const chunk of tts.stream(splitter, { voice: m.voice, speed: m.speed })) {
-        const data = chunk.audio.audio.slice();
-        self.postMessage({ type: "chunk", id: m.id, text: chunk.text, audio: data, sr: chunk.audio.sampling_rate }, [data.buffer]);
+      const pieces = [];
+      for await (const sentence of splitter) pieces.push(...shorten(sentence, device === "webgpu" ? 160 : 400));
+      for (const piece of pieces) {
+        const t0 = performance.now();
+        const audio = await tts.generate(piece, { voice: m.voice, speed: m.speed });
+        const data = audio.audio.slice();
+        self.postMessage({ type: "chunk", id: m.id, text: piece, audio: data, sr: audio.sampling_rate }, [data.buffer]);
+        // On the GPU, give the compositor breathing room between pieces so the desktop stays responsive.
+        if (device === "webgpu") await new Promise(r => setTimeout(r, Math.max(40, 0.6 * (performance.now() - t0))));
       }
       self.postMessage({ type: "done", id: m.id });
     }
@@ -436,7 +527,22 @@ const narrowMQ = matchMedia("(max-width: 900px)");
 const trackColor = t => SYS_COLORS[t.color % SYS_COLORS.length][darkMQ.matches ? 1 : 0];
 
 const buffers = new Map();               // bufferId -> { buffer, peaks, spp }
-let state = { tracks: [], clips: [] };   // serialisable project (buffers referenced by id)
+let state = { tracks: [], clips: [], master: { mono: false, limiter: true } };   // serialisable project
+const FX_DEFAULT = { hp: 0, low: 0, mid: 0, high: 0, comp: 0, reverb: 0 };
+const FX_DEFS = [
+  { key: "hp", label: "High-pass", min: 0, max: 400, step: 5, box: "fxEq", fmt: v => v > 0 ? `${v} Hz` : "Off" },
+  { key: "low", label: "Low", min: -12, max: 12, step: 0.5, box: "fxEq", bipolar: true, fmt: v => `${v > 0 ? "+" : ""}${(+v).toFixed(1)} dB` },
+  { key: "mid", label: "Mid", min: -12, max: 12, step: 0.5, box: "fxEq", bipolar: true, fmt: v => `${v > 0 ? "+" : ""}${(+v).toFixed(1)} dB` },
+  { key: "high", label: "High", min: -12, max: 12, step: 0.5, box: "fxEq", bipolar: true, fmt: v => `${v > 0 ? "+" : ""}${(+v).toFixed(1)} dB` },
+  { key: "comp", label: "Compress", min: 0, max: 100, step: 1, box: "fxDyn", fmt: v => v > 0 ? `${v}%` : "Off" },
+  { key: "reverb", label: "Reverb", min: 0, max: 100, step: 1, box: "fxDyn", fmt: v => v > 0 ? `${v}%` : "Off" },
+];
+const hasFx = t => Object.keys(FX_DEFAULT).some(k => t.fx[k] !== FX_DEFAULT[k]);
+function normalizeState() {
+  state.master = { mono: false, limiter: true, ...state.master };
+  for (const t of state.tracks) t.fx = { ...FX_DEFAULT, ...t.fx };
+  for (const c of state.clips) { c.channels ||= "stereo"; c.reverse ||= false; }
+}
 let sel = { trackId: null, clipId: null };
 let pps = 80;                            // pixels per second
 let playhead = 0;                        // seconds
@@ -491,6 +597,7 @@ function redo() {
   afterStructuralChange();
 }
 function afterStructuralChange() {
+  normalizeState();
   if (sel.clipId && !clipById(sel.clipId)) sel.clipId = null;
   if (sel.trackId && !trackById(sel.trackId)) sel.trackId = state.tracks[0]?.id ?? null;
   render();
@@ -525,7 +632,7 @@ function registerBuffer(buffer) {
 function addTrack(name, { select = true, undoable = true } = {}) {
   if (undoable) pushUndo();
   const t = { id: uid("t"), name: name || `Track ${state.tracks.length + 1}`, gain: 1, pan: 0, mute: false, solo: false,
-    color: state.tracks.length % SYS_COLORS.length };
+    color: state.tracks.length % SYS_COLORS.length, fx: { ...FX_DEFAULT } };
   state.tracks.push(t);
   if (select) sel.trackId = t.id;
   return t;
@@ -537,7 +644,7 @@ function ensureTrack() {
 function addClip(bufferId, trackId, start, name) {
   const b = buffers.get(bufferId).buffer;
   const c = { id: uid("c"), trackId, bufferId, start: Math.max(0, start), offset: 0, duration: b.duration,
-    gain: 1, fadeIn: 0, fadeOut: 0, name: name || "Clip" };
+    gain: 1, fadeIn: 0, fadeOut: 0, name: name || "Clip", channels: "stereo", reverse: false };
   state.clips.push(c);
   return c;
 }
@@ -601,6 +708,7 @@ function render() {
       <div class="th">
         <div class="th-top">
           <input type="text" class="tname" aria-label="Track name">
+          <span class="fxb" title="This track has effects" ${hasFx(t) ? "" : "hidden"}>FX</span>
           <button class="pill m ${t.mute ? "on" : ""}" title="Mute">M</button>
           <button class="pill s ${t.solo ? "on" : ""}" title="Solo">S</button>
           <button class="tdel" title="Delete Track">${ICON_X}</button>
@@ -630,10 +738,20 @@ function clipEl(c, t) {
   el.dataset.id = c.id;
   el.style.left = c.start * pps + "px";
   el.style.width = Math.max(2, c.duration * pps) + "px";
-  el.innerHTML = `<div class="clip-label"></div><canvas></canvas><div class="handle l"></div><div class="handle r"></div>`;
-  el.querySelector(".clip-label").textContent = c.name;
+  el.innerHTML = `<div class="clip-label"></div><canvas></canvas><div class="handle l"></div><div class="handle r"></div><div class="fade fi" title="Fade in"></div><div class="fade fo" title="Fade out"></div>`;
+  el.querySelector(".clip-label").textContent = clipLabel(c);
+  positionFades(el, c);
   requestAnimationFrame(() => drawWave(el.querySelector("canvas"), c, trackColor(t)));
   return el;
+}
+const CH_LABEL = { mono: "Mono", left: "Left only", right: "Right only" };
+function clipLabel(c) {
+  return [c.name, CH_LABEL[c.channels], c.reverse && "Reversed"].filter(Boolean).join(" · ");
+}
+function positionFades(el, c) {
+  const w = c.duration * pps;
+  el.querySelector(".fi").style.left = clamp(c.fadeIn * pps, 6, Math.max(6, w - 6)) + "px";
+  el.querySelector(".fo").style.left = clamp((c.duration - c.fadeOut) * pps, 6, Math.max(6, w - 6)) + "px";
 }
 function drawWave(canvas, c, color) {
   const b = buffers.get(c.bufferId);
@@ -648,7 +766,8 @@ function drawWave(canvas, c, color) {
   g.fillStyle = color;
   const nPeaks = b.peaks.length / 2;
   for (let x = 0; x < w; x++) {
-    const t0 = c.offset + (x / w) * c.duration, t1 = c.offset + ((x + 1) / w) * c.duration;
+    let t0 = c.offset + (x / w) * c.duration, t1 = c.offset + ((x + 1) / w) * c.duration;
+    if (c.reverse) [t0, t1] = [2 * c.offset + c.duration - t1, 2 * c.offset + c.duration - t0];
     let i0 = Math.floor(t0 * sr / b.spp), i1 = Math.max(i0 + 1, Math.ceil(t1 * sr / b.spp));
     i1 = Math.min(i1, nPeaks);
     let lo = 0, hi = 0;
@@ -705,6 +824,8 @@ function updatePlayhead() {
   if (txt !== lastTimeText) { els.time.textContent = txt; lastTimeText = txt; }
 }
 function renderInspector() {
+  renderTrackPane();
+  renderProjectPane();
   const c = clipById(sel.clipId);
   $("clipEmpty").hidden = !!c;
   $("clipBody").style.display = c ? "contents" : "none";
@@ -715,13 +836,42 @@ function renderInspector() {
   set("cStart", c.start.toFixed(3));
   set("cFadeIn", c.fadeIn.toFixed(2));
   set("cFadeOut", c.fadeOut.toFixed(2));
+  const stereoSrc = buffers.get(c.bufferId).buffer.numberOfChannels > 1;
+  $("cChannels").value = stereoSrc ? c.channels : "mono";
+  $("cChannels").disabled = !stereoSrc;
+  $("cReverse").checked = c.reverse;
   const b = buffers.get(c.bufferId).buffer;
   $("clipMeta").textContent = `${c.duration.toFixed(2)} s · ${(b.sampleRate / 1000).toFixed(1)} kHz · ${b.numberOfChannels === 1 ? "mono" : "stereo"} · on ${trackById(c.trackId)?.name ?? ""}`;
 }
+const TABS = ["speech", "clip", "track", "project"];
 function setTab(tab) {
   $("seg").dataset.tab = tab;
-  $("paneSpeech").hidden = tab !== "speech";
-  $("paneClip").hidden = tab !== "clip";
+  $("seg").style.setProperty("--i", TABS.indexOf(tab));
+  for (const t of TABS) $("pane" + t[0].toUpperCase() + t.slice(1)).hidden = t !== tab;
+}
+function renderTrackPane() {
+  const t = trackById(sel.trackId);
+  $("trackEmpty").hidden = !!t;
+  $("trackBody").style.display = t ? "contents" : "none";
+  if (!t) return;
+  if (document.activeElement !== $("tName")) $("tName").value = t.name;
+  $("tColors").querySelectorAll("button").forEach((b, i) => {
+    b.style.setProperty("--c", SYS_COLORS[i][darkMQ.matches ? 1 : 0]);
+    b.classList.toggle("on", i === t.color % SYS_COLORS.length);
+  });
+  for (const d of FX_DEFS) {
+    const inp = $("fx_" + d.key);
+    if (document.activeElement !== inp) inp.value = t.fx[d.key];
+    setRangeFill(inp);
+    $("fxv_" + d.key).textContent = d.fmt(t.fx[d.key]);
+  }
+}
+function renderProjectPane() {
+  $("pMono").checked = state.master.mono;
+  $("pLimiter").checked = state.master.limiter;
+  $("btnMono").classList.toggle("on", state.master.mono);
+  const end = projectEnd();
+  $("projMeta").textContent = `${state.tracks.length} track${state.tracks.length === 1 ? "" : "s"} · ${state.clips.length} clip${state.clips.length === 1 ? "" : "s"} · ${fmtTime(end)} long · exports ${state.master.mono ? "mono" : "stereo"}`;
 }
 function selectClip(id) {
   sel.clipId = id;
@@ -734,6 +884,7 @@ function selectClip(id) {
 function selectTrack(id) {
   sel.trackId = id;
   document.querySelectorAll(".track").forEach(e => e.classList.toggle("selected", e.dataset.id === id));
+  renderTrackPane();
 }
 let toastTimer;
 function toast(msg) {
@@ -748,34 +899,110 @@ function trackAudible(t) {
   const anySolo = state.tracks.some(x => x.solo);
   return !t.mute && (!anySolo || t.solo);
 }
+const irCache = new WeakMap();
+function impulse(c) {                       // synthetic room: decaying stereo noise, ~2.4 s
+  if (irCache.has(c)) return irCache.get(c);
+  const sr = c.sampleRate, len = Math.floor(sr * 2.4), b = c.createBuffer(2, len, sr);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = b.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.5) * (i < sr * 0.012 ? i / (sr * 0.012) : 1);
+  }
+  irCache.set(c, b);
+  return b;
+}
+const reversedBuffers = new Map();
+function reversedBuffer(id) {
+  if (reversedBuffers.has(id)) return reversedBuffers.get(id);
+  const src = buffers.get(id).buffer;
+  const r = new AudioBuffer({ numberOfChannels: src.numberOfChannels, length: src.length, sampleRate: src.sampleRate });
+  for (let ch = 0; ch < src.numberOfChannels; ch++) { const d = src.getChannelData(ch).slice().reverse(); r.copyToChannel(d, ch); }
+  reversedBuffers.set(id, r);
+  return r;
+}
+function monoNode(c) {                      // forces a down-mix to one channel ((L + R) / 2)
+  const g = c.createGain();
+  g.channelCount = 1; g.channelCountMode = "explicit"; g.channelInterpretation = "speakers";
+  return g;
+}
+// Per-track strip: input -> high-pass -> low shelf -> mid peak -> high shelf -> compressor -> fader -> pan,
+// with a post-fader reverb send.
+function trackChain(c, t, dest) {
+  const n = {
+    input: c.createGain(), hp: c.createBiquadFilter(), low: c.createBiquadFilter(), mid: c.createBiquadFilter(),
+    high: c.createBiquadFilter(), comp: c.createDynamicsCompressor(), fader: c.createGain(), pan: c.createStereoPanner(), wet: null,
+  };
+  n.hp.type = "highpass"; n.hp.Q.value = 0.707;
+  n.low.type = "lowshelf"; n.low.frequency.value = 180;
+  n.mid.type = "peaking"; n.mid.frequency.value = 1500; n.mid.Q.value = 0.8;
+  n.high.type = "highshelf"; n.high.frequency.value = 5500;
+  n.comp.attack.value = 0.005; n.comp.release.value = 0.15; n.comp.knee.value = 8;
+  n.input.connect(n.hp).connect(n.low).connect(n.mid).connect(n.high).connect(n.comp).connect(n.fader).connect(n.pan).connect(dest);
+  if (t.fx.reverb > 0) {
+    const conv = c.createConvolver(); conv.buffer = impulse(c);
+    n.wet = c.createGain();
+    n.fader.connect(monoNode(c)).connect(conv).connect(n.wet).connect(n.pan);   // mono in, stereo room out
+  }
+  applyTrackParams(n, t, null);
+  return n;
+}
+function applyTrackParams(n, t, now) {
+  const set = (param, v) => now == null ? (param.value = v) : param.setTargetAtTime(v, now, 0.015);
+  const f = t.fx, a = f.comp / 100;
+  set(n.hp.frequency, f.hp > 0 ? f.hp : 5);       // 5 Hz is effectively off
+  set(n.low.gain, f.low); set(n.mid.gain, f.mid); set(n.high.gain, f.high);
+  set(n.comp.threshold, -40 * a); set(n.comp.ratio, 1 + 7 * a);   // the node adds its own make-up gain
+  set(n.fader.gain, trackAudible(t) ? t.gain : 0);
+  set(n.pan.pan, t.pan);
+  if (n.wet) set(n.wet.gain, f.reverb / 100 * 0.9);
+}
+// Master: volume -> (mono down-mix) -> (limiter) -> dest
+function masterChain(c, dest) {
+  const input = c.createGain();
+  input.gain.value = +$("master").value;
+  let out = input;
+  if (state.master.mono) { const m = monoNode(c); out.connect(m); out = m; }
+  if (state.master.limiter) {
+    const lim = c.createDynamicsCompressor();
+    lim.threshold.value = -1; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.08;
+    out.connect(lim); out = lim;
+  }
+  out.connect(dest);
+  return { input, out };
+}
 function buildGraph(c, dest, from, when0) {
   const trackNodes = new Map(), sources = [];
-  for (const t of state.tracks) {
-    const g = c.createGain(), p = c.createStereoPanner();
-    g.gain.value = trackAudible(t) ? t.gain : 0;
-    p.pan.value = t.pan;
-    g.connect(p).connect(dest);
-    trackNodes.set(t.id, { g, p });
-  }
+  for (const t of state.tracks) trackNodes.set(t.id, trackChain(c, t, dest));
   for (const clip of state.clips) {
     const tn = trackNodes.get(clip.trackId), b = buffers.get(clip.bufferId);
     if (!tn || !b || clip.start + clip.duration <= from) continue;
     const u0 = Math.max(0, from - clip.start);
     const when = when0 + Math.max(0, clip.start - from);
-    const src = c.createBufferSource(); src.buffer = b.buffer;
+    const D = clip.duration;
+    const src = c.createBufferSource();
+    src.buffer = clip.reverse ? reversedBuffer(clip.bufferId) : b.buffer;
+    const off = clip.reverse ? b.buffer.duration - clip.offset - D : clip.offset;
+    // channel handling
+    let head = src;
+    const nCh = b.buffer.numberOfChannels;
+    if (clip.channels !== "stereo" && nCh > 1) {
+      const m = monoNode(c);
+      if (clip.channels === "mono") src.connect(m);
+      else { const sp = c.createChannelSplitter(nCh); src.connect(sp); sp.connect(m, clip.channels === "left" ? 0 : 1); }
+      head = m;
+    }
     const cg = c.createGain();
-    src.connect(cg).connect(tn.g);
-    const D = clip.duration, fi = Math.min(clip.fadeIn, D), fo = Math.min(clip.fadeOut, D - fi);
+    head.connect(cg).connect(tn.input);
+    const fi = Math.min(clip.fadeIn, D), fo = Math.min(clip.fadeOut, D - fi);
     const env = u => { let v = clip.gain; if (fi > 0 && u < fi) v *= u / fi; if (fo > 0 && u > D - fo) v *= Math.max(0, (D - u) / fo); return v; };
     const at = u => when + (u - u0);
     cg.gain.setValueAtTime(env(u0), at(u0));
     if (fi > 0 && u0 < fi) cg.gain.linearRampToValueAtTime(env(fi), at(fi));
     if (fo > 0) {
-      const s = Math.max(u0, D - fo);
-      cg.gain.setValueAtTime(env(s), at(s));
+      const s2 = Math.max(u0, D - fo);
+      cg.gain.setValueAtTime(env(s2), at(s2));
       cg.gain.linearRampToValueAtTime(0, at(D));
     }
-    src.start(when, clip.offset + u0, D - u0);
+    src.start(when, off + u0, D - u0);
     sources.push(src);
   }
   return { trackNodes, sources };
@@ -796,10 +1023,13 @@ function play() {
   if (playing) return;
   const c = audioCtx();
   c.resume();
-  const master = c.createGain(); master.gain.value = +$("master").value; master.connect(c.destination);
+  const master = masterChain(c, c.destination);
+  const split = c.createChannelSplitter(2), anL = c.createAnalyser(), anR = c.createAnalyser();
+  anL.fftSize = anR.fftSize = 1024;
+  master.out.connect(split); split.connect(anL, 0); split.connect(anR, 1);
   const when0 = c.currentTime + 0.04;
-  const graph = buildGraph(c, master, playhead, when0);
-  playing = { ...graph, master, when0, from: playhead, raf: 0, last: playhead };
+  const graph = buildGraph(c, master.input, playhead, when0);
+  playing = { ...graph, master, meters: [anL, anR], meterBuf: new Float32Array(1024), peaks: [0, 0], when0, from: playhead, raf: 0, last: playhead };
   $("btnPlay").innerHTML = ICON_PAUSE;
   const tick = () => {
     if (!playing) return;
@@ -809,6 +1039,7 @@ function play() {
     if (playhead >= projectEnd() && !recorder) { playhead = projectEnd(); stop(false); updatePlayhead(); return; }
     updatePlayhead();
     followPlayhead();
+    updateMeters();
     playing.raf = requestAnimationFrame(tick);
   };
   playing.raf = requestAnimationFrame(tick);
@@ -817,9 +1048,10 @@ function stop(rewind) {
   if (playing) {
     cancelAnimationFrame(playing.raf);
     playing.sources.forEach(s => { try { s.stop(); } catch {} });
-    playing.master.disconnect();
+    playing.master.out.disconnect();
     playing = null;
   }
+  setMeter(0, 0); setMeter(1, 0);
   $("btnPlay").innerHTML = ICON_PLAY;
   if (rewind) { playhead = 0; updatePlayhead(); els.scroll.scrollLeft = 0; }
 }
@@ -842,10 +1074,26 @@ function updateLiveMix() {
   for (const t of state.tracks) {
     const n = playing.trackNodes.get(t.id);
     if (!n) continue;
-    n.g.gain.setTargetAtTime(trackAudible(t) ? t.gain : 0, actx.currentTime, 0.01);
-    n.p.pan.setTargetAtTime(t.pan, actx.currentTime, 0.01);
+    if (!n.wet !== !(t.fx.reverb > 0)) return restartIfPlaying();   // reverb send added or removed
+    applyTrackParams(n, t, actx.currentTime);
   }
-  playing.master.gain.setTargetAtTime(+$("master").value, actx.currentTime, 0.01);
+  playing.master.input.gain.setTargetAtTime(+$("master").value, actx.currentTime, 0.01);
+}
+function setMeter(i, v) {
+  $(i ? "meterR" : "meterL").style.setProperty("--v", (clamp(v, 0, 1) * 100).toFixed(1) + "%");
+}
+function updateMeters() {
+  const buf = playing.meterBuf;
+  playing.meters.forEach((an, i) => {
+    an.getFloatTimeDomainData(buf);
+    let pk = 0;
+    for (let j = 0; j < buf.length; j++) { const a = Math.abs(buf[j]); if (a > pk) pk = a; }
+    const db = pk > 0 ? 20 * Math.log10(pk) : -60;
+    const v = clamp((db + 48) / 48, 0, 1);                      // -48 dB .. 0 dB
+    playing.peaks[i] = Math.max(v, playing.peaks[i] - 0.025);   // smooth fall-off
+  });
+  if (state.master.mono) playing.peaks[1] = playing.peaks[0];
+  setMeter(0, playing.peaks[0]); setMeter(1, playing.peaks[1]);
 }
 // Scrubbing: playback pauses while you drag (so the audio clock can't fight the pointer)
 // and resumes from the new position on release.
@@ -934,21 +1182,30 @@ async function importFiles(files, trackId, at) {
 }
 
 // ---------- WAV export ----------
-function encodeWav(buffer) {
-  const ch = buffer.numberOfChannels, sr = buffer.sampleRate, n = buffer.length;
-  const out = new DataView(new ArrayBuffer(44 + n * ch * 2));
+function encodeWav(buffer, bits = 16) {
+  const ch = buffer.numberOfChannels, sr = buffer.sampleRate, n = buffer.length, B = bits / 8;
+  const size = n * ch * B;
+  const out = new DataView(new ArrayBuffer(44 + size));
   const str = (o, s) => [...s].forEach((c, i) => out.setUint8(o + i, c.charCodeAt(0)));
-  str(0, "RIFF"); out.setUint32(4, 36 + n * ch * 2, true); str(8, "WAVE"); str(12, "fmt ");
+  str(0, "RIFF"); out.setUint32(4, 36 + size, true); str(8, "WAVE"); str(12, "fmt ");
   out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, ch, true);
-  out.setUint32(24, sr, true); out.setUint32(28, sr * ch * 2, true); out.setUint16(32, ch * 2, true);
-  out.setUint16(34, 16, true); str(36, "data"); out.setUint32(40, n * ch * 2, true);
+  out.setUint32(24, sr, true); out.setUint32(28, sr * ch * B, true); out.setUint16(32, ch * B, true);
+  out.setUint16(34, bits, true); str(36, "data"); out.setUint32(40, size, true);
   const data = []; for (let c = 0; c < ch; c++) data.push(buffer.getChannelData(c));
   let o = 44;
   for (let i = 0; i < n; i++) for (let c = 0; c < ch; c++) {
     const v = clamp(data[c][i], -1, 1);
-    out.setInt16(o, v < 0 ? v * 0x8000 : v * 0x7fff, true); o += 2;
+    if (bits === 16) { out.setInt16(o, v < 0 ? v * 0x8000 : v * 0x7fff, true); o += 2; }
+    else { const x = Math.round(v < 0 ? v * 0x800000 : v * 0x7fffff); out.setUint8(o, x & 255); out.setUint8(o + 1, (x >> 8) & 255); out.setUint8(o + 2, (x >> 16) & 255); o += 3; }
   }
   return new Blob([out], { type: "audio/wav" });
+}
+function normalizeBuffer(buf, peakDb = -1) {
+  let pk = 0;
+  for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < d.length; i++) { const a = Math.abs(d[i]); if (a > pk) pk = a; } }
+  if (!pk) return;
+  const k = dbToGain(peakDb) / pk;
+  for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] *= k; }
 }
 function download(blob, name) {
   const a = document.createElement("a");
@@ -959,24 +1216,30 @@ function download(blob, name) {
 async function exportMix() {
   const end = projectEnd();
   if (end <= 0) return toast("Nothing to export yet.");
-  const sr = 48000;
-  const oc = new OfflineAudioContext(2, Math.ceil(end * sr) + 1, sr);
-  const m = oc.createGain(); m.gain.value = +$("master").value; m.connect(oc.destination);
-  buildGraph(oc, m, 0, 0);
+  const sr = +$("pRate").value, chans = state.master.mono ? 1 : 2;
+  const tail = state.tracks.some(t => t.fx.reverb > 0) ? 2.4 : 0;     // let reverb ring out
+  const oc = new OfflineAudioContext(chans, Math.ceil((end + tail) * sr) + 1, sr);
+  const m = masterChain(oc, oc.destination);
+  buildGraph(oc, m.input, 0, 0);
   const label = $("btnExport").querySelector("span");
   $("btnExport").disabled = true; label.textContent = "Rendering…";
-  try { download(encodeWav(await oc.startRendering()), "mix.wav"); }
+  try {
+    const out = await oc.startRendering();
+    if ($("pNorm").checked) normalizeBuffer(out);
+    download(encodeWav(out, +$("pBits").value), state.master.mono ? "mix-mono.wav" : "mix.wav");
+  }
   finally { $("btnExport").disabled = false; label.textContent = "Export"; }
 }
 async function exportClip() {
   const c = clipById(sel.clipId);
   if (!c) return;
   const b = buffers.get(c.bufferId).buffer, sr = b.sampleRate;
-  const oc = new OfflineAudioContext(b.numberOfChannels, Math.ceil(c.duration * sr), sr);
-  const only = { tracks: [{ id: "x", gain: 1, pan: 0, mute: false, solo: false }], clips: [{ ...c, trackId: "x", start: 0 }] };
+  const chans = c.channels !== "stereo" ? 1 : b.numberOfChannels;
+  const oc = new OfflineAudioContext(chans, Math.ceil(c.duration * sr), sr);
+  const only = { master: { mono: false, limiter: false }, tracks: [{ id: "x", gain: 1, pan: 0, mute: false, solo: false, fx: { ...FX_DEFAULT } }], clips: [{ ...c, trackId: "x", start: 0 }] };
   const saved = state; state = only;
   try { buildGraph(oc, oc.destination, 0, 0); } finally { state = saved; }
-  download(encodeWav(await oc.startRendering()), (c.name || "clip").replace(/[^\w\- ]+/g, "_").slice(0, 60) + ".wav");
+  download(encodeWav(await oc.startRendering(), +$("pBits").value), (c.name || "clip").replace(/[^\w\- ]+/g, "_").slice(0, 60) + ".wav");
 }
 
 // ---------- pointer interactions on the timeline ----------
@@ -1020,7 +1283,8 @@ els.tracks.addEventListener("pointerdown", e => {
   const c = clipById(clipNode.dataset.id);
   selectClip(c.id);
   setTab("clip");
-  const mode = e.target.classList.contains("l") ? "l" : e.target.classList.contains("r") ? "r" : "move";
+  const cl = e.target.classList;
+  const mode = cl.contains("fi") ? "fi" : cl.contains("fo") ? "fo" : cl.contains("l") ? "l" : cl.contains("r") ? "r" : "move";
   const before = JSON.stringify(state);
   const orig = { ...c };
   const bufDur = buffers.get(c.bufferId).buffer.duration;
@@ -1049,6 +1313,10 @@ els.tracks.addEventListener("pointerdown", e => {
         selectTrack(c.trackId);
         drawWave(clipNode.querySelector("canvas"), c, trackColor(trackById(c.trackId)));
       }
+    } else if (mode === "fi") {
+      c.fadeIn = clamp(orig.fadeIn + dx, 0, c.duration - c.fadeOut);
+    } else if (mode === "fo") {
+      c.fadeOut = clamp(orig.fadeOut - dx, 0, c.duration - c.fadeIn);
     } else if (mode === "l") {
       const ns = snapTo(orig.start + dx, pts);
       const d = clamp(ns - orig.start, Math.max(-orig.offset, -orig.start), orig.duration - 0.01);
@@ -1060,6 +1328,7 @@ els.tracks.addEventListener("pointerdown", e => {
     c.fadeIn = Math.min(c.fadeIn, c.duration); c.fadeOut = Math.min(c.fadeOut, c.duration - c.fadeIn);
     clipNode.style.left = c.start * pps + "px";
     clipNode.style.width = Math.max(2, c.duration * pps) + "px";
+    positionFades(clipNode, c);
     if (mode !== "move") drawWave(clipNode.querySelector("canvas"), c, trackColor(trackById(c.trackId)));
     renderInspector();
   };
@@ -1079,8 +1348,8 @@ els.tracks.addEventListener("pointerdown", e => {
 els.tracks.addEventListener("click", e => {
   const row = e.target.closest(".track"); if (!row) return;
   const t = trackById(row.dataset.id);
-  if (e.target.closest(".th")) selectTrack(t.id);
   const btn = e.target.closest("button");
+  if (e.target.closest(".th")) { selectTrack(t.id); if (!btn) setTab("track"); }
   if (!btn) return;
   if (btn.matches(".m")) { t.mute = !t.mute; btn.classList.toggle("on", t.mute); updateLiveMix(); }
   if (btn.matches(".s")) { t.solo = !t.solo; btn.classList.toggle("on", t.solo); updateLiveMix(); }
@@ -1094,7 +1363,7 @@ els.tracks.addEventListener("input", e => {
   const t = trackById(row.dataset.id);
   if (e.target.matches(".vol")) { t.gain = +e.target.value; setRangeFill(e.target); updateLiveMix(); }
   if (e.target.matches(".pan")) { t.pan = +e.target.value; updateLiveMix(); }
-  if (e.target.matches(".tname")) t.name = e.target.value;
+  if (e.target.matches(".tname")) { t.name = e.target.value; renderTrackPane(); }
 });
 els.tracks.addEventListener("dblclick", e => {
   if (e.target.matches(".pan")) { e.target.value = 0; e.target.dispatchEvent(new Event("input", { bubbles: true })); }
@@ -1157,7 +1426,53 @@ $("btnNormalize").addEventListener("click", () => editClip(c => {
   if (pk > 0) c.gain = dbToGain(-1) / pk;
 }));
 $("btnClipWav").addEventListener("click", exportClip);
-$("seg").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b) setTab(b.dataset.tab); });
+$("cChannels").addEventListener("change", e => editClip(c => c.channels = e.target.value));
+$("cReverse").addEventListener("change", e => editClip(c => c.reverse = e.target.checked));
+
+// live edits (sliders): snapshot once when the drag starts, push to undo when it ends
+let pendingSnap = null;
+const liveEdit = fn => { if (!pendingSnap) pendingSnap = JSON.stringify(state); fn(); };
+const commitLive = () => { if (pendingSnap && pendingSnap !== JSON.stringify(state)) { pushUndo(pendingSnap); pendingSnap = null; $("btnUndo").disabled = false; $("btnRedo").disabled = true; } pendingSnap = null; };
+(function buildTrackPane() {
+  for (const d of FX_DEFS) {
+    $(d.box).insertAdjacentHTML("beforeend", `<div class="fx-row"><span>${d.label}</span>
+      <input type="range" id="fx_${d.key}" class="${d.bipolar ? "bipolar" : ""}" min="${d.min}" max="${d.max}" step="${d.step}" value="0" title="Double-click to reset">
+      <output id="fxv_${d.key}"></output></div>`);
+    const inp = $("fx_" + d.key);
+    inp.addEventListener("input", () => {
+      const t = trackById(sel.trackId); if (!t) return;
+      liveEdit(() => t.fx[d.key] = +inp.value);
+      $("fxv_" + d.key).textContent = d.fmt(t.fx[d.key]);
+      setRangeFill(inp);
+      document.querySelector(`.track[data-id="${t.id}"] .fxb`)?.toggleAttribute("hidden", !hasFx(t));
+      updateLiveMix();
+    });
+    inp.addEventListener("change", commitLive);
+    inp.addEventListener("dblclick", () => { inp.value = FX_DEFAULT[d.key]; inp.dispatchEvent(new Event("input")); commitLive(); });
+  }
+  SYS_COLORS.forEach((_, i) => {
+    const b = document.createElement("button"); b.title = "Track colour";
+    b.onclick = () => { const t = trackById(sel.trackId); if (!t) return; pushUndo(); t.color = i; render(); };
+    $("tColors").appendChild(b);
+  });
+})();
+$("tName").addEventListener("input", e => {
+  const t = trackById(sel.trackId); if (!t) return;
+  liveEdit(() => t.name = e.target.value);
+  const h = document.querySelector(`.track[data-id="${t.id}"] .tname`); if (h) h.value = t.name;
+});
+$("tName").addEventListener("change", commitLive);
+$("tReset").onclick = () => { const t = trackById(sel.trackId); if (!t || !hasFx(t)) return; pushUndo(); t.fx = { ...FX_DEFAULT }; afterStructuralChange(); };
+function setMono(on) {
+  if (state.master.mono === on) return;
+  pushUndo(); state.master.mono = on;
+  renderProjectPane(); restartIfPlaying();
+  toast(on ? "Mono output on: playback and export are now one channel." : "Mono output off: back to stereo.");
+}
+$("pMono").onchange = e => setMono(e.target.checked);
+$("btnMono").onclick = () => setMono(!state.master.mono);
+$("pLimiter").onchange = e => { pushUndo(); state.master.limiter = e.target.checked; restartIfPlaying(); };
+$("seg").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b) { setTab(b.dataset.tab); renderInspector(); } });
 function toggleInspector(force) {
   const open = force ?? els.insp.classList.contains("closed");
   els.insp.classList.toggle("closed", !open);
